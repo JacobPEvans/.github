@@ -5,9 +5,9 @@ First off, thanks for considering contributing to this project. It's just me her
 ## The Short Version
 
 1. Fork it
-2. Create your feature branch (`git checkout -b feature/cool-thing`)
+2. Create your feature branch (`git checkout -b feat/cool-thing`)
 3. Commit your changes (`git commit -m 'Add some cool thing'`)
-4. Push to the branch (`git push origin feature/cool-thing`)
+4. Push to the branch (`git push origin feat/cool-thing`)
 5. Open a Pull Request
 
 That's it. I'm not picky.
@@ -24,8 +24,8 @@ If you've never signed commits before, don't worry—it only takes a few minutes
 
 2. **Configure Git to sign your commits**: After setting up your GPG key, tell Git to use it:
    ```bash
-   git config --global user.signingkey <YOUR_GPG_KEY_ID>
-   git config --global commit.gpgsign true
+   git config user.signingkey <YOUR_GPG_KEY_ID>
+   git config commit.gpgsign true
    ```
    (Replace `<YOUR_GPG_KEY_ID>` with your actual key ID from step 1)
 
@@ -41,7 +41,12 @@ Found a bug? Something unclear? Open an issue. Describe what you expected, what 
 
 ## Pull Requests
 
-For detailed PR workflow guidance, see [PR Review Command](agentsmd/commands/review-pr.md).
+### Opening Your PR
+
+When opening your PR:
+- Describe what changes you made and why
+- Reference any related issues with "Closes #X" or "Fixes #X"
+- Keep the PR focused on a single feature or fix
 
 ### Before You Start
 
