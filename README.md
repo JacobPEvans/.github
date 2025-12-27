@@ -2,95 +2,182 @@
 
 Default community health files, issue templates, and shared configurations for all JacobPEvans repositories.
 
-## What This Repo Provides
+## About This Repository
 
-Files in this repository automatically apply as defaults to all other public repositories that don't have their own versions:
+This is GitHub's special **`.github` repository**, which provides organization-wide default files for all public repositories.
+Files stored here are automatically inherited by any repository that doesn't have its own version.
 
-| File | Purpose |
-|------|---------|
-| `ISSUE_TEMPLATE/*.yml` | Standardized issue forms with required fields |
-| `labels.yml` | Canonical label definitions (synced via automation) |
+### How Inheritance Works
+
+**Automatic Inheritance**: When someone views a community health file in a repository that doesn't have one, GitHub displays the version from this `.github` repository.
+This happens in real-time.
+No syncing is required.
+
+**Search Order**: GitHub looks for files in this order within both the target repository and this `.github` repository:
+
+1. The `.github/` folder
+2. The repository root
+3. The `docs/` folder
+
+**One-Way Flow**: Files in this repository serve as fallbacks. Changes here don't overwrite or sync to repositories that already have their own versions.
+
+**Override Behavior**: Any repository can override these defaults by creating its own version of a file.
+For issue templates specifically, if a repository has ANY files in its own `.github/ISSUE_TEMPLATE/` folder, NONE of the defaults from this repository will be used.
+
+**Public Requirement**: This repository **must be public** for inheritance to work organization-wide.
+Private `.github` repositories only work for private repositories in the same organization.
+
+**Learn More**:
+[Creating a default community health file - GitHub Docs](https://docs.github.com/en/communities/setting-up-your-project-for-healthy-contributions/creating-a-default-community-health-file)
+
+### Supported Inheritable Files
+
+According to [GitHub's documentation][supported-files], the following files can be inherited:
+
+[supported-files]: https://docs.github.com/en/communities/setting-up-your-project-for-healthy-contributions/creating-a-default-community-health-file#supported-file-types
+
+- `CODE_OF_CONDUCT.md`
+- `CONTRIBUTING.md`
+- Discussion category forms
+- `FUNDING.yml`
+- `GOVERNANCE.md`
+- Issue and pull request templates
+- `SECURITY.md`
+- `SUPPORT.md`
+
+**Note**: `LICENSE` files **cannot** be inherited and must be added to each repository individually.
+
+## Repository Structure
+
+### Root Files
+
+| File         | Purpose                         | Inherited? | Documentation |
+| ------------ | ------------------------------- | ---------- | ------------- |
+| `README.md`  | This file                       | No         | -             |
+| `LICENSE`    | MIT License for this repository | No         | -             |
+| `AGENTS.md`  | Quick reference for AI agents   | No         | -             |
+
+### `docs/`
+
+Documentation files (inheritable by other repositories):
+
+| File                   | Purpose                     | Inherited? | Documentation                      |
+| ---------------------- | --------------------------- | ---------- | ---------------------------------- |
+| `docs/CONTRIBUTING.md` | Contribution guidelines     | Yes        | [About CONTRIBUTING][contrib-docs] |
+| `docs/LABELS.md`       | Label system documentation  | No         | -                                  |
+
+[contrib-docs]: https://docs.github.com/en/communities/setting-up-your-project-for-healthy-contributions/setting-guidelines-for-repository-contributors
+
+### `.github/`
+
+| File                 | Purpose                     | Inherited? | Documentation                  |
+| -------------------- | --------------------------- | ---------- | ------------------------------ |
+| `.github/labels.yml` | Canonical label definitions | No         | [Managing labels][labels-docs] |
+
+[labels-docs]: https://docs.github.com/en/issues/using-labels-and-milestones-to-track-work/managing-labels
+
+#### `.github/ISSUE_TEMPLATE/`
+
+Standardized [issue forms][issue-forms-docs] that enforce the label taxonomy and collect structured information:
+
+| Template              | Description                               | Auto-Label     | File                  |
+| --------------------- | ----------------------------------------- | -------------- | --------------------- |
+| **Bug Report**        | Bug reports with reproduction steps       | `type:bug`     | `bug_report.yml`      |
+| **Feature Request**   | Feature requests and enhancements         | `type:feature` | `feature_request.yml` |
+| **Documentation**     | Documentation improvements                | `type:docs`    | `documentation.yml`   |
+| **Chore/Maintenance** | Maintenance and tooling tasks             | `type:chore`   | `chore.yml`           |
+| **Template Config**   | Disables blank issues, configures chooser | -              | `config.yml`          |
+
+**All templates require**:
+
+- Priority selection (`priority:critical/high/medium/low`)
+- Size estimation (`size:xs/s/m/l/xl`)
+
+**Learn More**:
+
+- [About issue and pull request templates][issue-forms-docs]
+- [Syntax for issue forms][issue-forms-syntax]
+
+[issue-forms-docs]: https://docs.github.com/en/communities/using-templates-to-encourage-useful-issues-and-pull-requests/about-issue-and-pull-request-templates
+[issue-forms-syntax]: https://docs.github.com/en/communities/using-templates-to-encourage-useful-issues-and-pull-requests/syntax-for-issue-forms
+
+#### `.github/workflows/`
+
+[GitHub Actions workflows][workflows-docs] that automate label management:
+
+| Workflow                | Purpose                                                                  | Trigger        | Documentation                     |
+| ----------------------- | ------------------------------------------------------------------------ | -------------- | --------------------------------- |
+| `auto-label-issues.yml` | Automatically applies priority and size labels from issue form dropdowns | Issue creation | [Using workflows][workflows-docs] |
+
+**How it works**: When an issue is created from a template, the workflow extracts the user's dropdown selections (priority and size).
+It then applies the corresponding labels automatically.
+
+[workflows-docs]: https://docs.github.com/en/actions/using-workflows/about-workflows
 
 ## Label System
 
-All repositories use a consistent labeling taxonomy.
+All repositories use a consistent labeling taxonomy for issue classification and workflow management.
 
-### Required Labels (enforced via issue templates)
+**See [LABELS.md](docs/LABELS.md) for complete documentation.**
 
-Every issue must have:
-- **At least one** `type:*` label
-- **Exactly one** `priority:*` label
-- **Exactly one** `size:*` label
+### Quick Reference
 
-### Label Categories
+- **Type labels** (`type:*`): bug, feature, breaking, docs, chore, ci, test, refactor, perf
+- **Priority labels** (`priority:*`): critical, high, medium, low
+- **Size labels** (`size:*`): xs, s, m, l, xl
+- **AI workflow labels** (`ai:*`): created, ready
+- **Triage labels**: duplicate, invalid, wontfix, question
 
-#### Type Labels (`type:*`)
+**Learn More**: [Managing labels - GitHub Docs](https://docs.github.com/en/issues/using-labels-and-milestones-to-track-work/managing-labels)
 
-| Label | Description | Semver |
-|-------|-------------|--------|
-| `type:bug` | Something isn't working | PATCH |
-| `type:feature` | New feature or request | MINOR |
-| `type:breaking` | Breaking changes | MAJOR |
-| `type:docs` | Documentation only changes | - |
-| `type:chore` | Maintenance, dependencies, tooling | - |
-| `type:ci` | CI/CD pipeline changes | - |
-| `type:test` | Adding or correcting tests | - |
-| `type:refactor` | Code change with no functional change | - |
-| `type:perf` | Performance improvements | - |
+## Using These Files in Your Repositories
 
-#### Priority Labels (`priority:*`)
+### Option 1: Inherit (Recommended)
 
-| Label | Description |
-|-------|-------------|
-| `priority:critical` | Urgent - requires immediate attention |
-| `priority:high` | Should be addressed soon |
-| `priority:medium` | Normal workflow |
-| `priority:low` | Address when time permits |
+Simply don't create your own versions of community health files. GitHub will automatically display files from this `.github` repository as fallbacks.
 
-#### Size Labels (`size:*`)
+**How to check**: Visit `https://github.com/JacobPEvans/YOUR_REPO/community` to see which files are inherited vs. defined in your repository.
 
-| Label | Description |
-|-------|-------------|
-| `size:xs` | Trivial change, <1 hour |
-| `size:s` | Simple change, 1-4 hours |
-| `size:m` | Moderate effort, 1-2 days |
-| `size:l` | Significant work, 3-5 days |
-| `size:xl` | Major effort, 1+ weeks |
+**Pros**: Zero maintenance. Updates to this repository automatically apply to all repos without their own files.
 
-#### AI Workflow Labels (`ai:*`)
+**Cons**: Can't customize per-repository without losing inheritance completely.
 
-| Label | Description |
-|-------|-------------|
-| `ai:created` | AI-generated issue - requires human approval |
-| `ai:ready` | Human-approved and ready for any AI agent to implement |
+### Option 2: Override
 
-**Logic:** `ai:created` alone means the issue needs human review. `ai:created` + `ai:ready` means it's approved for work.
+Create your own version of a file in your repository to override the default.
 
-#### Triage Labels
+**Examples**:
 
-| Label | Description |
-|-------|-------------|
-| `duplicate` | This issue already exists |
-| `invalid` | This doesn't seem right |
-| `wontfix` | This will not be worked on |
-| `question` | Further information is requested |
+- Add `CONTRIBUTING.md` to your repo root or `docs/` folder to replace the inherited version
+- Add any file to `.github/ISSUE_TEMPLATE/` to disable ALL template inheritance
 
-## Syncing Labels to Other Repos
+**Pros**: Full customization for specific repository needs.
 
-Labels are synced using [EndBug/label-sync](https://github.com/EndBug/label-sync). To sync labels to a repository:
+**Cons**: Loses automatic updates from this `.github` repository.
+
+### Option 3: Sync Labels
+
+Labels are **not inherited** automatically. Use the [GitHub CLI](https://cli.github.com/) to sync them from `.github/labels.yml`:
 
 ```bash
 # One-time sync from this repo to another
-gh label clone JacobPEvans/.github -R JacobPEvans/TARGET_REPO --force
+gh label clone JacobPEvans/.github -R JacobPEvans/YOUR_REPO --force
 ```
 
-## Issue Templates
+**Why `--force`?** Updates existing labels and creates new ones. Without it, the command fails if labels already exist.
 
-Issue templates enforce the required label structure through dropdown fields. Templates are provided for:
+**Learn More**: [GitHub CLI manual](https://cli.github.com/manual/)
 
-- Bug Report (`type:bug`)
-- Feature Request (`type:feature`)
-- Documentation (`type:docs`)
-- Chore/Maintenance (`type:chore`)
+## Contributing
 
-Blank issues are disabled to ensure all issues follow the template structure.
+See [CONTRIBUTING.md](docs/CONTRIBUTING.md) for guidelines on contributing to this repository.
+
+---
+
+**Related Documentation**:
+
+- [About community profiles for public repositories](https://docs.github.com/en/communities/setting-up-your-project-for-healthy-contributions/about-community-profiles-for-public-repositories)
+- [Creating a default community health file](https://docs.github.com/en/communities/setting-up-your-project-for-healthy-contributions/creating-a-default-community-health-file)
+- [GitHub CLI documentation](https://cli.github.com/manual/)
+
+**Maintained by**: Jacob P Evans
