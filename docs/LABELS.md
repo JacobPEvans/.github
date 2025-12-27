@@ -1,6 +1,6 @@
 # Label System
 
-All JacobPEvans repositories use a consistent labeling taxonomy defined in `.github/labels.yml`.
+All JacobPEvans repositories use a consistent labeling taxonomy defined in [`.github/labels.yml`](../.github/labels.yml).
 This system ensures standardized issue classification, effort estimation, and workflow management across all projects.
 
 ## Overview
@@ -100,7 +100,7 @@ This two-label system ensures AI agents can create issues autonomously while mai
 
 ## Syncing Labels to Repositories
 
-Labels defined in `.github/labels.yml` can be synced to other repositories using the [GitHub CLI](https://cli.github.com/):
+Labels defined in [`.github/labels.yml`](../.github/labels.yml) can be synced to other repositories using the [GitHub CLI](https://cli.github.com/):
 
 ```bash
 # One-time sync from this repo to another
@@ -117,7 +117,9 @@ For automated syncing across multiple repositories, consider using the [EndBug/l
 
 ## Issue Template Integration
 
-Issue templates in `../.github/ISSUE_TEMPLATE/` enforce the required label structure through a combination of frontmatter and dropdown fields:
+Issue templates in [`../.github/ISSUE_TEMPLATE/`][issue-templates] enforce the required label structure through a combination of frontmatter and dropdown fields:
+
+[issue-templates]: ../.github/ISSUE_TEMPLATE/
 
 - **Type labels**: Automatically applied via template frontmatter (`labels: ["type:feature"]`)
 - **Priority labels**: Selected by issue author via dropdown field
@@ -136,9 +138,11 @@ Each template includes required dropdown fields for priority and size, ensuring 
 
 ### Automated Label Application
 
-The `../.github/workflows/auto-label-issues.yml` GitHub Actions workflow automatically extracts priority and size labels from dropdown selections.
+The [`../.github/workflows/auto-label-issues.yml`][auto-label-workflow] GitHub Actions workflow automatically extracts priority and size labels from dropdown selections.
 It then applies them to newly created issues.
 This automation eliminates manual labeling and ensures consistency.
+
+[auto-label-workflow]: ../.github/workflows/auto-label-issues.yml
 
 **Blank issues are disabled** via `config.yml` to ensure all issues follow the template structure and receive proper labels.
 
@@ -149,7 +153,7 @@ All documentation, tooling, and automation references this file.
 
 When updating labels:
 
-1. Modify `.github/labels.yml` first
+1. Modify [`.github/labels.yml`](../.github/labels.yml) first
 2. Update this documentation to reflect changes
 3. Sync to other repositories using the `gh label clone` command
 4. Update issue templates if new label categories are added
