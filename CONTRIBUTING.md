@@ -24,6 +24,8 @@ If you've never signed commits before, don't worry—it only takes a few minutes
 
 2. **Configure Git to sign your commits**: After setting up your GPG key, tell Git to use it:
    ```bash
+   # The following commands apply only to this repository.
+   # To sign commits for all your projects, add the `--global` flag.
    git config user.signingkey <YOUR_GPG_KEY_ID>
    git config commit.gpgsign true
    ```
