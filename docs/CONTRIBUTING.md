@@ -23,12 +23,14 @@ If you've never signed commits before, don't worry—it only takes a few minutes
 1. **Generate a GPG key** (if you don't have one): Follow [GitHub's guide on generating a GPG key](https://docs.github.com/en/authentication/managing-commit-signature-verification/generating-a-new-gpg-key)
 
 2. **Configure Git to sign your commits**: After setting up your GPG key, tell Git to use it:
+
    ```bash
    # The following commands apply only to this repository.
    # To sign commits for all your projects, add the `--global` flag.
    git config user.signingkey <YOUR_GPG_KEY_ID>
    git config commit.gpgsign true
    ```
+
    (Replace `<YOUR_GPG_KEY_ID>` with your actual key ID from step 1)
 
 3. **Add your public key to GitHub**: [Add your GPG key to your GitHub account](https://docs.github.com/en/authentication/managing-commit-signature-verification/adding-a-gpg-key-to-your-github-account)
@@ -43,12 +45,63 @@ Found a bug? Something unclear? Open an issue. Describe what you expected, what 
 
 ## Pull Requests
 
-### Opening Your PR
+### Selecting a Template
 
-When opening your PR:
-- Describe what changes you made and why
-- Reference any related issues with "Closes #X" or "Fixes #X"
-- Keep the PR focused on a single feature or fix
+This repository provides multiple PR templates for different types of changes. Select the template that best matches your PR:
+
+- **Bug fixes**: Append `?template=bug.md` to the PR creation URL
+- **New features**: Append `?template=feature.md` to the PR creation URL
+- **Breaking changes**: Append `?template=breaking.md` to the PR creation URL
+- **Documentation**: Append `?template=docs.md` to the PR creation URL
+- **Refactoring**: Append `?template=refactor.md` to the PR creation URL
+- **Performance**: Append `?template=performance.md` to the PR creation URL
+- **Other changes** (chores, CI, tests): Default template loads automatically
+
+### PR Title Format
+
+All PRs must use **conventional commit format** in the title:
+
+**Format**: `type(scope): brief description`
+
+**Types** (must match `type:*` labels):
+
+- `feat` - New features (type:feature)
+- `fix` - Bug fixes (type:bug)
+- `docs` - Documentation (type:docs)
+- `chore` - Maintenance (type:chore)
+- `ci` - CI/CD changes (type:ci)
+- `test` - Test updates (type:test)
+- `refactor` - Code refactoring (type:refactor)
+- `perf` - Performance (type:perf)
+- `feat!` or `breaking(scope):` - Breaking changes (type:breaking)
+
+**Examples**:
+
+- `feat(api): add user authentication endpoint`
+- `fix(ui): resolve button alignment issue`
+- `docs(readme): update installation instructions`
+- `chore(deps): update dependencies`
+- `feat!: remove deprecated v1 API endpoints`
+
+See [Conventional Commits](https://www.conventionalcommits.org/) for full specification.
+
+### Required Labels
+
+Every PR must have these labels applied:
+
+- **Type**: One `type:*` label (feat, fix, breaking, docs, chore, ci, test, refactor, perf)
+- **Priority**: One `priority:*` label (critical, high, medium, low)
+- **Size**: One `size:*` label (xs, s, m, l, xl)
+
+See [LABELS.md](LABELS.md) for complete label definitions.
+
+### Issue Linking
+
+**Always link all related issues** in your PR description:
+
+- Use `Closes #123` for issues this PR fully resolves
+- Use `Related to #123` for connected issues
+- Use `Partially addresses #123` when incomplete (create child issues/tasks for remaining work)
 
 ### Before You Start
 
@@ -67,14 +120,31 @@ Follow the existing patterns in `agentsmd/`. If you're not sure about something,
 
 ### Commit Messages
 
-Use conventional commits if you remember:
+**Conventional commits are required**. Format your commit messages as:
 
-- `feat:` for new features
-- `fix:` for bug fixes
-- `docs:` for documentation changes
-- `refactor:` for code changes that don't add features or fix bugs
+- `feat(scope): description` for new features
+- `fix(scope): description` for bug fixes
+- `docs(scope): description` for documentation changes
+- `refactor(scope): description` for code changes that don't add features or fix bugs
+- Other types: `chore`, `ci`, `test`, `perf`, etc.
 
-But honestly, as long as your commit message explains what you did, we're good.
+Your PR title must also follow this format (see "PR Title Format" section above).
+
+See [Conventional Commits](https://www.conventionalcommits.org/) for full specification.
+
+### Pre-Submission Checklist
+
+Before submitting your PR:
+
+- [ ] PR title follows conventional commits format: `type(scope): description`
+- [ ] Related issues are linked in the description
+- [ ] Type, priority, and size labels are applied
+- [ ] Commits follow conventional commits specification
+- [ ] All commits are GPG signed
+- [ ] No merge commits (rebase if needed)
+- [ ] Markdown linting passes
+- [ ] PR is focused on a single concern
+- [ ] Self-review completed
 
 ## What Gets Accepted
 

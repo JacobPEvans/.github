@@ -101,6 +101,41 @@ Standardized [issue forms][issue-forms-docs] that enforce the label taxonomy and
 [issue-forms-docs]: https://docs.github.com/en/communities/using-templates-to-encourage-useful-issues-and-pull-requests/about-issue-and-pull-request-templates
 [issue-forms-syntax]: https://docs.github.com/en/communities/using-templates-to-encourage-useful-issues-and-pull-requests/syntax-for-issue-forms
 
+#### `.github/PULL_REQUEST_TEMPLATE/`
+
+Standardized [pull request templates][pr-templates-docs] that enforce conventional commits and collect structured information:
+
+| Template              | Use Case                          | Type Label      | File                         |
+| --------------------- | --------------------------------- | --------------- | ---------------------------- |
+| **Default/General**   | Chores, CI, tests, other changes  | Multiple        | `pull_request_template.md`   |
+| **Bug Fix**           | Bug fixes with root cause         | `type:bug`      | `bug.md`                     |
+| **Feature**           | New features with design docs     | `type:feature`  | `feature.md`                 |
+| **Breaking Change**   | Breaking changes with migration   | `type:breaking` | `breaking.md`                |
+| **Documentation**     | Docs improvements                 | `type:docs`     | `docs.md`                    |
+| **Refactoring**       | Code refactoring with impact      | `type:refactor` | `refactor.md`                |
+| **Performance**       | Performance improvements          | `type:perf`     | `performance.md`             |
+
+**All templates require**:
+
+- Conventional commit format in PR title (`type(scope): description`)
+- Related issue linking
+- Type, priority, and size labels
+- GPG-signed commits
+
+**Selecting a template**:
+
+- Default template loads automatically
+- Use query parameter for specific template: `?template=bug.md`
+- Templates align with [Conventional Commits][conventional-commits] specification
+
+**Learn More**:
+
+- [Creating a pull request template for your repository][pr-templates-docs]
+- [Conventional Commits specification][conventional-commits]
+
+[pr-templates-docs]: https://docs.github.com/en/communities/using-templates-to-encourage-useful-issues-and-pull-requests/creating-a-pull-request-template-for-your-repository
+[conventional-commits]: https://www.conventionalcommits.org/
+
 #### `.github/workflows/`
 
 [GitHub Actions workflows][workflows-docs] that automate label management:

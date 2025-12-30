@@ -18,6 +18,8 @@ They are automatically applied via the [auto-label-issues.yml](../.github/workfl
 
 ## Required Labels
 
+### Issues
+
 Every issue **must** have:
 
 - **At least one** `type:*` label (can have multiple for complex changes)
@@ -25,6 +27,17 @@ Every issue **must** have:
 - **Exactly one** `size:*` label
 
 These requirements are enforced through dropdown fields in issue templates, ensuring consistent labeling from the moment an issue is created.
+
+### Pull Requests
+
+Every PR **must** have:
+
+- **At least one** `type:*` label (can have multiple for complex changes)
+- **Exactly one** `priority:*` label
+- **Exactly one** `size:*` label
+
+Unlike issues, PR labels are applied manually by the author or reviewers.
+[Pull request templates](../.github/PULL_REQUEST_TEMPLATE/) include checklist sections that prompt contributors to apply appropriate labels.
 
 ## Label Categories
 
@@ -71,21 +84,30 @@ These requirements are enforced through dropdown fields in issue templates, ensu
 
 **Note**: Time estimates are guidelines. Actual effort may vary based on complexity and familiarity with the codebase.
 
-### AI Workflow Labels (`ai:*`)
+### Workflow Labels
 
-**Purpose**: Tracks AI-generated issues and human approval state for autonomous development workflows.
+**Purpose**: Tracks issue and PR lifecycle states, including AI-generated content and readiness for development.
 
-| Label        | Description                                             |
-| ------------ | ------------------------------------------------------- |
-| `ai:created` | AI-generated issue - requires human approval            |
-| `ai:ready`   | Human-approved and ready for any AI agent to implement  |
+#### AI Workflow Labels (`ai:*`)
+
+| Label        | Description                                    |
+| ------------ | ---------------------------------------------- |
+| `ai:created` | AI-generated - requires human approval         |
+| `ai:ready`   | Human-approved - ready for AI agent to work on |
 
 **State Logic**:
 
-- `ai:created` alone → Issue needs human review before work begins
-- `ai:created` + `ai:ready` → Issue has been approved and is ready for implementation
+- `ai:created` alone → Issue/PR needs human review before work begins
+- `ai:created` + `ai:ready` → Issue/PR has been approved and is ready for implementation
 
-This two-label system ensures AI agents can create issues autonomously while maintaining human oversight of what gets implemented.
+This two-label system ensures AI agents can create issues autonomously while maintaining human oversight.
+
+#### Development Readiness Labels
+
+| Label | Description |
+| --- | --- |
+| `ready-for-dev` | Ready for development - all requirements clarified |
+| `good-first-issue` | Good for newcomers - well-scoped and documented |
 
 ### Triage Labels
 
@@ -145,6 +167,39 @@ This automation eliminates manual labeling and ensures consistency.
 [auto-label-workflow]: ../.github/workflows/auto-label-issues.yml
 
 **Blank issues are disabled** via `config.yml` to ensure all issues follow the template structure and receive proper labels.
+
+## Pull Request Label Requirements
+
+Pull request labels follow the same taxonomy as issues but are applied differently:
+
+- **Type labels**: Matched with conventional commit format in PR title (e.g., `feat:` → `type:feature`)
+- **Priority labels**: Selected by PR author from required checklist
+- **Size labels**: Selected by PR author from required checklist
+
+[Pull request templates](../.github/PULL_REQUEST_TEMPLATE/) include:
+
+- Conventional commit format guidance in comments
+- Type-specific sections for comprehensive documentation
+- Checklist section prompting for label application
+- Links to [LABELS.md](LABELS.md) for label definitions
+
+### PR Title Format
+
+PR titles must follow [Conventional Commits](https://www.conventionalcommits.org/) format:
+
+**Format**: `type(scope): brief description`
+
+This format enables:
+
+- Automated semantic versioning based on commit types
+- Consistent relationship between PR type and `type:*` labels
+- Clear communication of change scope
+
+**Examples**:
+
+- `feat(api): add user authentication` → `type:feature`
+- `fix(ui): resolve button alignment` → `type:bug`
+- `docs(readme): update installation` → `type:docs`
 
 ## Canonical Source
 
