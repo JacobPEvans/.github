@@ -26,13 +26,13 @@
     "rebase",
     "nix",
     "nixos",
-    "flake"
+    "flake",
+    "hotfix"
   ],
   "ignorePaths": [
     ".git",
     "node_modules",
     "*.json",
-    "*.toml",
     "LICENSE"
   ]
 }

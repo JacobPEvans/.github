@@ -2,6 +2,7 @@
 # Commitlint Configuration
 # =============================================================================
 # Enforces conventional commit message format.
+# Only overrides that differ from @commitlint/config-conventional defaults.
 # Reference: https://commitlint.js.org/
 # =============================================================================
 
@@ -9,7 +10,7 @@ extends:
   - "@commitlint/config-conventional"
 
 rules:
-  # --- Type ---
+  # Custom type list matching CONTRIBUTING.md (adds breaking, removes build/revert/style)
   type-enum:
     - 2
     - always
@@ -22,47 +23,19 @@ rules:
       - refactor
       - perf
       - breaking
-  type-case:
+
+  # Promote leading-blank rules from warning (default) to error
+  body-leading-blank:
     - 2
     - always
-    - lower-case
-  type-empty:
-    - 2
-    - never
-
-  # --- Scope ---
-  scope-case:
+  footer-leading-blank:
     - 2
     - always
-    - lower-case
 
-  # --- Subject ---
-  subject-empty:
-    - 2
-    - never
-  subject-full-stop:
-    - 2
-    - never
-    - "."
-
-  # --- Header ---
-  header-max-length:
-    - 2
-    - always
-    - 100
-
-  # --- Body ---
+  # Warn (not error) on long body lines; v20+ ignores lines containing URLs
   body-max-line-length:
     - 1
     - always
     - 100
-  body-leading-blank:
-    - 2
-    - always
-
-  # --- Footer ---
-  footer-leading-blank:
-    - 2
-    - always
 
 helpUrl: "https://www.conventionalcommits.org/"
