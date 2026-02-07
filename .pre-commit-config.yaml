@@ -66,7 +66,7 @@ repos:
       - id: commitlint
         name: Validate commit message format
         stages: [commit-msg]
-        additional_dependencies: ["@commitlint/config-conventional@19.8.0"]
+        additional_dependencies: ["@commitlint/config-conventional@20.4.1"]
 
   - repo: https://github.com/commit-check/commit-check
     rev: v2.4.1
