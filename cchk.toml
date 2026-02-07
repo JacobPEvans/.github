@@ -1,0 +1,33 @@
+# =============================================================================
+# commit-check Configuration
+# =============================================================================
+# Validates commit messages and branch names against conventional standards.
+# Reference: https://github.com/commit-check/commit-check
+# =============================================================================
+
+[commit.message]
+regex = "^(feat|fix|docs|chore|ci|test|refactor|perf)(\\(.+\\))?!?: .{1,100}"
+error = """Bad commit message format. Required: type(scope): description
+
+Allowed types: feat, fix, docs, chore, ci, test, refactor, perf
+Examples:
+  feat(api): add user authentication
+  fix(ui): resolve button alignment
+  docs(readme): update installation instructions
+  chore(deps): update dependencies
+  feat!: remove deprecated v1 API (breaking change)
+
+Reference: https://www.conventionalcommits.org/"""
+
+[commit.branch]
+regex = "^(main|develop|feat/|fix/|docs/|chore/|ci/|test/|refactor/|perf/|release/|hotfix/|claude/).+"
+error = """Bad branch name. Required format: type/description
+
+Allowed prefixes: feat/, fix/, docs/, chore/, ci/, test/, refactor/, perf/, release/, hotfix/, claude/
+Protected branches: main, develop
+
+Examples:
+  feat/add-user-auth
+  fix/button-alignment
+  docs/update-readme
+  chore/update-deps"""

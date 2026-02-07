@@ -1,0 +1,41 @@
+{
+  "$schema": "https://raw.githubusercontent.com/streetsidesoftware/cspell/main/cspell.schema.json",
+  "version": "0.2",
+  "language": "en",
+  "words": [
+    "commitlint",
+    "precommit",
+    "jacobpevans",
+    "markdownlint",
+    "cspell",
+    "semver",
+    "automerge",
+    "conventionalcommits",
+    "autoupdate",
+    "cchk",
+    "renovatebot",
+    "codecov",
+    "codeql",
+    "templated",
+    "triage",
+    "triaged",
+    "wontfix",
+    "kebab",
+    "signingkey",
+    "gpgsign",
+    "rebase",
+    "nix",
+    "nixos",
+    "flake",
+    "endof"
+  ],
+  "ignorePaths": [
+    ".git",
+    "node_modules",
+    "*.json",
+    "*.yml",
+    "*.yaml",
+    "*.toml",
+    "LICENSE"
+  ]
+}
