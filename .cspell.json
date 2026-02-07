@@ -27,7 +27,10 @@
     "nix",
     "nixos",
     "flake",
-    "hotfix"
+    "hotfix",
+    "commitlintrc",
+    "agentsmd",
+    "frontmatter"
   ],
   "ignorePaths": [
     ".git",

@@ -73,4 +73,5 @@ repos:
     hooks:
       - id: check-branch
         name: Check branch naming conventions
-        stages: [push]
+        stages: [pre-push]
+        args: [--config, cchk.toml]
