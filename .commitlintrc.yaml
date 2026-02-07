@@ -21,6 +21,7 @@ rules:
       - test
       - refactor
       - perf
+      - breaking
   type-case:
     - 2
     - always
@@ -36,10 +37,6 @@ rules:
     - lower-case
 
   # --- Subject ---
-  subject-case:
-    - 2
-    - always
-    - lower-case
   subject-empty:
     - 2
     - never
@@ -58,7 +55,7 @@ rules:
   body-max-line-length:
     - 1
     - always
-    - 200
+    - 100
   body-leading-blank:
     - 2
     - always

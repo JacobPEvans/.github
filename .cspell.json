@@ -26,15 +26,12 @@
     "rebase",
     "nix",
     "nixos",
-    "flake",
-    "endof"
+    "flake"
   ],
   "ignorePaths": [
     ".git",
     "node_modules",
     "*.json",
-    "*.yml",
-    "*.yaml",
     "*.toml",
     "LICENSE"
   ]
