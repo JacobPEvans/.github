@@ -4,25 +4,25 @@ Reusable templates for GitHub Copilot and Gemini Code Assist.
 
 ## Quick Start
 
-**For any repo**: Copy these files and customize for your project:
+**For any repo**: Create these files and customize for your project:
 
-1. **`.github/copilot-instructions.md`** - Code review standards (inline, ~200 lines)
-2. **`.gemini/config.yaml`** - Gemini configuration (minimal, ~15 lines)
-3. **`.gemini/styleguide.md`** - Coding style guide (inline, ~200 lines)
+1. **`.github/copilot-instructions.md`** - Code review standards (~200 lines, sourced from ai-assistant-instructions repo)
+2. **`.gemini/config.yaml`** - Gemini configuration (~15 lines, minimal template below)
+3. **`.gemini/styleguide.md`** - Coding style guide (~200 lines, sourced from ai-assistant-instructions repo)
 
 **For repos with agentsmd/ structure** (like ai-assistant-instructions):
 
-See ai-assistant-instructions repo for symlink patterns. Symlink to agentsmd/ files instead of copying inline content.
+Symlink to agentsmd/ files instead of copying. See ai-assistant-instructions repo for symlink patterns.
 
-## Template Files
+## Template Sources
 
-Copy from ai-assistant-instructions repo:
+Copy from the `ai-assistant-instructions` repo and customize for your project:
 
 - `agentsmd/docs/code_review_instructions.md` → Your `.github/copilot-instructions.md`
 - `agentsmd/rules/styleguide.md` → Your `.gemini/styleguide.md`
 - `agentsmd/rules/code-standards.md` → Reference for logging format and security patterns
 
-Customize for your project's language and conventions.
+For `.gemini/config.yaml`, use the minimal template below (not sourced from ai-assistant-instructions).
 
 ## Minimal Template: .gemini/config.yaml
 
