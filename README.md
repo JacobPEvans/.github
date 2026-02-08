@@ -61,10 +61,11 @@ According to [GitHub's documentation][supported-files], the following files can 
 
 Documentation files (inheritable by other repositories):
 
-| File                   | Purpose                     | Inherited? | Documentation                      |
-| ---------------------- | --------------------------- | ---------- | ---------------------------------- |
-| `docs/CONTRIBUTING.md` | Contribution guidelines     | Yes        | [About CONTRIBUTING][contrib-docs] |
-| `docs/LABELS.md`       | Label system documentation  | No         | -                                  |
+| File                          | Purpose                        | Inherited? | Documentation                      |
+| ----------------------------- | ------------------------------ | ---------- | ---------------------------------- |
+| `docs/CONTRIBUTING.md`        | Contribution guidelines        | Yes        | [About CONTRIBUTING][contrib-docs] |
+| `docs/LABELS.md`              | Label system documentation     | No         | -                                  |
+| `docs/AI_ASSISTANT_CONFIG.md` | AI review tool setup templates | No         | -                                  |
 
 [contrib-docs]: https://docs.github.com/en/communities/setting-up-your-project-for-healthy-contributions/setting-guidelines-for-repository-contributors
 

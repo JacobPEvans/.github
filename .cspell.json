@@ -30,7 +30,10 @@
     "hotfix",
     "commitlintrc",
     "agentsmd",
-    "frontmatter"
+    "frontmatter",
+    "styleguide",
+    "venv",
+    "pycache"
   ],
   "ignorePaths": [
     ".git",
