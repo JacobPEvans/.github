@@ -2,7 +2,7 @@
 # Pre-commit Configuration
 # =============================================================================
 # Foundation hooks for local development. Install with:
-#   pip install pre-commit && pre-commit install
+#   pip install pre-commit && pre-commit install --hook-type commit-msg --hook-type pre-push
 #
 # Run manually: pre-commit run --all-files
 # Update hooks: pre-commit autoupdate
@@ -74,4 +74,3 @@ repos:
       - id: check-branch
         name: Check branch naming conventions
         stages: [pre-push]
-        args: [--config, cchk.toml]

@@ -166,7 +166,7 @@ I'll probably accept most reasonable PRs. This is a documentation repo, not a nu
 ## Development Setup
 
 1. Clone the repo
-2. Install pre-commit: `pip install pre-commit && pre-commit install`
+2. Install pre-commit: `pip install pre-commit && pre-commit install --hook-type commit-msg --hook-type pre-push`
 3. Make changes
 4. Commit and push
 

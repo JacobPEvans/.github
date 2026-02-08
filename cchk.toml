@@ -6,15 +6,19 @@
 # Reference: https://github.com/commit-check/commit-check
 # =============================================================================
 
-[commit.branch]
-regex = "^(main|develop|(?:feat|fix|docs|chore|ci|test|refactor|perf|release|hotfix|claude)/.+)$"
-error = """Bad branch name. Required format: type/description
-
-Allowed prefixes: feat/, fix/, docs/, chore/, ci/, test/, refactor/, perf/, release/, hotfix/, claude/
-Protected branches: main, develop
-
-Examples:
-  feat/add-user-auth
-  fix/button-alignment
-  docs/update-readme
-  chore/update-deps"""
+[branch]
+conventional_branch = true
+allow_branch_types = [
+  "feat",
+  "fix",
+  "docs",
+  "chore",
+  "ci",
+  "test",
+  "refactor",
+  "perf",
+  "release",
+  "hotfix",
+  "claude",
+]
+allow_branch_names = ["main", "develop"]
