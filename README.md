@@ -54,7 +54,7 @@ According to [GitHub's documentation][supported-files], the following files can 
 | File         | Purpose                         | Inherited? | Documentation |
 | ------------ | ------------------------------- | ---------- | ------------- |
 | `README.md`  | This file                       | No         | -             |
-| `LICENSE`    | MIT License for this repository | No         | -             |
+| `LICENSE`    | Apache License 2.0              | No         | -             |
 | `AGENTS.md`  | Quick reference for AI agents   | No         | -             |
 
 ### `docs/`
@@ -203,6 +203,14 @@ gh label clone JacobPEvans/.github -R JacobPEvans/YOUR_REPO --force
 **Why `--force`?** Updates existing labels and creates new ones. Without it, the command fails if labels already exist.
 
 **Learn More**: [GitHub CLI manual](https://cli.github.com/manual/)
+
+## License
+
+All JacobPEvans repositories are licensed under the [Apache License, Version 2.0](http://www.apache.org/licenses/LICENSE-2.0) unless otherwise noted.
+Each repository contains its own `LICENSE` file as the authoritative license for that project,
+since GitHub does not support inheriting `LICENSE` files from a `.github` repository.
+
+See the [LICENSE](LICENSE) file in this repository for the full license text.
 
 ## Contributing
 
