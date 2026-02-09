@@ -51,11 +51,11 @@ According to [GitHub's documentation][supported-files], the following files can 
 
 ### Root Files
 
-| File         | Purpose                         | Inherited? | Documentation |
-| ------------ | ------------------------------- | ---------- | ------------- |
-| `README.md`  | This file                       | No         | -             |
-| `LICENSE`    | Apache License 2.0              | No         | -             |
-| `AGENTS.md`  | Quick reference for AI agents   | No         | -             |
+| File         | Purpose                                | Inherited? | Documentation |
+| ------------ | -------------------------------------- | ---------- | ------------- |
+| `README.md`  | This file                              | No         | -             |
+| `LICENSE`    | Apache License 2.0 for this repository | No         | -             |
+| `AGENTS.md`  | Quick reference for AI agents          | No         | -             |
 
 ### `docs/`
 
@@ -206,7 +206,7 @@ gh label clone JacobPEvans/.github -R JacobPEvans/YOUR_REPO --force
 
 ## License
 
-All JacobPEvans repositories are licensed under the [Apache License, Version 2.0](http://www.apache.org/licenses/LICENSE-2.0) unless otherwise noted.
+All JacobPEvans repositories are licensed under the [Apache License, Version 2.0](https://www.apache.org/licenses/LICENSE-2.0) unless otherwise noted.
 Each repository contains its own `LICENSE` file as the authoritative license for that project,
 since GitHub does not support inheriting `LICENSE` files from a `.github` repository.
 
