@@ -107,12 +107,12 @@ This two-label system ensures AI agents can create issues autonomously while mai
 
 | Label              | Description                                          |
 | ------------------ | ---------------------------------------------------- |
-| `claude-reviewed`  | AI final review completed on this PR                 |
-| `skip-ai-review`   | Opt out of all automated AI reviews                  |
+| `ai:reviewed`      | AI final review completed on this PR                 |
+| `ai:skip-review`   | Opt out of all automated AI reviews                  |
 
 These labels support automated PR review workflows.
-`claude-reviewed` is applied by CI after an AI review pass completes.
-`skip-ai-review` can be applied by a PR author to opt out of automated reviews on a per-PR basis.
+`ai:reviewed` is applied by CI after an AI review pass completes.
+`ai:skip-review` can be applied by a PR author to opt out of automated reviews on a per-PR basis.
 
 #### Development Readiness Labels
 

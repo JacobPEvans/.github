@@ -131,11 +131,11 @@
 # =============================================================================
 # AI REVIEW LABELS - Automated review workflow state
 # =============================================================================
-- name: "claude-reviewed"
+- name: "ai:reviewed"
   color: "FB923C"
   description: "Claude-reviewed - AI final review completed on this PR"
 
-- name: "skip-ai-review"
+- name: "ai:skip-review"
   color: "94A3B8"
   description: "Skip AI review - Opt out of all automated AI reviews"
 
