@@ -1,0 +1,77 @@
+name: Security Report
+description: Report a security vulnerability or suggest hardening
+labels: ["type:security"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping keep this project secure!
+        For critical vulnerabilities, consider using [private reporting](https://docs.github.com/en/code-security/security-advisories/guidance-on-reporting-and-writing-information-about-vulnerabilities/privately-reporting-a-security-vulnerability) instead of a public issue.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Vulnerability Description
+      description: Describe the security issue or hardening opportunity.
+      placeholder: What is the vulnerability or weakness?
+    validations:
+      required: true
+
+  - type: textarea
+    id: affected
+    attributes:
+      label: Affected Components
+      description: Which files, services, or systems are affected?
+      placeholder: |
+        - Component or file path
+        - Service or endpoint
+    validations:
+      required: true
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity Assessment
+      description: How severe is this issue?
+      options:
+        - "Low - Minor hardening opportunity"
+        - "Medium - Exploitable under specific conditions"
+        - "High - Readily exploitable vulnerability"
+        - "Critical - Active exploitation or data exposure risk"
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional Context
+      description: Any other context, reproduction steps, or references (CVEs, advisories).
+    validations:
+      required: false
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      description: How urgent is this issue?
+      options:
+        - "priority:low - Address when time permits"
+        - "priority:medium - Normal workflow"
+        - "priority:high - Should be addressed soon"
+        - "priority:critical - Requires immediate attention"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: size
+    attributes:
+      label: Estimated Size
+      description: How much effort do you think this will take?
+      options:
+        - "size:xs - Trivial change, <1 hour"
+        - "size:s - Simple change, 1-4 hours"
+        - "size:m - Moderate effort, 1-2 days"
+        - "size:l - Significant work, 3-5 days"
+        - "size:xl - Major effort, 1+ weeks"
+    validations:
+      required: true

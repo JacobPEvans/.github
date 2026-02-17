@@ -15,6 +15,10 @@
 #   - At least one type:* label
 #   - Exactly one priority:* label
 #   - Exactly one size:* label
+#
+# Color Standard:
+#   All colors MUST use Tailwind CSS palette hex values (without #).
+#   Reference: https://tailwindcss.com/docs/customizing-colors
 # =============================================================================
 
 # =============================================================================
@@ -56,6 +60,10 @@
 - name: "type:perf"
   color: "F97316"
   description: "Perf - Performance improvements"
+
+- name: "type:security"
+  color: "991B1B"
+  description: "Security - Security vulnerability or hardening (semver: PATCH)"
 
 # =============================================================================
 # PRIORITY LABELS - How urgent is this? (Heat map: Red → Orange → Yellow → Green)
@@ -119,6 +127,17 @@
 - name: "ai:ready"
   color: "06B6D4"
   description: "AI-ready - Human-approved and ready for AI agent implementation"
+
+# =============================================================================
+# AI REVIEW LABELS - Automated review workflow state
+# =============================================================================
+- name: "claude-reviewed"
+  color: "FB923C"
+  description: "Claude-reviewed - AI final review completed on this PR"
+
+- name: "skip-ai-review"
+  color: "94A3B8"
+  description: "Skip AI review - Opt out of all automated AI reviews"
 
 # -----------------------------------------------------------------------------
 # TRIAGE LABELS - Administrative

@@ -56,6 +56,7 @@ Unlike issues, PR labels are applied manually by the author or reviewers.
 | `type:test`      | Adding or correcting tests              | -             |
 | `type:refactor`  | Code change with no functional change   | -             |
 | `type:perf`      | Performance improvements                | -             |
+| `type:security`  | Security vulnerability or hardening     | PATCH         |
 
 **Note**: Type labels align with [Conventional Commits](https://www.conventionalcommits.org/) and semantic versioning to automate release management.
 
@@ -102,6 +103,17 @@ Unlike issues, PR labels are applied manually by the author or reviewers.
 
 This two-label system ensures AI agents can create issues autonomously while maintaining human oversight.
 
+#### AI Review Labels
+
+| Label              | Description                                          |
+| ------------------ | ---------------------------------------------------- |
+| `claude-reviewed`  | AI final review completed on this PR                 |
+| `skip-ai-review`   | Opt out of all automated AI reviews                  |
+
+These labels support automated PR review workflows.
+`claude-reviewed` is applied by CI after an AI review pass completes.
+`skip-ai-review` can be applied by a PR author to opt out of automated reviews on a per-PR basis.
+
 #### Development Readiness Labels
 
 | Label | Description |
@@ -120,6 +132,20 @@ This two-label system ensures AI agents can create issues autonomously while mai
 | `wontfix`    | This will not be worked on       |
 | `question`   | Further information is requested |
 
+## Color Standards
+
+All label colors **must** use [Tailwind CSS palette](https://tailwindcss.com/docs/customizing-colors) hex values (without `#`).
+This ensures visual consistency and makes colors easy to verify against a well-known reference.
+
+**Color assignment guidelines**:
+
+- Each `type:*` label has a unique Tailwind color for instant visual identification
+- `priority:*` labels use a heat map gradient (red/critical → green/low)
+- `size:*` labels use a green intensity gradient (light/xs → dark/xl)
+- AI review labels use muted/neutral tones to avoid confusion with type or priority labels
+
+When adding new labels, pick a Tailwind color that is visually distinct from existing labels in the same category.
+
 ## Syncing Labels to Repositories
 
 Labels defined in [`.github/labels.yml`](../.github/labels.yml) can be synced to other repositories using the [GitHub CLI](https://cli.github.com/):
@@ -136,6 +162,37 @@ Without `--force`, the command will fail if any labels already exist in the targ
 They must be explicitly synced to each repository.
 
 For automated syncing across multiple repositories, consider using the [EndBug/label-sync](https://github.com/EndBug/label-sync) GitHub Action in each repository.
+
+### Full Cross-Repo Sync Procedure
+
+After updating `labels.yml`, follow this procedure to bring all repos into alignment:
+
+**Step 1 — Sync canonical labels** to each repo (creates missing labels, updates colors/descriptions):
+
+```bash
+for repo in .github terraform-proxmox ansible-proxmox-apps ai-workflows nix ansible-proxmox ansible-splunk; do
+  gh label clone JacobPEvans/.github -R "JacobPEvans/$repo" --force
+done
+```
+
+**Step 2 — Delete legacy GitHub default labels** that conflict with `type:*` labels.
+Check for issues/PRs using legacy labels first and migrate them:
+
+```bash
+# Check for usage before deleting
+gh issue list -R JacobPEvans/REPO --label "bug" --state all --json number,title
+
+# Migrate if needed
+gh issue edit NUMBER -R JacobPEvans/REPO --remove-label "bug" --add-label "type:bug"
+```
+
+Legacy labels to remove:
+`bug` → `type:bug`, `enhancement` → `type:feature`, `documentation` → `type:docs`,
+`good first issue` → `good-first-issue`, `help wanted` → remove.
+
+Repos needing legacy cleanup: `terraform-proxmox`, `ansible-proxmox-apps`, `ai-workflows`, `ansible-splunk`.
+
+**Step 3 — Audit open issues/PRs** to ensure all have the required `type:*`, `priority:*`, and `size:*` labels.
 
 ## Issue Template Integration
 
@@ -155,6 +212,7 @@ Issue templates in [`../.github/ISSUE_TEMPLATE/`][issue-templates] enforce the r
 | Feature Request    | `type:feature`     | `feature_request.yml` |
 | Documentation      | `type:docs`        | `documentation.yml`   |
 | Chore/Maintenance  | `type:chore`       | `chore.yml`           |
+| Security Report    | `type:security`    | `security.yml`        |
 
 Each template includes required dropdown fields for priority and size, ensuring every issue receives complete labeling at creation time.
 
