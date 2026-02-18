@@ -148,35 +148,41 @@ When adding new labels, pick a Tailwind color that is visually distinct from exi
 
 ## Syncing Labels to Repositories
 
-Labels defined in [`.github/labels.yml`](../.github/labels.yml) can be synced to other repositories using the [GitHub CLI](https://cli.github.com/):
+Labels are **not inherited** from the `.github` repository like community health files.
+They must be explicitly synced to each repository.
+
+The canonical source of truth is [`.github/labels.yml`](../.github/labels.yml).
+All sync methods should deploy **from this file**, not from another repo's current label state.
+
+### Automated Sync (Recommended)
+
+The [label-sync](../.github/workflows/label-sync.yml) GitHub Actions workflow reads `labels.yml` and deploys labels to all repositories automatically.
+It runs on every push to `main` that modifies `labels.yml`, and can be triggered manually via `workflow_dispatch`.
+
+To trigger a manual sync:
 
 ```bash
-# One-time sync from this repo to another
+gh workflow run label-sync.yml -R JacobPEvans/.github
+```
+
+### Manual Sync
+
+If you need to sync labels manually, use `gh label clone` to copy from a repo that is already in sync with `labels.yml`:
+
+```bash
 gh label clone JacobPEvans/.github -R JacobPEvans/TARGET_REPO --force
 ```
 
-**About the `--force` flag**: This flag updates existing labels with new colors and descriptions, and creates labels that don't exist.
-Without `--force`, the command will fail if any labels already exist in the target repository.
+**About the `--force` flag**: Updates existing labels with new colors and descriptions, and creates labels that don't exist.
 
-**Note**: Unlike community health files (CONTRIBUTING.md, etc.), labels are **not inherited** from the `.github` repository.
-They must be explicitly synced to each repository.
+> **Warning**: `gh label clone` copies from a repo's **current GitHub labels**, not from `labels.yml`.
+> If the source repo's labels have drifted from `labels.yml`, the clone will propagate stale data.
+> Always verify the source repo matches `labels.yml` before cloning, or use the automated workflow instead.
 
-For automated syncing across multiple repositories, consider using the [EndBug/label-sync](https://github.com/EndBug/label-sync) GitHub Action in each repository.
+### Post-Sync Cleanup
 
-### Full Cross-Repo Sync Procedure
-
-After updating `labels.yml`, follow this procedure to bring all repos into alignment:
-
-**Step 1 — Sync canonical labels** to each repo (creates missing labels, updates colors/descriptions):
-
-```bash
-for repo in .github terraform-proxmox ansible-proxmox-apps ai-workflows nix ansible-proxmox ansible-splunk; do
-  gh label clone JacobPEvans/.github -R "JacobPEvans/$repo" --force
-done
-```
-
-**Step 2 — Delete legacy GitHub default labels** that conflict with `type:*` labels.
-Check for issues/PRs using legacy labels first and migrate them:
+After syncing, check for legacy GitHub default labels that conflict with the canonical set.
+Migrate any issues using legacy labels before deleting them:
 
 ```bash
 # Check for usage before deleting
@@ -186,13 +192,9 @@ gh issue list -R JacobPEvans/REPO --label "bug" --state all --json number,title
 gh issue edit NUMBER -R JacobPEvans/REPO --remove-label "bug" --add-label "type:bug"
 ```
 
-Legacy labels to remove:
+Legacy labels to check:
 `bug` → `type:bug`, `enhancement` → `type:feature`, `documentation` → `type:docs`,
 `good first issue` → `good-first-issue`, `help wanted` → remove.
-
-Repos needing legacy cleanup: `terraform-proxmox`, `ansible-proxmox-apps`, `ai-workflows`, `ansible-splunk`.
-
-**Step 3 — Audit open issues/PRs** to ensure all have the required `type:*`, `priority:*`, and `size:*` labels.
 
 ## Issue Template Integration
 
@@ -268,7 +270,7 @@ When updating labels:
 
 1. Modify [`.github/labels.yml`](../.github/labels.yml) first
 2. Update this documentation to reflect changes
-3. Sync to other repositories using the `gh label clone` command
+3. Push to `main` — the [label-sync workflow](../.github/workflows/label-sync.yml) deploys to all repos automatically
 4. Update issue templates if new label categories are added
 
 ---

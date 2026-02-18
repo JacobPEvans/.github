@@ -141,12 +141,17 @@ Standardized [pull request templates][pr-templates-docs] that enforce convention
 
 [GitHub Actions workflows][workflows-docs] that automate label management:
 
-| Workflow                | Purpose                                                                  | Trigger        | Documentation                     |
-| ----------------------- | ------------------------------------------------------------------------ | -------------- | --------------------------------- |
-| `auto-label-issues.yml` | Automatically applies priority and size labels from issue form dropdowns | Issue creation | [Using workflows][workflows-docs] |
+| Workflow                 | Purpose                              | Trigger                   |
+| ------------------------ | ------------------------------------ | ------------------------- |
+| `auto-label-issues.yml`  | Apply priority/size from issue forms | Issue creation            |
+| `label-sync.yml`         | Deploy `labels.yml` to all repos     | Push to main, manual      |
 
-**How it works**: When an issue is created from a template, the workflow extracts the user's dropdown selections (priority and size).
-It then applies the corresponding labels automatically.
+**Auto-label**: When an issue is created from a template, the workflow extracts
+the user's dropdown selections (priority and size) and applies labels.
+
+**Label sync**: When `labels.yml` is updated and pushed to main, deploys the
+canonical labels to all repositories.
+Can also be triggered manually via `workflow_dispatch`.
 
 [workflows-docs]: https://docs.github.com/en/actions/using-workflows/about-workflows
 
@@ -158,10 +163,11 @@ All repositories use a consistent labeling taxonomy for issue classification and
 
 ### Quick Reference
 
-- **Type labels** (`type:*`): bug, feature, breaking, docs, chore, ci, test, refactor, perf
+- **Type labels** (`type:*`): bug, feature, breaking, docs, chore, ci, test, refactor, perf, security
 - **Priority labels** (`priority:*`): critical, high, medium, low
 - **Size labels** (`size:*`): xs, s, m, l, xl
-- **AI workflow labels** (`ai:*`): created, ready
+- **AI workflow labels** (`ai:*`): created, ready, reviewed, skip-review
+- **Workflow labels**: ready-for-dev, good-first-issue
 - **Triage labels**: duplicate, invalid, wontfix, question
 
 **Learn More**: [Managing labels - GitHub Docs](https://docs.github.com/en/issues/using-labels-and-milestones-to-track-work/managing-labels)
@@ -193,14 +199,20 @@ Create your own version of a file in your repository to override the default.
 
 ### Option 3: Sync Labels
 
-Labels are **not inherited** automatically. Use the [GitHub CLI](https://cli.github.com/) to sync them from `.github/labels.yml`:
+Labels are **not inherited** automatically.
+The [label-sync workflow](.github/workflows/label-sync.yml) deploys labels
+from [`.github/labels.yml`](.github/labels.yml) to all repositories
+whenever the file is updated on `main`.
+
+To trigger a manual sync:
 
 ```bash
-# One-time sync from this repo to another
-gh label clone JacobPEvans/.github -R JacobPEvans/YOUR_REPO --force
+gh workflow run label-sync.yml -R JacobPEvans/.github
 ```
 
-**Why `--force`?** Updates existing labels and creates new ones. Without it, the command fails if labels already exist.
+> **Note**: Avoid using `gh label clone` for cross-repo syncing.
+> It copies from a repo's current GitHub label state, not from
+> `labels.yml`, which can propagate drift.
 
 **Learn More**: [GitHub CLI manual](https://cli.github.com/manual/)
 

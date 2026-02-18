@@ -2,7 +2,7 @@
 # JacobPEvans Standard Labels
 # =============================================================================
 # Canonical label set for all repositories.
-# Synced via EndBug/label-sync GitHub Action.
+# Synced to all repos via .github/workflows/label-sync.yml on push to main.
 #
 # Categories:
 #   type:*     - What kind of change (aligns with semantic versioning)

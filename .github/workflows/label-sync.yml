@@ -1,0 +1,36 @@
+name: Sync labels from labels.yml
+
+on:
+  push:
+    branches: [main]
+    paths: [.github/labels.yml]
+  workflow_dispatch:
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Sync labels to this repo
+        uses: EndBug/label-sync@v2
+        with:
+          config-file: .github/labels.yml
+          delete-other-labels: true
+
+      - name: Sync labels to all other repos
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT_WORKFLOW_DISPATCH }}
+        run: |
+          # Get all public repos except .github (already synced above)
+          repos=$(gh repo list JacobPEvans --public --json name --limit 100 \
+            | jq -r '.[].name | select(. != ".github")')
+
+          for repo in $repos; do
+            echo "Syncing labels to $repo..."
+            gh label clone JacobPEvans/.github -R "JacobPEvans/$repo" --force || \
+              echo "  Warning: failed to sync $repo"
+          done

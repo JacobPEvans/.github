@@ -35,7 +35,7 @@ Must follow [Conventional Commits](https://www.conventionalcommits.org/):
 
 ## Labels (Required per issue and PR)
 
-- `type:*` - One+ required: bug|feature|breaking|docs|chore|ci|test|refactor|perf
+- `type:*` - One+ required: bug|feature|breaking|docs|chore|ci|test|refactor|perf|security
 - `priority:*` - Exactly one: critical|high|medium|low
 - `size:*` - Exactly one: xs|s|m|l|xl
 
@@ -46,8 +46,10 @@ Must follow [Conventional Commits](https://www.conventionalcommits.org/):
 - `ready-for-dev` → Requirements clarified, ready to implement
 - `good-first-issue` → Good for newcomers
 
-## Sync Labels to Repo
+## Sync Labels to Repos
 
-```bash
-gh label clone JacobPEvans/.github -R JacobPEvans/TARGET --force
-```
+Labels deploy automatically from `labels.yml` via the `label-sync` workflow on push to main.
+
+Manual trigger: `gh workflow run label-sync.yml -R JacobPEvans/.github`
+
+> Avoid `gh label clone` — it copies repo state, not `labels.yml`.
