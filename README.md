@@ -167,7 +167,7 @@ All repositories use a consistent labeling taxonomy for issue classification and
 - **Priority labels** (`priority:*`): critical, high, medium, low
 - **Size labels** (`size:*`): xs, s, m, l, xl
 - **AI workflow labels** (`ai:*`): created, ready, reviewed, skip-review
-- **Workflow labels**: ready-for-dev, good-first-issue
+- **Development readiness labels**: ready-for-dev, good-first-issue
 - **Triage labels**: duplicate, invalid, wontfix, question
 
 **Learn More**: [Managing labels - GitHub Docs](https://docs.github.com/en/issues/using-labels-and-milestones-to-track-work/managing-labels)

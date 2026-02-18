@@ -165,20 +165,6 @@ To trigger a manual sync:
 gh workflow run label-sync.yml -R JacobPEvans/.github
 ```
 
-### Manual Sync
-
-If you need to sync labels manually, use `gh label clone` to copy from a repo that is already in sync with `labels.yml`:
-
-```bash
-gh label clone JacobPEvans/.github -R JacobPEvans/TARGET_REPO --force
-```
-
-**About the `--force` flag**: Updates existing labels with new colors and descriptions, and creates labels that don't exist.
-
-> **Warning**: `gh label clone` copies from a repo's **current GitHub labels**, not from `labels.yml`.
-> If the source repo's labels have drifted from `labels.yml`, the clone will propagate stale data.
-> Always verify the source repo matches `labels.yml` before cloning, or use the automated workflow instead.
-
 ### Post-Sync Cleanup
 
 After syncing, check for legacy GitHub default labels that conflict with the canonical set.
