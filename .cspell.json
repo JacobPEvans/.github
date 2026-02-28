@@ -33,7 +33,10 @@
     "frontmatter",
     "styleguide",
     "venv",
-    "pycache"
+    "pycache",
+    "narinfo",
+    "nixpkgs",
+    "Anson"
   ],
   "ignorePaths": [
     ".git",

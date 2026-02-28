@@ -1,0 +1,28 @@
+# Reusable: Markdown Lint
+# Generic markdown linting — uses the calling repo's own markdownlint config.
+name: _markdown-lint
+
+on:
+  workflow_call:
+
+concurrency:
+  group: markdown-lint-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Run markdownlint
+        uses: DavidAnson/markdownlint-cli2-action@v22
+        with:
+          globs: |
+            **/*.md
+            !**/node_modules/**

@@ -1,0 +1,68 @@
+# Reusable: File Size Check
+# Checks that no files exceed size limits. Uses repo's own config script if
+# available, otherwise falls back to inline defaults.
+name: _file-size
+
+on:
+  workflow_call:
+    inputs:
+      max-file-size-kb:
+        description: "Maximum file size in KB (default: 500)"
+        required: false
+        type: number
+        default: 500
+      max-line-count:
+        description: "Maximum line count per file (default: 1000)"
+        required: false
+        type: number
+        default: 1000
+
+concurrency:
+  group: file-size-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Check file sizes
+        env:
+          MAX_FILE_SIZE_KB: ${{ inputs.max-file-size-kb }}
+          MAX_LINE_COUNT: ${{ inputs.max-line-count }}
+        run: |
+          # Use repo's own script if available, otherwise inline check
+          if [ -x "./scripts/workflows/check-file-sizes.sh" ]; then
+            ./scripts/workflows/check-file-sizes.sh
+          else
+            EXIT_CODE=0
+
+            echo "=== File Size Check (max: ${MAX_FILE_SIZE_KB}KB) ==="
+            while IFS= read -r -d '' file; do
+              size_kb=$(( $(wc -c < "$file") / 1024 ))
+              if [ "$size_kb" -gt "$MAX_FILE_SIZE_KB" ]; then
+                echo "FAIL: $file (${size_kb}KB > ${MAX_FILE_SIZE_KB}KB)"
+                EXIT_CODE=1
+              fi
+            done < <(find . -type f -not -path './.git/*' -not -path './node_modules/*' -not -path './result*' -print0)
+
+            echo ""
+            echo "=== Line Count Check (max: ${MAX_LINE_COUNT} lines) ==="
+            while IFS= read -r -d '' file; do
+              if file "$file" | grep -q text; then
+                lines=$(wc -l < "$file")
+                if [ "$lines" -gt "$MAX_LINE_COUNT" ]; then
+                  echo "FAIL: $file (${lines} lines > ${MAX_LINE_COUNT})"
+                  EXIT_CODE=1
+                fi
+              fi
+            done < <(find . -type f -not -path './.git/*' -not -path './node_modules/*' -not -path './result*' -print0)
+
+            exit $EXIT_CODE
+          fi

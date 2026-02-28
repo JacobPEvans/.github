@@ -1,0 +1,61 @@
+# Reusable: Nix Validate (Linux)
+# Runs nix flake check with CI-optimized Nix settings and store caching.
+name: _nix-validate
+
+on:
+  workflow_call:
+
+concurrency:
+  group: nix-validate-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install Nix
+        uses: DeterminateSystems/determinate-nix-action@v3
+        with:
+          extra-conf: |
+            max-jobs = auto
+            cores = 0
+            http-connections = 50
+            connect-timeout = 5
+            stalled-download-timeout = 10
+            narinfo-cache-positive-ttl = 86400
+            fallback = true
+
+      - name: Restore Nix Store Cache
+        uses: actions/cache/restore@v5
+        id: nix-cache
+        with:
+          path: |
+            /nix/store
+            ~/.cache/nix
+          key: nix-linux-${{ runner.os }}-${{ hashFiles('flake.lock') }}
+          restore-keys: |
+            nix-linux-${{ runner.os }}-
+
+      - name: Lint flake.lock
+        uses: DeterminateSystems/flake-checker-action@main
+        with:
+          nixpkgs-keys: nixpkgs
+
+      - name: Check flake
+        run: nix flake check --print-build-logs
+
+      - name: Save Nix Store Cache
+        if: github.event_name == 'push' && steps.nix-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v5
+        with:
+          path: |
+            /nix/store
+            ~/.cache/nix
+          key: nix-linux-${{ runner.os }}-${{ hashFiles('flake.lock') }}

@@ -157,3 +157,14 @@
 - name: "question"
   color: "E879F9"
   description: "Question - Further information is requested"
+
+# =============================================================================
+# AUTOMATION LABELS - Created by bots, preserved across label sync
+# =============================================================================
+- name: "dependencies"
+  color: "A5B4FC"
+  description: "Dependency updates - Automated by Renovate/Dependabot"
+
+- name: "renovate"
+  color: "A5B4FC"
+  description: "Renovate bot - Automated dependency management"

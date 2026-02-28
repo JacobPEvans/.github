@@ -1,0 +1,21 @@
+# Reusable: Auto Merge
+# Enables squash auto-merge on non-draft PRs.
+name: _auto-merge
+
+on:
+  workflow_call:
+
+jobs:
+  auto-merge:
+    name: Enable auto-merge
+    if: "!github.event.pull_request.draft"
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Enable auto-merge
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.number }}
+        run: gh pr merge "$PR_NUMBER" --auto --squash --repo "$GITHUB_REPOSITORY"

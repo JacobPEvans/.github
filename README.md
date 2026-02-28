@@ -54,7 +54,7 @@ According to [GitHub's documentation][supported-files], the following files can 
 | File         | Purpose                                | Inherited? | Documentation |
 | ------------ | -------------------------------------- | ---------- | ------------- |
 | `README.md`  | This file                              | No         | -             |
-| `LICENSE`    | Apache License 2.0 for this repository | No         | -             |
+| `LICENSE`    | MIT License for this repository        | No         | -             |
 | `AGENTS.md`  | Quick reference for AI agents          | No         | -             |
 
 ### `docs/`
@@ -139,12 +139,20 @@ Standardized [pull request templates][pr-templates-docs] that enforce convention
 
 #### `.github/workflows/`
 
-[GitHub Actions workflows][workflows-docs] that automate label management:
+[GitHub Actions workflows][workflows-docs] for label management and reusable CI:
 
-| Workflow                 | Purpose                              | Trigger                   |
-| ------------------------ | ------------------------------------ | ------------------------- |
-| `auto-label-issues.yml`  | Apply priority/size from issue forms | Issue creation            |
-| `label-sync.yml`         | Deploy `labels.yml` to all repos     | Push to main, manual      |
+| Workflow                | Purpose                              | Trigger              |
+| ----------------------- | ------------------------------------ | -------------------- |
+| `auto-label-issues.yml` | Apply priority/size from issue forms | Issue creation       |
+| `label-sync.yml`        | Deploy `labels.yml` to all repos     | Push to main, manual |
+| `_auto-merge.yml`       | Reusable: squash auto-merge          | `workflow_call`      |
+| `_file-size.yml`        | Reusable: file size/line checks      | `workflow_call`      |
+| `_markdown-lint.yml`    | Reusable: markdownlint-cli2          | `workflow_call`      |
+| `_nix-build.yml`        | Reusable: Nix build (macOS)          | `workflow_call`      |
+| `_nix-validate.yml`     | Reusable: Nix flake check (Linux)    | `workflow_call`      |
+
+**Reusable workflows** (prefixed with `_`) are called by other repos via
+`uses: JacobPEvans/.github/.github/workflows/_name.yml@main`.
 
 **Auto-label**: When an issue is created from a template, the workflow extracts
 the user's dropdown selections (priority and size) and applies labels.
@@ -169,6 +177,7 @@ All repositories use a consistent labeling taxonomy for issue classification and
 - **AI workflow labels** (`ai:*`): created, ready, reviewed, skip-review
 - **Development readiness labels**: ready-for-dev, good-first-issue
 - **Triage labels**: duplicate, invalid, wontfix, question
+- **Automation labels**: dependencies, renovate
 
 **Learn More**: [Managing labels - GitHub Docs](https://docs.github.com/en/issues/using-labels-and-milestones-to-track-work/managing-labels)
 
@@ -218,7 +227,7 @@ gh workflow run label-sync.yml -R JacobPEvans/.github
 
 ## License
 
-All JacobPEvans repositories are licensed under the [Apache License, Version 2.0](https://www.apache.org/licenses/LICENSE-2.0) unless otherwise noted.
+All JacobPEvans repositories are licensed under the [MIT License](https://opensource.org/licenses/MIT).
 Each repository contains its own `LICENSE` file as the authoritative license for that project,
 since GitHub does not support inheriting `LICENSE` files from a `.github` repository.
 
