@@ -8,31 +8,19 @@
       "matchDatasources": ["github-actions"],
       "matchPackagePrefixes": ["JacobPEvans/"],
       "automerge": true,
-      "automergeType": "squash",
+      "automergeType": "pr",
       "minimumReleaseAge": "0 days"
     },
     {
-      "description": "Auto-merge official GitHub Actions (all update types)",
+      "description": "Auto-merge trusted GitHub Actions (all update types)",
       "matchDatasources": ["github-actions"],
-      "matchPackagePrefixes": ["actions/"],
+      "matchPackagePrefixes": [
+        "actions/",
+        "googleapis/",
+        "anthropics/"
+      ],
       "automerge": true,
-      "automergeType": "squash",
-      "minimumReleaseAge": "3 days"
-    },
-    {
-      "description": "Auto-merge release-please (all update types)",
-      "matchDatasources": ["github-actions"],
-      "matchPackagePrefixes": ["googleapis/"],
-      "automerge": true,
-      "automergeType": "squash",
-      "minimumReleaseAge": "3 days"
-    },
-    {
-      "description": "Auto-merge Anthropic GitHub Actions (all update types)",
-      "matchDatasources": ["github-actions"],
-      "matchPackagePrefixes": ["anthropics/"],
-      "automerge": true,
-      "automergeType": "squash",
+      "automergeType": "pr",
       "minimumReleaseAge": "3 days"
     },
     {
@@ -40,7 +28,7 @@
       "matchManagers": ["pre-commit"],
       "matchUpdateTypes": ["minor", "patch"],
       "automerge": true,
-      "automergeType": "squash"
+      "automergeType": "pr"
     }
   ]
 }
