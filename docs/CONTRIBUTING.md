@@ -5,12 +5,41 @@ First off, thanks for considering contributing to this project. It's just me her
 ## The Short Version
 
 1. Fork it
-2. Create your feature branch (`git checkout -b feature/cool-thing`)
+2. Create your branch using the correct prefix for the type of change (see [Branch Naming](#branch-naming) below)
+   - Example: `git checkout -b feature/cool-thing` or `git checkout -b bugfix/fix-the-thing`
 3. Commit your changes (`git commit -m 'Add some cool thing'`)
 4. Push to the branch (`git push origin feature/cool-thing`)
 5. Open a Pull Request
 
 That's it. I'm not picky.
+
+## Branch Naming
+
+Branch names are validated by `cchk.toml`. Use one of these prefixes followed by a `/` and a short
+description:
+
+| Prefix | Use for |
+| --- | --- |
+| `feature/` | New features or enhancements |
+| `bugfix/` | Bug fixes (non-urgent) |
+| `hotfix/` | Urgent production fixes |
+| `release/` | Release preparation branches |
+| `chore/` | Maintenance: docs, tests, refactoring, CI, dependency updates |
+
+**Examples:**
+
+```bash
+git checkout -b feature/add-auth-workflow
+git checkout -b bugfix/fix-label-color
+git checkout -b hotfix/patch-security-vuln
+git checkout -b release/v2.0.0
+git checkout -b chore/update-contributing-docs
+```
+
+> **Note:** The old `fix/`, `docs/`, `test/`, and `refactor/` prefixes are no longer valid.
+> Use `bugfix/` for bug fixes and `chore/` for docs, tests, and refactoring work.
+
+The `claude/` prefix is reserved for automated branches created by AI tooling.
 
 ## Signing Your Commits
 
