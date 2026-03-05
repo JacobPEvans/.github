@@ -9,16 +9,11 @@
 [branch]
 conventional_branch = true
 allow_branch_types = [
-  "feat",
-  "fix",
-  "docs",
-  "chore",
-  "ci",
-  "test",
-  "refactor",
-  "perf",
-  "release",
+  "feature",
+  "bugfix",
   "hotfix",
+  "release",
+  "chore",
   "claude",
 ]
 allow_branch_names = ["main", "develop"]
