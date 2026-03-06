@@ -6,7 +6,7 @@
     {
       "description": "Auto-merge JacobPEvans-owned GitHub Actions (all update types, immediate)",
       "matchDatasources": ["github-actions"],
-      "matchPackagePrefixes": ["JacobPEvans/"],
+      "matchPackageNames": ["JacobPEvans/**"],
       "automerge": true,
       "automergeType": "pr",
       "minimumReleaseAge": "0 days"
@@ -14,10 +14,10 @@
     {
       "description": "Auto-merge trusted GitHub Actions (all update types)",
       "matchDatasources": ["github-actions"],
-      "matchPackagePrefixes": [
-        "actions/",
-        "googleapis/",
-        "anthropics/"
+      "matchPackageNames": [
+        "actions/**",
+        "googleapis/**",
+        "anthropics/**"
       ],
       "automerge": true,
       "automergeType": "pr",
