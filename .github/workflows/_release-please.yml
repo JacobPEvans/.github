@@ -18,6 +18,14 @@ jobs:
       contents: write
       pull-requests: write
     steps:
+      - uses: actions/checkout@v4
+
+      - name: Inject central release-please config
+        run: |
+          curl -sfL \
+            "https://raw.githubusercontent.com/JacobPEvans/.github/main/release-please-config.json" \
+            -o release-please-config.json
+
       - uses: googleapis/release-please-action@v4
         with:
           config-file: release-please-config.json
