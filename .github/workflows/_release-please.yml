@@ -18,13 +18,14 @@ jobs:
       contents: write
       pull-requests: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Inject central release-please config
         run: |
           curl -sfL \
             "https://raw.githubusercontent.com/JacobPEvans/.github/main/release-please-config.json" \
             -o release-please-config.json
+          python3 -c "import json,sys; json.load(open('release-please-config.json'))" || { echo 'Config download failed or invalid JSON' >&2; exit 1; }
 
       - uses: googleapis/release-please-action@v4
         with:
