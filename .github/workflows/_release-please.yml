@@ -28,6 +28,14 @@ jobs:
           python3 -c "import json,sys; json.load(open('release-please-config.json'))" || { echo 'Config download failed or invalid JSON' >&2; exit 1; }
 
       - uses: googleapis/release-please-action@v4
+        id: release
         with:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
+
+      - name: Enable auto-merge for release PR
+        if: steps.release.outputs.prs-created == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ fromJSON(steps.release.outputs.pr).number }}
+        run: gh pr merge "$PR_NUMBER" --auto --squash
