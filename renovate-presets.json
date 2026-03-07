@@ -4,23 +4,30 @@
   "platformAutomerge": true,
   "packageRules": [
     {
-      "description": "Auto-merge JacobPEvans-owned GitHub Actions (all update types, immediate)",
+      "description": "Auto-merge JacobPEvans-owned GitHub Actions (immediate)",
       "matchDatasources": ["github-actions"],
       "matchPackageNames": ["JacobPEvans/**"],
       "automerge": true,
       "automergeType": "pr",
+      "automergeStrategy": "squash",
       "minimumReleaseAge": "0 days"
     },
     {
-      "description": "Auto-merge trusted GitHub Actions (all update types)",
+      "description": "Auto-merge trusted GitHub Actions (3-day stabilization)",
       "matchDatasources": ["github-actions"],
       "matchPackageNames": [
         "actions/**",
         "googleapis/**",
-        "anthropics/**"
+        "anthropics/**",
+        "astral-sh/**",
+        "DeterminateSystems/**",
+        "peter-evans/**",
+        "DavidAnson/**",
+        "aquasecurity/**"
       ],
       "automerge": true,
       "automergeType": "pr",
+      "automergeStrategy": "squash",
       "minimumReleaseAge": "3 days"
     },
     {
@@ -28,7 +35,13 @@
       "matchManagers": ["pre-commit"],
       "matchUpdateTypes": ["minor", "patch"],
       "automerge": true,
-      "automergeType": "pr"
+      "automergeType": "pr",
+      "automergeStrategy": "squash"
+    },
+    {
+      "description": "Never auto-merge major updates - require human review",
+      "matchUpdateTypes": ["major"],
+      "automerge": false
     }
   ]
 }
