@@ -37,5 +37,7 @@ jobs:
         if: steps.release.outputs.prs_created == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
-          PR_NUMBER: ${{ fromJSON(steps.release.outputs.pr).number }}
-        run: gh pr merge "$PR_NUMBER" --auto --squash
+          PR_JSON: ${{ steps.release.outputs.pr }}
+        run: |
+          PR_NUMBER=$(python3 -c "import json,os; print(json.loads(os.environ['PR_JSON'])['number'])")
+          gh pr merge "$PR_NUMBER" --auto --squash
