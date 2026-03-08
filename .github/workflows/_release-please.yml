@@ -39,5 +39,22 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           PR_JSON: ${{ steps.release.outputs.pr }}
         run: |
-          PR_NUMBER=$(python3 -c "import json,os; print(json.loads(os.environ['PR_JSON'])['number'])")
+          PR_NUMBER=$(python3 - << 'PY'
+          import json, os, sys
+          pr_json = os.environ.get("PR_JSON")
+          if not pr_json:
+              sys.stderr.write("Error: PR_JSON is empty or not set.\n")
+              sys.exit(1)
+          try:
+              data = json.loads(pr_json)
+          except json.JSONDecodeError as e:
+              sys.stderr.write(f"Error: Failed to parse PR_JSON: {e}\n")
+              sys.exit(1)
+          number = data.get("number")
+          if number is None:
+              sys.stderr.write("Error: 'number' field missing from PR_JSON.\n")
+              sys.exit(1)
+          print(number)
+          PY
+          )
           gh pr merge "$PR_NUMBER" --auto --squash
