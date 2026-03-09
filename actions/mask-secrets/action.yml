@@ -1,0 +1,61 @@
+name: Mask Secrets
+description: Mask sensitive values (SOPS secrets and cluster IPs) in GitHub Actions logs
+
+inputs:
+  sops-file:
+    description: 'Path to SOPS-encrypted YAML file; decrypts and masks all string values'
+    required: false
+    default: ''
+  mask-pod-ips:
+    description: 'Query kubectl and mask all pod + service ClusterIPs in namespace'
+    required: false
+    default: 'false'
+  kubernetes-namespace:
+    description: 'Namespace for IP discovery'
+    required: false
+    default: 'monitoring'
+  kubernetes-context:
+    description: 'kubectl context (optional)'
+    required: false
+    default: ''
+
+runs:
+  using: composite
+  steps:
+    - name: Mask SOPS secret values
+      if: inputs.sops-file != ''
+      shell: bash
+      env:
+        SOPS_FILE: ${{ inputs.sops-file }}
+      run: |
+        echo "Masking SOPS secret values..."
+        count=0
+        while IFS= read -r val; do
+          echo "::add-mask::$val"
+          count=$((count + 1))
+        done < <(sops -d "$SOPS_FILE" | yq eval '.. | strings | select(length > 4)' -)
+        echo "Masking SOPS secret values... ✓ ($count values masked)"
+
+    - name: Mask pod and service IPs
+      if: inputs.mask-pod-ips == 'true'
+      shell: bash
+      env:
+        NS: ${{ inputs.kubernetes-namespace }}
+        KUBE_CONTEXT: ${{ inputs.kubernetes-context }}
+      run: |
+        echo "Masking pod and service IPs in $NS..."
+        context_arg=""
+        if [ -n "$KUBE_CONTEXT" ]; then
+          context_arg="--context $KUBE_CONTEXT"
+        fi
+        count=0
+        while IFS= read -r ip; do
+          echo "::add-mask::$ip"
+          count=$((count + 1))
+        done < <(
+          kubectl get pods -n "$NS" $context_arg -o json \
+            | jq -r '.items[].status.podIP // empty' | sort -u
+          kubectl get svc -n "$NS" $context_arg -o json \
+            | jq -r '.items[].spec.clusterIP // empty | select(. != "None")' | sort -u
+        )
+        echo "Masking pod and service IPs in $NS... ✓ ($count IPs masked)"
