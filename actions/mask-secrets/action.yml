@@ -1,0 +1,60 @@
+name: 'Mask Secrets'
+description: 'Mask SOPS-encrypted secrets and Kubernetes pod IPs from GitHub Actions logs'
+author: 'JacobPEvans'
+
+inputs:
+  sops-file:
+    description: 'Path to SOPS-encrypted env file to decrypt and mask'
+    required: false
+    default: ''
+  mask-pod-ips:
+    description: 'If true, collect and mask all pod IPs in the cluster'
+    required: false
+    default: 'false'
+  kubernetes-namespace:
+    description: 'Kubernetes namespace to query for pod IPs'
+    required: false
+    default: 'monitoring'
+  kubernetes-context:
+    description: 'Kubernetes context to use for pod IP lookup'
+    required: false
+    default: 'orbstack'
+
+runs:
+  using: composite
+  steps:
+    - name: Mask SOPS secrets
+      if: ${{ inputs.sops-file != '' }}
+      shell: bash
+      env:
+        SOPS_FILE: ${{ inputs.sops-file }}
+      run: |
+        # Decrypt SOPS file to dotenv format, mask each value, and export to GITHUB_ENV
+        # so downstream steps have access to the secrets without them appearing in logs.
+        while IFS='=' read -r key value; do
+          # Skip comments and empty lines
+          [[ -z "$key" || "$key" =~ ^[[:space:]]*# ]] && continue
+          # Strip surrounding quotes (single or double)
+          value="${value#\"}"; value="${value%\"}"
+          value="${value#\'}"; value="${value%\'}"
+          [[ -z "$value" ]] && continue
+          echo "::add-mask::$value"
+          printf '%s=%s\n' "$key" "$value" >> "$GITHUB_ENV"
+        done < <(sops --output-type dotenv --decrypt "$SOPS_FILE")
+
+    - name: Mask cluster pod IPs
+      if: ${{ inputs.mask-pod-ips == 'true' }}
+      shell: bash
+      env:
+        K8S_CONTEXT: ${{ inputs.kubernetes-context }}
+        K8S_NAMESPACE: ${{ inputs.kubernetes-namespace }}
+      run: |
+        # Collect all pod IPs from the cluster and mask them in logs so
+        # infrastructure addresses do not appear in test output.
+        ARGS=()
+        [[ -n "$K8S_CONTEXT" ]] && ARGS+=(--context "$K8S_CONTEXT")
+        [[ -n "$K8S_NAMESPACE" ]] && ARGS+=(-n "$K8S_NAMESPACE")
+        while IFS= read -r ip; do
+          [[ -n "$ip" ]] && echo "::add-mask::$ip"
+        done < <(kubectl "${ARGS[@]}" get pods \
+          -o jsonpath='{range .items[*]}{.status.podIP}{"\n"}{end}' 2>/dev/null || true)
