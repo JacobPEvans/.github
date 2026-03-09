@@ -36,7 +36,8 @@
     "pycache",
     "narinfo",
     "nixpkgs",
-    "Anson"
+    "Anson",
+    "pipefail"
   ],
   "ignorePaths": [
     ".git",
