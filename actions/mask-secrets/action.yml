@@ -3,11 +3,11 @@ description: Mask sensitive values (SOPS secrets and cluster IPs) in GitHub Acti
 
 inputs:
   sops-file:
-    description: 'Path to SOPS-encrypted YAML file; decrypts and masks all string values'
+    description: 'Path to SOPS-encrypted YAML file; decrypts and masks all string values longer than 4 chars'
     required: false
     default: ''
   mask-pod-ips:
-    description: 'Query kubectl and mask all pod + service ClusterIPs in namespace'
+    description: 'Query kubectl and mask pod + service IP prefixes (first 3 octets) in namespace'
     required: false
     default: 'false'
   kubernetes-namespace:
@@ -28,43 +28,23 @@ runs:
       env:
         SOPS_FILE: ${{ inputs.sops-file }}
       run: |
-        set -euo pipefail
-        echo "Masking SOPS secret values..."
-        count=0
-        decrypted=$(sops -d "$SOPS_FILE") || { echo "::error::sops decryption failed for $SOPS_FILE"; exit 1; }
-        while IFS= read -r val; do
-          # select(length > 4) intentionally skips short values (≤4 chars) to avoid
-          # masking YAML primitives like "true", "yes", "no", "null", and short integers
-          # that would corrupt log readability if masked.
-          [ -n "$val" ] && echo "::add-mask::$val"
-          [ -n "$val" ] && count=$((count + 1))
-        done < <(echo "$decrypted" | yq eval '.. | strings | select(length > 4)' -)
-        echo "Masking SOPS secret values... ✓ ($count values masked)"
+        # select(length > 4) skips short values (≤4 chars) to avoid masking YAML
+        # primitives like "true", "yes", "no", "null" that would corrupt log readability.
+        sops -d "$SOPS_FILE" \
+          | yq eval '.. | strings | select(length > 4)' - \
+          | while IFS= read -r val; do echo "::add-mask::$val"; done
 
-    - name: Mask pod and service IPs
+    - name: Mask pod and service IP prefixes
       if: inputs.mask-pod-ips == 'true'
       shell: bash
       env:
         NS: ${{ inputs.kubernetes-namespace }}
         KUBE_CONTEXT: ${{ inputs.kubernetes-context }}
       run: |
-        set -euo pipefail
-        echo "Masking pod and service IPs in $NS..."
-        context_arg=()
-        if [ -n "$KUBE_CONTEXT" ]; then
-          context_arg=(--context "$KUBE_CONTEXT")
-        fi
-        count=0
-        pod_ips=$(kubectl get pods -n "$NS" "${context_arg[@]}" -o json \
-          | jq -r '.items[].status.podIP // empty' | sort -u) \
-          || { echo "::error::kubectl get pods failed for namespace $NS"; exit 1; }
-        svc_ips=$(kubectl get svc -n "$NS" "${context_arg[@]}" -o json \
-          | jq -r '.items[].spec.clusterIP // empty | select(. != "None")' | sort -u) \
-          || { echo "::error::kubectl get svc failed for namespace $NS"; exit 1; }
-        while IFS= read -r ip; do
-          if [ -n "$ip" ]; then
-            echo "::add-mask::$ip"
-            count=$((count + 1))
-          fi
-        done < <(printf '%s\n%s\n' "$pod_ips" "$svc_ips" | sort -u)
-        echo "Masking pod and service IPs in $NS... ✓ ($count IPs masked)"
+        # Masks only the first 3 octets (e.g. 10.42.1.x -> ***), keeping the host ID
+        # visible for debugging while hiding network topology.
+        kubectl get pods,svc -n "$NS" ${KUBE_CONTEXT:+--context "$KUBE_CONTEXT"} \
+          -o jsonpath='{range .items[*]}{.status.podIP}{"\n"}{.spec.clusterIP}{"\n"}{end}' \
+          | grep -v '^$\|None' \
+          | sed 's/\.[0-9]*$//' | sort -u \
+          | while read -r prefix; do echo "::add-mask::$prefix"; done
