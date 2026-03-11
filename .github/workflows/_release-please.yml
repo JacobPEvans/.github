@@ -37,24 +37,8 @@ jobs:
         if: steps.release.outputs.prs_created == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
-          PR_JSON: ${{ steps.release.outputs.pr }}
         run: |
-          PR_NUMBER=$(python3 - << 'PY'
-          import json, os, sys
-          pr_json = os.environ.get("PR_JSON")
-          if not pr_json:
-              sys.stderr.write("Error: PR_JSON is empty or not set.\n")
-              sys.exit(1)
-          try:
-              data = json.loads(pr_json)
-          except json.JSONDecodeError as e:
-              sys.stderr.write(f"Error: Failed to parse PR_JSON: {e}\n")
-              sys.exit(1)
-          number = data.get("number")
-          if number is None:
-              sys.stderr.write("Error: 'number' field missing from PR_JSON.\n")
-              sys.exit(1)
-          print(number)
-          PY
-          )
-          gh pr merge "$PR_NUMBER" --auto --squash
+          PR_NUMBER=$(gh pr list --head "release-please--branches--main" --json number --jq '.[0].number // empty')
+          if [ -n "$PR_NUMBER" ]; then
+            gh pr merge "$PR_NUMBER" --auto --squash
+          fi
