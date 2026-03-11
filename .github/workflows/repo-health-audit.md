@@ -19,14 +19,14 @@ tools:
 safe-outputs:
   create-issue:
     title-prefix: "[health-audit] "
-    labels: ["ai:created", "type:chore"]
+    labels: ["ai:created"]
     group: true
     max: 8
     expires: 7d
     close-older-issues: true
 
   add-labels:
-    allowed: ["type:ci", "type:chore", "type:security", "priority:critical", "priority:high", "priority:medium", "priority:low"]
+    allowed: ["type:ci", "type:chore", "type:security", "priority:critical", "priority:high", "priority:medium", "priority:low", "size:xs"]
     max: 16
 
   close-issue:
@@ -54,7 +54,7 @@ Create a parent issue titled `[health-audit] Daily Health Audit - YYYY-MM-DD` (r
 The body should contain a summary table with one row per category, showing Pass/Fail and a brief note.
 Populate this after gathering findings.
 
-Labels: `ai:created`, `type:chore`
+Labels: `ai:created`, `type:chore`, `priority:low`, `size:xs`
 
 ### Step 2: Audit Each Category
 
@@ -63,13 +63,14 @@ the parent. If it has no findings, mark it as Pass in the summary table.
 
 #### Category: Failed CI on Main
 
-Check workflow runs on the `main` branch over the last 7 days. Look for any runs with `failure` or `cancelled` status.
+Check workflow runs on the `main` branch over the last 7 days. In the GitHub Actions API, look for runs where `status` is
+`completed` and `conclusion` is `failure` or `cancelled`.
 
 If findings exist:
 
 - Create sub-issue: `[health-audit] Failed CI on Main`
 - List each failed workflow by name, run ID, and failure date
-- Apply labels: `type:ci`, and the appropriate priority:
+- Apply labels: `type:ci`, `size:xs`, and the appropriate priority:
   - `priority:high` if any failure occurred in the last 24 hours
   - `priority:medium` otherwise
 
@@ -84,7 +85,7 @@ If findings exist:
 
 - Create sub-issue: `[health-audit] Failed CI on Open PRs`
 - List each PR by number, title, failing check names, and how long it has been failing
-- Apply labels: `type:ci`, `priority:medium`
+- Apply labels: `type:ci`, `priority:medium`, `size:xs`
 
 #### Category: CodeQL and Security Scanning Alerts
 
@@ -94,7 +95,7 @@ If findings exist:
 
 - Create sub-issue: `[health-audit] Security Scanning Alerts`
 - List alert titles, severity, and affected file/line where available
-- Apply labels: `type:security`, and:
+- Apply labels: `type:security`, `size:xs`, and:
   - `priority:critical` if any critical or high severity alerts exist
   - `priority:medium` if only medium/low severity alerts exist
 
@@ -106,7 +107,7 @@ If findings exist:
 
 - Create sub-issue: `[health-audit] Dependency Security Alerts`
 - List each vulnerable dependency with severity and fix version if known
-- Apply labels: `type:security`, and:
+- Apply labels: `type:security`, `size:xs`, and:
   - `priority:critical` if any critical severity alerts
   - `priority:high` if any high severity alerts
   - `priority:medium` otherwise
@@ -119,7 +120,7 @@ If findings exist:
 
 - Create sub-issue: `[health-audit] Secret Scanning Alerts`
 - List each alert type (do NOT include actual secret values)
-- Apply labels: `type:security`, `priority:critical`
+- Apply labels: `type:security`, `priority:critical`, `size:xs`
 
 #### Category: Stale Pull Requests
 
@@ -134,7 +135,7 @@ If findings exist:
 
 - Create sub-issue: `[health-audit] Stale Pull Requests`
 - List each stale PR by number, title, author, and days since last activity
-- Apply labels: `type:chore`, `priority:low`
+- Apply labels: `type:chore`, `priority:low`, `size:xs`
 
 #### Category: Failed Scheduled Workflows
 
@@ -147,7 +148,7 @@ If findings exist:
 
 - Create sub-issue: `[health-audit] Failed Scheduled Workflows`
 - List each affected workflow by name and last run status/date
-- Apply labels: `type:ci`, `priority:high`
+- Apply labels: `type:ci`, `priority:high`, `size:xs`
 
 ### Step 3: Finalize Parent Issue
 
