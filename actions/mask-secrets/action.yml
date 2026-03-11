@@ -30,8 +30,10 @@ runs:
       run: |
         # select(length > 4) skips short values (≤4 chars) to avoid masking YAML
         # primitives like "true", "yes", "no", "null" that would corrupt log readability.
+        # yq (mikefarah/yq v4) uses select(type == "!!str") to filter strings;
+        # the jq-style "strings" alias is not supported in yq v4.
         sops -d "$SOPS_FILE" \
-          | yq eval '.. | strings | select(length > 4)' - \
+          | yq eval '.. | select(type == "!!str") | select(length > 4)' - \
           | while IFS= read -r val; do echo "::add-mask::$val"; done
 
     - name: Mask pod and service IP prefixes
