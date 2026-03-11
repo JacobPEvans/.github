@@ -1,9 +1,9 @@
 ---
 description: "Daily repository health audit - CI failures, security alerts, stale PRs, policy violations"
+engine: copilot
 
 on:
-  schedule:
-    - cron: '0 5 * * *'
+  schedule: daily
   workflow_dispatch:
 
 imports:
