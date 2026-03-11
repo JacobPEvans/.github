@@ -8,7 +8,7 @@ on:
 
 permissions:
   contents: read
-  issues: read
+  issues: write
   pull-requests: read
   actions: read
   security-events: read
@@ -27,7 +27,7 @@ safe-outputs:
 
   add-labels:
     allowed: ["type:ci", "type:security", "priority:critical", "priority:high", "priority:medium", "priority:low"]
-    max: 8
+    max: 16
 
   close-issue:
     required-title-prefix: "[health-audit] "
@@ -134,7 +134,7 @@ If findings exist:
 
 - Create sub-issue: `[health-audit] Stale Pull Requests`
 - List each stale PR by number, title, author, and days since last activity
-- Apply labels: `type:ci`, `priority:low`
+- Apply labels: `type:chore`, `priority:low`
 
 #### Category: Failed Scheduled Workflows
 
