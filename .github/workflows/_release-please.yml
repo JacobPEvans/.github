@@ -38,7 +38,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          PR_NUMBER=$(gh pr list --label "autorelease: pending" --json number --jq '.[0].number // empty')
+          PR_NUMBER=$(gh pr list --head "release-please--branches--main" --json number --jq '.[0].number // empty')
           if [ -n "$PR_NUMBER" ]; then
             gh pr merge "$PR_NUMBER" --auto --squash
           fi
