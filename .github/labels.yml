@@ -168,3 +168,11 @@
 - name: "renovate"
   color: "A5B4FC"
   description: "Renovate bot - Automated dependency management"
+
+- name: "autorelease: pending"
+  color: "E2E8F0"
+  description: "Release Please - Pending release PR (managed by release-please-action)"
+
+- name: "autorelease: tagged"
+  color: "E2E8F0"
+  description: "Release Please - Release has been tagged (managed by release-please-action)"
