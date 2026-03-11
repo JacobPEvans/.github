@@ -3,6 +3,10 @@
 #
 # All release configuration is inlined as action inputs.
 # Calling repos only need: uses: JacobPEvans/.github/.github/workflows/_release-please.yml@main
+#
+# Required files in each calling repo:
+#   VERSION                         - plain-text current version (e.g. "1.2.3")
+#   .release-please-manifest.json  - release-please manifest (e.g. {"." : "1.2.3"})
 name: _release-please
 
 on:
@@ -30,7 +34,22 @@ jobs:
           version-file: VERSION
           include-v-in-tag: true
           versioning-strategy: always-bump-minor
-          changelog-types: '[{"type":"feat","section":"Features"},{"type":"fix","section":"Bug Fixes"},{"type":"perf","section":"Performance"},{"type":"breaking","section":"Breaking Changes"},{"type":"chore","section":"Miscellaneous","hidden":true},{"type":"ci","section":"CI","hidden":true},{"type":"docs","section":"Documentation","hidden":true},{"type":"refactor","section":"Refactoring","hidden":true},{"type":"test","section":"Tests","hidden":true}]'
+          # Note: `breaking:` commit type is for changelog display only — it shows commits in the
+          # "Breaking Changes" section. It does NOT trigger a semver major bump. Major bumps require
+          # a `BREAKING CHANGE:` footer or `!` suffix (e.g. `feat!:`). With always-bump-minor the
+          # minimum bump is minor regardless.
+          changelog-types: |
+            [
+              {"type": "feat", "section": "Features"},
+              {"type": "fix", "section": "Bug Fixes"},
+              {"type": "perf", "section": "Performance"},
+              {"type": "breaking", "section": "Breaking Changes"},
+              {"type": "chore", "section": "Miscellaneous", "hidden": true},
+              {"type": "ci", "section": "CI", "hidden": true},
+              {"type": "docs", "section": "Documentation", "hidden": true},
+              {"type": "refactor", "section": "Refactoring", "hidden": true},
+              {"type": "test", "section": "Tests", "hidden": true}
+            ]
           manifest-file: .release-please-manifest.json
 
       - name: Enable auto-merge for release PR
