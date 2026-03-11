@@ -26,7 +26,7 @@ safe-outputs:
     close-older-issues: true
 
   add-labels:
-    allowed: ["type:ci", "type:security", "priority:critical", "priority:high", "priority:medium", "priority:low"]
+    allowed: ["type:ci", "type:chore", "type:security", "priority:critical", "priority:high", "priority:medium", "priority:low"]
     max: 16
 
   close-issue:
