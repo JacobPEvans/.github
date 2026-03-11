@@ -1,5 +1,8 @@
 # Reusable: Release Please
 # Automates versioning and changelog via conventional commits.
+#
+# All release configuration is inlined as action inputs.
+# Calling repos only need: uses: JacobPEvans/.github/.github/workflows/_release-please.yml@main
 name: _release-please
 
 on:
@@ -20,17 +23,14 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Inject central release-please config
-        run: |
-          curl -sfL \
-            "https://raw.githubusercontent.com/JacobPEvans/.github/main/release-please-config.json" \
-            -o release-please-config.json
-          python3 -c "import json,sys; json.load(open('release-please-config.json'))" || { echo 'Config download failed or invalid JSON' >&2; exit 1; }
-
       - uses: googleapis/release-please-action@v4
         id: release
         with:
-          config-file: release-please-config.json
+          release-type: simple
+          version-file: VERSION
+          include-v-in-tag: true
+          versioning-strategy: always-bump-minor
+          changelog-types: '[{"type":"feat","section":"Features"},{"type":"fix","section":"Bug Fixes"},{"type":"perf","section":"Performance"},{"type":"breaking","section":"Breaking Changes"},{"type":"chore","section":"Miscellaneous","hidden":true},{"type":"ci","section":"CI","hidden":true},{"type":"docs","section":"Documentation","hidden":true},{"type":"refactor","section":"Refactoring","hidden":true},{"type":"test","section":"Tests","hidden":true}]'
           manifest-file: .release-please-manifest.json
 
       - name: Enable auto-merge for release PR
