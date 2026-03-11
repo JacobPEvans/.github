@@ -9,6 +9,7 @@ on:
 jobs:
   sync:
     runs-on: ubuntu-latest
+    environment: automation
     # permissions for GITHUB_TOKEN (used by EndBug/label-sync on this repo only).
     # Cross-repo operations use GH_PAT_WORKFLOW_DISPATCH PAT instead.
     permissions:
