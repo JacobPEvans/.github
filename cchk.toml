@@ -15,5 +15,6 @@ allow_branch_types = [
   "release",
   "chore",
   "claude",
+  "copilot",
 ]
 allow_branch_names = ["main", "develop"]
