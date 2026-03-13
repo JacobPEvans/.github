@@ -2,15 +2,34 @@
 # Automates versioning and changelog via conventional commits.
 #
 # All release configuration is inlined as action inputs.
-# Calling repos only need: uses: JacobPEvans/.github/.github/workflows/_release-please.yml@main
+# Calling repos should pass secrets explicitly:
+#
+#   jobs:
+#     release-please:
+#       uses: JacobPEvans/.github/.github/workflows/_release-please.yml@main
+#       secrets:
+#         GH_ACTION_JACOBPEVANS_APP_ID: ${{ secrets.GH_ACTION_JACOBPEVANS_APP_ID }}
+#         GH_APP_PRIVATE_KEY: ${{ secrets.GH_APP_PRIVATE_KEY }}
 #
 # Required files in each calling repo:
 #   VERSION                         - plain-text current version (e.g. "1.2.3")
 #   .release-please-manifest.json  - release-please manifest (e.g. {"." : "1.2.3"})
+#
+# Secrets required:
+#   GH_ACTION_JACOBPEVANS_APP_ID  - GitHub App ID (repo-level secret)
+#   GH_APP_PRIVATE_KEY            - GitHub App private key (repo-level secret)
+#
+# The GitHub App token is required so release-please PRs trigger `pull_request`
+# workflows (e.g. CI Gate). PRs created with GITHUB_TOKEN do NOT trigger them.
 name: _release-please
 
 on:
   workflow_call:
+    secrets:
+      GH_ACTION_JACOBPEVANS_APP_ID:
+        required: true
+      GH_APP_PRIVATE_KEY:
+        required: true
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -22,14 +41,21 @@ jobs:
   release-please:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
-      pull-requests: write
+      contents: read
     steps:
       - uses: actions/checkout@v6
+
+      - name: Generate GitHub App Token
+        id: app-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.GH_ACTION_JACOBPEVANS_APP_ID }}
+          private-key: ${{ secrets.GH_APP_PRIVATE_KEY }}
 
       - uses: googleapis/release-please-action@v4
         id: release
         with:
+          token: ${{ steps.app-token.outputs.token }}
           release-type: simple
           version-file: VERSION
           include-v-in-tag: true
@@ -55,9 +81,10 @@ jobs:
       - name: Enable auto-merge for release PR
         if: steps.release.outputs.prs_created == 'true'
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          BASE_BRANCH: ${{ github.ref_name }}
         run: |
-          PR_NUMBER=$(gh pr list --head "release-please--branches--main" --json number --jq '.[0].number // empty')
+          PR_NUMBER=$(gh pr list --head "release-please--branches--${BASE_BRANCH}" --json number --jq '.[0].number // empty')
           if [ -n "$PR_NUMBER" ]; then
             gh pr merge "$PR_NUMBER" --auto --squash
           fi
