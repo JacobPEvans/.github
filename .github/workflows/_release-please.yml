@@ -2,17 +2,22 @@
 # Automates versioning and changelog via conventional commits.
 #
 # All release configuration is inlined as action inputs.
-# Calling repos only need:
-#   uses: JacobPEvans/.github/.github/workflows/_release-please.yml@main
-#   secrets: inherit
+# Calling repos should pass secrets explicitly:
+#
+#   jobs:
+#     release-please:
+#       uses: JacobPEvans/.github/.github/workflows/_release-please.yml@main
+#       secrets:
+#         GH_ACTION_JACOBPEVANS_APP_ID: ${{ secrets.GH_ACTION_JACOBPEVANS_APP_ID }}
+#         GH_APP_PRIVATE_KEY: ${{ secrets.GH_APP_PRIVATE_KEY }}
 #
 # Required files in each calling repo:
 #   VERSION                         - plain-text current version (e.g. "1.2.3")
 #   .release-please-manifest.json  - release-please manifest (e.g. {"." : "1.2.3"})
 #
-# Secrets required (passed via `secrets: inherit` from caller):
-#   GH_ACTION_JACOBPEVANS_APP_ID  - GitHub App ID
-#   GH_APP_PRIVATE_KEY            - GitHub App private key
+# Secrets required:
+#   GH_ACTION_JACOBPEVANS_APP_ID  - GitHub App ID (repo-level secret)
+#   GH_APP_PRIVATE_KEY            - GitHub App private key (repo-level secret)
 #
 # The GitHub App token is required so release-please PRs trigger `pull_request`
 # workflows (e.g. CI Gate). PRs created with GITHUB_TOKEN do NOT trigger them.
@@ -36,8 +41,7 @@ jobs:
   release-please:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
-      pull-requests: write
+      contents: read
     steps:
       - uses: actions/checkout@v6
 
@@ -78,8 +82,9 @@ jobs:
         if: steps.release.outputs.prs_created == 'true'
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          BASE_BRANCH: ${{ github.ref_name }}
         run: |
-          PR_NUMBER=$(gh pr list --head "release-please--branches--main" --json number --jq '.[0].number // empty')
+          PR_NUMBER=$(gh pr list --head "release-please--branches--${BASE_BRANCH}" --json number --jq '.[0].number // empty')
           if [ -n "$PR_NUMBER" ]; then
             gh pr merge "$PR_NUMBER" --auto --squash
           fi
