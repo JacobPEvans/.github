@@ -51,6 +51,35 @@
       "automergeType": "pr",
       "automergeStrategy": "squash",
       "minimumReleaseAge": "3 days"
+    },
+    {
+      "description": "Auto-merge JacobPEvans-owned Nix flake inputs (immediate)",
+      "matchManagers": ["nix"],
+      "matchPackageNames": ["https://github.com/JacobPEvans/**"],
+      "automerge": true,
+      "automergeType": "pr",
+      "automergeStrategy": "squash",
+      "minimumReleaseAge": "0 days"
+    },
+    {
+      "description": "Auto-merge trusted Nix flake inputs (3-day stabilization)",
+      "matchManagers": ["nix"],
+      "matchPackageNames": [
+        "https://github.com/NixOS/**",
+        "https://github.com/nix-community/**",
+        "https://github.com/cachix/**",
+        "https://github.com/anthropics/**",
+        "https://github.com/numtide/**",
+        "https://github.com/hercules-ci/**",
+        "https://github.com/DeterminateSystems/**",
+        "https://github.com/edolstra/**",
+        "https://github.com/oxalica/**",
+        "https://github.com/wakatime/**"
+      ],
+      "automerge": true,
+      "automergeType": "pr",
+      "automergeStrategy": "squash",
+      "minimumReleaseAge": "3 days"
     }
   ]
 }
