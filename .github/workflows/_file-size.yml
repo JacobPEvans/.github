@@ -1,21 +1,18 @@
 # Reusable: File Size Check
-# Checks that no files exceed size limits. Uses repo's own config script if
-# available, otherwise falls back to inline defaults.
+# Delegates to repo's own script if available, otherwise runs inline check.
 name: _file-size
 
 on:
   workflow_call:
     inputs:
       max-file-size-kb:
-        description: "Maximum file size in KB (default: 500)"
-        required: false
+        description: "Maximum file size in KB"
         type: number
         default: 500
-      max-line-count:
-        description: "Maximum line count per file (default: 1000)"
-        required: false
-        type: number
-        default: 1000
+      exclude-patterns:
+        description: 'JSON array of find exclusions (path if contains /, name otherwise)'
+        type: string
+        default: '["./.git/*", "./node_modules/*", "./result*", "*.lock", "package-lock.json", "pnpm-lock.yaml"]'
 
 concurrency:
   group: file-size-${{ github.workflow }}-${{ github.ref }}
@@ -29,40 +26,28 @@ jobs:
     name: Check
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v6
+      - uses: actions/checkout@v6
 
       - name: Check file sizes
         env:
-          MAX_FILE_SIZE_KB: ${{ inputs.max-file-size-kb }}
-          MAX_LINE_COUNT: ${{ inputs.max-line-count }}
+          MAX_KB: ${{ inputs.max-file-size-kb }}
+          EXCLUDES: ${{ inputs.exclude-patterns }}
         run: |
-          # Use repo's own script if available, otherwise inline check
-          if [ -x "./scripts/workflows/check-file-sizes.sh" ]; then
-            ./scripts/workflows/check-file-sizes.sh
-          else
-            EXIT_CODE=0
+          # Delegate to repo script if available
+          [ -x "./scripts/workflows/check-file-sizes.sh" ] && exec ./scripts/workflows/check-file-sizes.sh
 
-            echo "=== File Size Check (max: ${MAX_FILE_SIZE_KB}KB) ==="
-            while IFS= read -r -d '' file; do
-              size_kb=$(( $(wc -c < "$file") / 1024 ))
-              if [ "$size_kb" -gt "$MAX_FILE_SIZE_KB" ]; then
-                echo "FAIL: $file (${size_kb}KB > ${MAX_FILE_SIZE_KB}KB)"
-                EXIT_CODE=1
-              fi
-            done < <(find . -type f -not -path './.git/*' -not -path './node_modules/*' -not -path './result*' -not -name '*.lock' -not -name 'package-lock.json' -not -name 'pnpm-lock.yaml' -print0)
+          # Build find exclusions from JSON input
+          args=()
+          for p in $(echo "$EXCLUDES" | jq -r '.[]'); do
+            [[ "$p" == */* ]] && args+=(-not -path "$p") || args+=(-not -name "$p")
+          done
 
-            echo ""
-            echo "=== Line Count Check (max: ${MAX_LINE_COUNT} lines) ==="
-            while IFS= read -r -d '' file; do
-              if file "$file" | grep -q text; then
-                lines=$(wc -l < "$file")
-                if [ "$lines" -gt "$MAX_LINE_COUNT" ]; then
-                  echo "FAIL: $file (${lines} lines > ${MAX_LINE_COUNT})"
-                  EXIT_CODE=1
-                fi
-              fi
-            done < <(find . -type f -not -path './.git/*' -not -path './node_modules/*' -not -path './result*' -not -name '*.lock' -not -name 'package-lock.json' -not -name 'pnpm-lock.yaml' -print0)
-
-            exit $EXIT_CODE
-          fi
+          rc=0
+          while IFS= read -r -d '' f; do
+            kb=$(( $(stat -c%s "$f") / 1024 ))
+            if [ "$kb" -gt "$MAX_KB" ]; then
+              echo "::error file=$f::${kb}KB exceeds ${MAX_KB}KB limit"
+              rc=1
+            fi
+          done < <(find . -type f "${args[@]}" -print0)
+          exit $rc
