@@ -55,15 +55,16 @@
     {
       "description": "Auto-merge JacobPEvans-owned Nix flake inputs (immediate)",
       "matchManagers": ["nix"],
+      "matchDatasources": ["git-refs"],
       "matchPackageNames": ["https://github.com/JacobPEvans/**"],
       "automerge": true,
       "automergeType": "pr",
-      "automergeStrategy": "squash",
-      "minimumReleaseAge": "0 days"
+      "automergeStrategy": "squash"
     },
     {
-      "description": "Auto-merge trusted Nix flake inputs (3-day stabilization)",
+      "description": "Auto-merge trusted Nix flake inputs (immediate, CI-gated)",
       "matchManagers": ["nix"],
+      "matchDatasources": ["git-refs"],
       "matchPackageNames": [
         "https://github.com/NixOS/**",
         "https://github.com/nix-community/**",
@@ -78,8 +79,7 @@
       ],
       "automerge": true,
       "automergeType": "pr",
-      "automergeStrategy": "squash",
-      "minimumReleaseAge": "3 days"
+      "automergeStrategy": "squash"
     }
   ]
 }
