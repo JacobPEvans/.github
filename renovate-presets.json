@@ -4,6 +4,11 @@
   "platformAutomerge": true,
   "packageRules": [
     {
+      "description": "Never auto-merge major updates - require human review (overridden by trusted package rules below)",
+      "matchUpdateTypes": ["major"],
+      "automerge": false
+    },
+    {
       "description": "Auto-merge JacobPEvans-owned GitHub Actions (immediate)",
       "matchDatasources": ["github-actions"],
       "matchPackageNames": ["JacobPEvans/**"],
@@ -23,7 +28,15 @@
         "DeterminateSystems/**",
         "peter-evans/**",
         "DavidAnson/**",
-        "aquasecurity/**"
+        "aquasecurity/**",
+        "dorny/**",
+        "github/**",
+        "softprops/**",
+        "hashicorp/**",
+        "opentofu/**",
+        "python/**",
+        "microsoft/**",
+        "Azure/**"
       ],
       "automerge": true,
       "automergeType": "pr",
@@ -38,11 +51,6 @@
       "automergeType": "pr",
       "automergeStrategy": "squash",
       "minimumReleaseAge": "3 days"
-    },
-    {
-      "description": "Never auto-merge major updates - require human review",
-      "matchUpdateTypes": ["major"],
-      "automerge": false
     }
   ]
 }
