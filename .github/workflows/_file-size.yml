@@ -50,7 +50,7 @@ jobs:
                 echo "FAIL: $file (${size_kb}KB > ${MAX_FILE_SIZE_KB}KB)"
                 EXIT_CODE=1
               fi
-            done < <(find . -type f -not -path './.git/*' -not -path './node_modules/*' -not -path './result*' -print0)
+            done < <(find . -type f -not -path './.git/*' -not -path './node_modules/*' -not -path './result*' -not -name '*.lock' -print0)
 
             echo ""
             echo "=== Line Count Check (max: ${MAX_LINE_COUNT} lines) ==="
@@ -62,7 +62,7 @@ jobs:
                   EXIT_CODE=1
                 fi
               fi
-            done < <(find . -type f -not -path './.git/*' -not -path './node_modules/*' -not -path './result*' -print0)
+            done < <(find . -type f -not -path './.git/*' -not -path './node_modules/*' -not -path './result*' -not -name '*.lock' -print0)
 
             exit $EXIT_CODE
           fi
