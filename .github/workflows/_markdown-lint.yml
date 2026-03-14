@@ -21,9 +21,10 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Apply org-default markdownlint config
-        if: hashFiles('.markdownlint-cli2.yaml', '.markdownlint-cli2.cjs', '.markdownlint-cli2.mjs', '.markdownlint.yaml', '.markdownlint.json', '.markdownlint.jsonc', '.markdownlint.yml') == ''
+        if: hashFiles('.markdownlint-cli2.jsonc', '.markdownlint-cli2.yaml', '.markdownlint-cli2.cjs', '.markdownlint-cli2.mjs', '.markdownlint.jsonc', '.markdownlint.json', '.markdownlint.yaml', '.markdownlint.yml', '.markdownlint.cjs', '.markdownlint.mjs') == ''
         run: |
-          curl -sSfL "https://raw.githubusercontent.com/${{ github.repository_owner }}/.github/main/configs/.markdownlint-cli2.yaml" \
+          curl -sSfL --retry 3 --retry-connrefused \
+            "https://raw.githubusercontent.com/${{ github.repository_owner }}/.github/main/configs/.markdownlint-cli2.yaml" \
             -o .markdownlint-cli2.yaml
 
       - name: Run markdownlint
