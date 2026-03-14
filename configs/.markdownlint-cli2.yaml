@@ -1,0 +1,15 @@
+# Organization-wide markdownlint defaults
+# Repos inherit this via the _markdown-lint.yml reusable workflow.
+# To override: add a .markdownlint-cli2.yaml to your repo root.
+config:
+  # Allow duplicate headings in different sections (standard for changelogs)
+  MD024:
+    siblings_only: true
+
+# Per-file overrides
+overrides:
+  - files:
+      - "CHANGELOG.md"
+    config:
+      # release-please generates long lines with PR links
+      MD013: false

@@ -1,5 +1,5 @@
 # Reusable: Markdown Lint
-# Generic markdown linting — uses the calling repo's own markdownlint config.
+# Uses the calling repo's own markdownlint config, falling back to org defaults.
 name: _markdown-lint
 
 on:
@@ -19,6 +19,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+
+      - name: Apply org-default markdownlint config
+        if: hashFiles('.markdownlint-cli2.yaml', '.markdownlint-cli2.cjs', '.markdownlint-cli2.mjs', '.markdownlint.yaml', '.markdownlint.json', '.markdownlint.jsonc', '.markdownlint.yml') == ''
+        run: |
+          curl -sSfL "https://raw.githubusercontent.com/${{ github.repository_owner }}/.github/main/configs/.markdownlint-cli2.yaml" \
+            -o .markdownlint-cli2.yaml
 
       - name: Run markdownlint
         uses: DavidAnson/markdownlint-cli2-action@v22
