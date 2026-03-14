@@ -145,7 +145,6 @@ Standardized [pull request templates][pr-templates-docs] that enforce convention
 | ----------------------- | ------------------------------------ | -------------------- |
 | `auto-label-issues.yml` | Apply priority/size from issue forms | Issue creation       |
 | `label-sync.yml`        | Deploy `labels.yml` to all repos     | Push to main, manual |
-| `_auto-merge.yml`       | Reusable: squash auto-merge          | `workflow_call`      |
 | `_file-size.yml`        | Reusable: file size/line checks      | `workflow_call`      |
 | `_markdown-lint.yml`    | Reusable: markdownlint-cli2          | `workflow_call`      |
 | `_nix-build.yml`        | Reusable: Nix build (macOS)          | `workflow_call`      |

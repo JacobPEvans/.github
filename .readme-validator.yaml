@@ -1,0 +1,10 @@
+# README validation config for .github meta-repository
+# This repo contains org-wide defaults and configurations, not a library.
+# Installation/Usage sections are not applicable.
+required_sections:
+  - Repository Structure
+optional_sections:
+  - Contributing
+  - License
+  - Label System
+  - API
