@@ -1,12 +1,12 @@
 # Reusable: File Size Check
-# Delegates to repo's own script if available, otherwise runs inline check.
+# Delegates to repo's own script, shared YAML-config checker, or inline fallback.
 name: _file-size
 
 on:
   workflow_call:
     inputs:
       max-file-size-kb:
-        description: "Maximum file size in KB"
+        description: "Maximum file size in KB (legacy fallback)"
         type: number
         default: 500
       exclude-patterns:
@@ -32,11 +32,21 @@ jobs:
         env:
           MAX_KB: ${{ inputs.max-file-size-kb }}
           EXCLUDES: ${{ inputs.exclude-patterns }}
+          REPO_OWNER: ${{ github.repository_owner }}
         run: |
-          # Delegate to repo script if available
+          # Priority 1: Delegate to repo's own script
           [ -x "./scripts/workflows/check-file-sizes.sh" ] && exec ./scripts/workflows/check-file-sizes.sh
 
-          # Build find exclusions from JSON input
+          # Priority 2: Use shared YAML-config checker if .file-size.yml exists
+          if [ -f ".file-size.yml" ]; then
+            curl -sSfL \
+              "https://raw.githubusercontent.com/${REPO_OWNER}/.github/main/scripts/workflows/check-file-sizes.sh" \
+              -o /tmp/check-file-sizes.sh
+            chmod +x /tmp/check-file-sizes.sh
+            exec /tmp/check-file-sizes.sh
+          fi
+
+          # Priority 3: Inline fallback (legacy)
           args=()
           for p in $(echo "$EXCLUDES" | jq -r '.[]'); do
             [[ "$p" == */* ]] && args+=(-not -path "$p") || args+=(-not -name "$p")

@@ -74,3 +74,15 @@ repos:
       - id: check-branch
         name: Check branch naming conventions
         stages: [pre-push]
+
+  # ---------------------------------------------------------------------------
+  # File size enforcement
+  # ---------------------------------------------------------------------------
+  - repo: local
+    hooks:
+      - id: file-size-check
+        name: Check file sizes
+        entry: scripts/workflows/check-file-sizes.sh
+        language: script
+        always_run: true
+        stages: [pre-commit]

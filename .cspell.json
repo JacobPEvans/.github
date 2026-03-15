@@ -38,7 +38,10 @@
     "nixpkgs",
     "Anson",
     "pipefail",
-    "mikefarah"
+    "mikefarah",
+    "kislyuk",
+    "gsub",
+    "RLENGTH"
   ],
   "ignorePaths": [
     ".git",
