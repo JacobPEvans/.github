@@ -1,7 +1,0 @@
-{
-  "trusted_user_ids": [20714140],
-  "limits": {
-    "trusted": {"issues_24h": 10, "prs_24h": 20},
-    "default": {"issues_24h": 5, "prs_24h": 5}
-  }
-}
