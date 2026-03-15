@@ -18,7 +18,6 @@ extended:
     - LABELS.md
     - README.md
     - repo-health-audit-prompt.md
-    - check-file-sizes.sh
 
 exempt:
   - "*.lock"
