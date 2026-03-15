@@ -20,6 +20,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
+      # determinate-nix-action@v3 is ONLY a Nix installer (replaced nix-installer-action@v21).
+      # It does NOT include flake checking — that was a separate action (flake-checker-action).
+      # Flake evaluation is handled by `nix flake check` below, not by the installer.
       - name: Install Nix
         uses: DeterminateSystems/determinate-nix-action@v3
         with:
