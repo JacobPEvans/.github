@@ -85,4 +85,5 @@ repos:
         entry: scripts/workflows/check-file-sizes.sh
         language: script
         always_run: true
+        pass_filenames: false
         stages: [pre-commit]
