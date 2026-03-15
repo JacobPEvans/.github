@@ -39,11 +39,13 @@ jobs:
 
           # Priority 2: Use shared YAML-config checker if .file-size.yml exists
           if [ -f ".file-size.yml" ]; then
-            curl -sSfL \
+            if curl -sSfL --retry 3 --retry-connrefused \
               "https://raw.githubusercontent.com/${REPO_OWNER}/.github/main/scripts/workflows/check-file-sizes.sh" \
-              -o /tmp/check-file-sizes.sh
-            chmod +x /tmp/check-file-sizes.sh
-            exec /tmp/check-file-sizes.sh
+              -o /tmp/check-file-sizes.sh; then
+              chmod +x /tmp/check-file-sizes.sh
+              exec /tmp/check-file-sizes.sh
+            fi
+            echo "::warning::Failed to download shared checker; falling back to inline"
           fi
 
           # Priority 3: Inline fallback (legacy)
