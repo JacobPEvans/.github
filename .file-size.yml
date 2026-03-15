@@ -14,7 +14,11 @@ extended:
   error: 20480    # 20 KB
   files:
     - CHANGELOG.md
+    - CONTRIBUTING.md
+    - LABELS.md
     - README.md
+    - repo-health-audit-prompt.md
+    - check-file-sizes.sh
 
 exempt:
   - "*.lock"

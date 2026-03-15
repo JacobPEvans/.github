@@ -52,21 +52,20 @@ emit_error() {
 # YAML parsing helpers
 # ---------------------------------------------------------------------------
 # Detect any working yq (Go mikefarah/yq v4+, or Python kislyuk/yq).
-# Both support jq-style filter syntax: yq '<filter>' <file>
 has_yq() {
-  command -v yq &>/dev/null && yq '.defaults' .file-size.yml &>/dev/null 2>&1
+  command -v yq &>/dev/null
 }
 
-# Read a scalar value from YAML using yq (jq-style syntax works in both variants)
+# Read a scalar value from YAML using yq (raw output to avoid quoted strings)
 yq_scalar() {
   local file="$1" path="$2"
-  yq "${path} // empty" "$file" 2>/dev/null
+  yq -r "${path} // empty" "$file"
 }
 
-# Read a list from YAML using yq (one item per line)
+# Read a list from YAML using yq (one item per line, raw output)
 yq_list() {
   local file="$1" path="$2"
-  yq "${path} // [] | .[]" "$file" 2>/dev/null
+  yq -r "${path} // [] | .[]" "$file"
 }
 
 # Fallback: parse nested scalar (e.g., defaults.warn) using awk
@@ -136,6 +135,11 @@ parse_config() {
   local config="$1"
 
   if has_yq; then
+    # Validate that yq can parse the config; fail fast on malformed YAML
+    if ! yq '.' "$config" &>/dev/null; then
+      echo "ERROR: yq failed to parse ${config}" >&2
+      exit 1
+    fi
     DEFAULT_WARN=$(yq_scalar "$config" ".defaults.warn")
     DEFAULT_ERROR=$(yq_scalar "$config" ".defaults.error")
     EXTENDED_WARN=$(yq_scalar "$config" ".extended.warn")
@@ -267,12 +271,12 @@ main() {
       local size_kb=$(( size_bytes / 1024 ))
       local limit_kb=$(( error_limit / 1024 ))
       emit_error "$file" "${size_kb}KB exceeds ${limit_kb}KB error limit"
-      (( error_count++ ))
+      error_count=$(( error_count + 1 ))
     elif [[ "$size_bytes" -ge "$warn_limit" ]]; then
       local size_kb=$(( size_bytes / 1024 ))
       local limit_kb=$(( warn_limit / 1024 ))
       emit_warning "$file" "${size_kb}KB exceeds ${limit_kb}KB warning limit"
-      (( warning_count++ ))
+      warning_count=$(( warning_count + 1 ))
     fi
   done < <(find . -type f \( "${name_args[@]}" \) \
     -not -path "./.git/*" -not -path "./result/*" -not -path "./node_modules/*" \
