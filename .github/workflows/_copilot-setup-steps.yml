@@ -7,6 +7,10 @@
 # - For copilot setup, only the installer is needed (CI handles flake validation)
 name: _copilot-setup-steps
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 on:
   workflow_call:
 
