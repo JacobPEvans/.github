@@ -36,7 +36,8 @@
         "opentofu/**",
         "python/**",
         "microsoft/**",
-        "Azure/**"
+        "Azure/**",
+        "raycast/**"
       ],
       "automerge": true,
       "automergeType": "pr",
