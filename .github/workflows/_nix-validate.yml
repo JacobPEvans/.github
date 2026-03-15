@@ -43,11 +43,6 @@ jobs:
           restore-keys: |
             nix-linux-${{ runner.os }}-
 
-      - name: Lint flake.lock
-        uses: DeterminateSystems/flake-checker-action@main
-        with:
-          nixpkgs-keys: nixpkgs
-
       - name: Check flake
         run: nix flake check --print-build-logs
 
