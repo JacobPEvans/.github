@@ -14,6 +14,10 @@
 #         GH_ACTION_JACOBPEVANS_APP_ID: ${{ secrets.GH_ACTION_JACOBPEVANS_APP_ID }}
 #         GH_APP_PRIVATE_KEY: ${{ secrets.GH_APP_PRIVATE_KEY }}
 #
+# Org/repo prerequisites:
+#   "Allow GitHub Actions to create and approve pull requests" must be enabled
+#   Calling repos must grant `pull-requests: write` in the caller job permissions
+#
 # Required files in each calling repo:
 #   VERSION                         - plain-text current version (e.g. "1.2.3")
 #   .release-please-manifest.json  - release-please manifest (e.g. {"." : "1.2.3"})
@@ -82,24 +86,26 @@ jobs:
             ]
           manifest-file: .release-please-manifest.json
 
-      - name: Enable auto-merge for release PR
+      - name: Find release PR number
+        id: find-pr
         if: steps.release.outputs.prs_created == 'true'
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           BASE_BRANCH: ${{ github.ref_name }}
         run: |
           PR_NUMBER=$(gh pr list --head "release-please--branches--${BASE_BRANCH}" --json number --jq '.[0].number // empty')
-          if [ -n "$PR_NUMBER" ]; then
-            gh pr merge "$PR_NUMBER" --auto --squash
-          fi
+          echo "number=$PR_NUMBER" >> $GITHUB_OUTPUT
+
+      - name: Enable auto-merge for release PR
+        if: steps.find-pr.outputs.number != ''
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          PR_NUMBER: ${{ steps.find-pr.outputs.number }}
+        run: gh pr merge "$PR_NUMBER" --auto --squash
 
       - name: Approve release PR
-        if: steps.release.outputs.prs_created == 'true'
+        if: steps.find-pr.outputs.number != ''
         env:
           GH_TOKEN: ${{ github.token }}
-          BASE_BRANCH: ${{ github.ref_name }}
-        run: |
-          PR_NUMBER=$(gh pr list --head "release-please--branches--${BASE_BRANCH}" --json number --jq '.[0].number // empty')
-          if [ -n "$PR_NUMBER" ]; then
-            gh pr review "$PR_NUMBER" --approve
-          fi
+          PR_NUMBER: ${{ steps.find-pr.outputs.number }}
+        run: gh pr review "$PR_NUMBER" --approve
