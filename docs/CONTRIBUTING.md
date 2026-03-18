@@ -94,15 +94,15 @@ All PRs must use **conventional commit format** in the title:
 
 **Types** (must match `type:*` labels):
 
-- `feat` - New features (type:feature)
-- `fix` - Bug fixes (type:bug)
+- `feat` - New capabilities, integrations, or significant behavioral changes (type:feature)
+- `fix` - Bug fixes, corrections, config tweaks, small improvements (type:bug)
 - `docs` - Documentation (type:docs)
 - `chore` - Maintenance (type:chore)
 - `ci` - CI/CD changes (type:ci)
 - `test` - Test updates (type:test)
 - `refactor` - Code refactoring (type:refactor)
 - `perf` - Performance (type:perf)
-- `feat!` or `breaking(scope):` - Breaking changes (type:breaking)
+- `breaking` - Breaking changes for changelog display (type:breaking)
 
 **Examples**:
 
@@ -110,7 +110,7 @@ All PRs must use **conventional commit format** in the title:
 - `fix(ui): resolve button alignment issue`
 - `docs(readme): update installation instructions`
 - `chore(deps): update dependencies`
-- `feat!: remove deprecated v1 API endpoints`
+- `breaking(api): remove deprecated v1 API endpoints`
 
 See [Conventional Commits](https://www.conventionalcommits.org/) for full specification.
 

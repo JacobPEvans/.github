@@ -6,6 +6,16 @@
 # Reference: https://commitlint.js.org/
 # =============================================================================
 
+parserPreset:
+  parserOpts:
+    # Intentionally excludes `!` before `:` to block breaking change markers.
+    # Major version bumps are human-initiated only via .release-please-manifest.json.
+    headerPattern: "^(\\w+)(?:\\(([\\w\\$\\.\\-\\* ]*)\\))?: (.*)$"
+    headerCorrespondence:
+      - type
+      - scope
+      - subject
+
 extends:
   - "@commitlint/config-conventional"
 
