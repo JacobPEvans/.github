@@ -105,6 +105,12 @@ jobs:
           # Get proposed version from the release PR title
           PR_TITLE=$(gh pr view "$PR_NUMBER" --json title --jq '.title')
           PROPOSED_VERSION=$(echo "$PR_TITLE" | grep -oP '\d+\.\d+\.\d+' | head -1)
+
+          if [ -z "$PROPOSED_VERSION" ]; then
+            echo "::warning::Could not extract version from release PR title: $PR_TITLE"
+            exit 0
+          fi
+
           PROPOSED_MAJOR=$(echo "$PROPOSED_VERSION" | cut -d. -f1)
 
           # Get current version from manifest
