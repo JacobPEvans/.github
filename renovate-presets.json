@@ -2,6 +2,9 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "description": "JacobPEvans org-wide Renovate preset",
   "platformAutomerge": true,
+  "allowedPostUpgradeCommands": [
+    "^nix flake check --no-build$"
+  ],
   "packageRules": [
     {
       "description": "Never auto-merge major updates - require human review (overridden by trusted package rules below)",
