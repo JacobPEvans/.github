@@ -69,11 +69,11 @@ jobs:
           release-type: simple
           version-file: VERSION
           include-v-in-tag: true
-          versioning-strategy: always-bump-minor
-          # Note: `breaking:` commit type is for changelog display only — it shows commits in the
-          # "Breaking Changes" section. It does NOT trigger a semver major bump. Major bumps require
-          # a `BREAKING CHANGE:` footer or `!` suffix (e.g. `feat!:`). With always-bump-minor the
-          # minimum bump is minor regardless.
+          # Version bumps follow standard semver via conventional commits:
+          #   fix:  → patch    feat:  → minor
+          # Automated major bumps are blocked (see guard step below).
+          # Major bumps require manually editing .release-please-manifest.json.
+          # Note: `breaking:` commit type is for changelog display only.
           changelog-types: |
             [
               {"type": "feat", "section": "Features"},
@@ -96,7 +96,34 @@ jobs:
           BASE_BRANCH: ${{ github.ref_name }}
         run: |
           PR_NUMBER=$(gh pr list --head "release-please--branches--${BASE_BRANCH}" --json number --jq '.[0].number // empty')
-          echo "number=$PR_NUMBER" >> $GITHUB_OUTPUT
+          echo "number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
+
+      - name: Guard against automated major bumps
+        if: steps.find-pr.outputs.number != ''
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          PR_NUMBER: ${{ steps.find-pr.outputs.number }}
+        run: |
+          # Get proposed version from the release PR title
+          PR_TITLE=$(gh pr view "$PR_NUMBER" --json title --jq '.title')
+          PROPOSED_VERSION=$(echo "$PR_TITLE" | grep -oP '\d+\.\d+\.\d+' | head -1)
+
+          if [ -z "$PROPOSED_VERSION" ]; then
+            echo "::warning::Could not extract version from release PR title: $PR_TITLE"
+            exit 0
+          fi
+
+          PROPOSED_MAJOR=$(echo "$PROPOSED_VERSION" | cut -d. -f1)
+
+          # Get current version from manifest
+          CURRENT_VERSION=$(jq -r '."."' .release-please-manifest.json)
+          CURRENT_MAJOR=$(echo "$CURRENT_VERSION" | cut -d. -f1)
+
+          if [ "$PROPOSED_MAJOR" != "$CURRENT_MAJOR" ]; then
+            echo "::error::Automated major bump blocked ($CURRENT_VERSION -> $PROPOSED_VERSION). Major bumps require manually editing .release-please-manifest.json."
+            gh pr close "$PR_NUMBER" --comment "Automated major version bump blocked ($CURRENT_VERSION -> $PROPOSED_VERSION). Major bumps are human-initiated only. To perform a major bump, manually edit .release-please-manifest.json and push to main."
+            exit 1
+          fi
 
       - name: Enable auto-merge for release PR
         if: steps.find-pr.outputs.number != ''
