@@ -19,8 +19,8 @@
 #   Calling repos must grant `contents: write` and `pull-requests: write` in the caller job permissions
 #
 # Required files in each calling repo:
-#   VERSION                         - plain-text current version (e.g. "1.2.3")
 #   .release-please-manifest.json  - release-please manifest (e.g. {"." : "1.2.3"})
+#   release-please-config.json     - release-please config (release-type, changelog, etc.)
 #
 # Secrets required:
 #   GH_ACTION_JACOBPEVANS_APP_ID  - GitHub App ID (repo-level secret)
@@ -63,49 +63,12 @@ jobs:
           permission-pull-requests: write
           permission-issues: write
 
-      - name: Debug - test app token permissions (non-draft)
-        env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
-        run: |
-          echo "=== Testing NON-DRAFT release creation ==="
-          RESULT=$(gh api /repos/${{ github.repository }}/releases --method POST \
-            -f tag_name="test-permissions-probe" \
-            -f target_commitish="${{ github.sha }}" \
-            -f name="test-permissions-probe" \
-            -f body="Automated permissions probe — will be deleted" \
-            -F draft=false 2>&1) && echo "SUCCESS: $RESULT" || echo "FAILED: $RESULT"
-          # Cleanup
-          RELEASE_ID=$(gh api /repos/${{ github.repository }}/releases/tags/test-permissions-probe \
-            --jq '.id' 2>/dev/null || true)
-          [ -n "$RELEASE_ID" ] && gh api "/repos/${{ github.repository }}/releases/$RELEASE_ID" \
-            --method DELETE 2>/dev/null || true
-          git push origin :refs/tags/test-permissions-probe 2>/dev/null || true
-
       - uses: googleapis/release-please-action@v4
         id: release
         with:
           token: ${{ steps.app-token.outputs.token }}
-          release-type: simple
-          version-file: VERSION
-          include-v-in-tag: true
-          # Version bumps follow standard semver via conventional commits:
-          #   fix:  → patch    feat:  → minor
-          # Automated major bumps are blocked (see guard step below).
-          # Major bumps require manually editing .release-please-manifest.json.
-          # Note: `breaking:` commit type is for changelog display only.
-          changelog-types: |
-            [
-              {"type": "feat", "section": "Features"},
-              {"type": "fix", "section": "Bug Fixes"},
-              {"type": "perf", "section": "Performance"},
-              {"type": "breaking", "section": "Breaking Changes"},
-              {"type": "chore", "section": "Miscellaneous", "hidden": true},
-              {"type": "ci", "section": "CI", "hidden": true},
-              {"type": "docs", "section": "Documentation", "hidden": true},
-              {"type": "refactor", "section": "Refactoring", "hidden": true},
-              {"type": "test", "section": "Tests", "hidden": true}
-            ]
           manifest-file: .release-please-manifest.json
+          config-file: release-please-config.json
 
       - name: Find release PR number
         id: find-pr
