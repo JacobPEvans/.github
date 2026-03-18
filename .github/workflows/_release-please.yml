@@ -61,25 +61,25 @@ jobs:
           private-key: ${{ secrets.GH_APP_PRIVATE_KEY }}
           permission-contents: write
           permission-pull-requests: write
+          permission-issues: write
 
-      - name: Debug - test app token permissions
+      - name: Debug - test app token permissions (non-draft)
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
-          echo "Testing app token permissions..."
-          gh api /repos/${{ github.repository }} --jq '.permissions' || true
-          echo "Testing release creation capability..."
-          gh api /repos/${{ github.repository }}/releases --method POST \
+          echo "=== Testing NON-DRAFT release creation ==="
+          RESULT=$(gh api /repos/${{ github.repository }}/releases --method POST \
             -f tag_name="test-permissions-probe" \
-            -f name="test" \
-            -f body="probe" \
-            -F draft=true 2>&1 | head -20 || true
-          echo "Cleaning up test release..."
-          RELEASE_ID=$(gh api /repos/${{ github.repository }}/releases/tags/test-permissions-probe --jq '.id' 2>/dev/null || true)
-          if [ -n "$RELEASE_ID" ]; then
-            gh api /repos/${{ github.repository }}/releases/"$RELEASE_ID" --method DELETE || true
-            git push origin :refs/tags/test-permissions-probe || true
-          fi
+            -f target_commitish="${{ github.sha }}" \
+            -f name="test-permissions-probe" \
+            -f body="Automated permissions probe — will be deleted" \
+            -F draft=false 2>&1) && echo "SUCCESS: $RESULT" || echo "FAILED: $RESULT"
+          # Cleanup
+          RELEASE_ID=$(gh api /repos/${{ github.repository }}/releases/tags/test-permissions-probe \
+            --jq '.id' 2>/dev/null || true)
+          [ -n "$RELEASE_ID" ] && gh api "/repos/${{ github.repository }}/releases/$RELEASE_ID" \
+            --method DELETE 2>/dev/null || true
+          git push origin :refs/tags/test-permissions-probe 2>/dev/null || true
 
       - uses: googleapis/release-please-action@v4
         id: release
