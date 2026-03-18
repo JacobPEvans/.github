@@ -7,7 +7,7 @@
 #   jobs:
 #     release-please:
 #       permissions:
-#         contents: read
+#         contents: write
 #         pull-requests: write
 #       uses: JacobPEvans/.github/.github/workflows/_release-please.yml@main
 #       secrets:
@@ -16,7 +16,7 @@
 #
 # Org/repo prerequisites:
 #   "Allow GitHub Actions to create and approve pull requests" must be enabled
-#   Calling repos must grant `pull-requests: write` in the caller job permissions
+#   Calling repos must grant `contents: write` and `pull-requests: write` in the caller job permissions
 #
 # Required files in each calling repo:
 #   VERSION                         - plain-text current version (e.g. "1.2.3")
@@ -48,7 +48,7 @@ jobs:
   release-please:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
       pull-requests: write
     steps:
       - uses: actions/checkout@v6
