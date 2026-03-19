@@ -37,11 +37,7 @@
     "narinfo",
     "nixpkgs",
     "Anson",
-    "pipefail",
-    "mikefarah",
-    "kislyuk",
-    "gsub",
-    "RLENGTH"
+    "pipefail"
   ],
   "ignorePaths": [
     ".git",

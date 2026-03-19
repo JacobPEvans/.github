@@ -1,28 +1,10 @@
-# =============================================================================
-# Org-wide File Size Limits
-# =============================================================================
+# File Size Limits
 # Per-repo overrides: create .file-size.yml in the repo root.
-# Sizes are in bytes.
-# =============================================================================
+# Sizes are in bytes. Parsed by _file-size.yml workflow via yq.
 
 defaults:
   warn: 5120      # 5 KB
   error: 10240    # 10 KB
-
-extended:
-  warn: 10240     # 10 KB
-  error: 20480    # 20 KB
-  files:
-    - CHANGELOG.md
-    - CONTRIBUTING.md
-    - LABELS.md
-    - README.md
-    - repo-health-audit-prompt.md
-
-exempt:
-  - "*.lock"
-  - "package-lock.json"
-  - "pnpm-lock.yaml"
 
 scan:
   - .nix

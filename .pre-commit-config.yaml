@@ -78,12 +78,9 @@ repos:
   # ---------------------------------------------------------------------------
   # File size enforcement
   # ---------------------------------------------------------------------------
-  - repo: local
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
     hooks:
-      - id: file-size-check
+      - id: check-added-large-files
         name: Check file sizes
-        entry: scripts/workflows/check-file-sizes.sh
-        language: script
-        always_run: true
-        pass_filenames: false
-        stages: [pre-commit]
+        args: ['--maxkb=10', '--enforce-all']
