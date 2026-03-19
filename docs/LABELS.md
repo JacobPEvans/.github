@@ -49,7 +49,7 @@ Unlike issues, PR labels are applied manually by the author or reviewers.
 | ---------------- | --------------------------------------- | ------------- |
 | `type:bug`       | Something isn't working                 | PATCH         |
 | `type:feature`   | New feature or request                  | MINOR         |
-| `type:breaking`  | Breaking changes                        | MAJOR         |
+| `type:breaking`  | Breaking changes                        | MAJOR (\*)    |
 | `type:docs`      | Documentation only changes              | -             |
 | `type:chore`     | Maintenance, dependencies, tooling      | -             |
 | `type:ci`        | CI/CD pipeline changes                  | -             |
@@ -57,6 +57,8 @@ Unlike issues, PR labels are applied manually by the author or reviewers.
 | `type:refactor`  | Code change with no functional change   | -             |
 | `type:perf`      | Performance improvements                | -             |
 | `type:security`  | Security vulnerability or hardening     | PATCH         |
+
+(\*) Automated major bumps are blocked. `type:breaking` changes require manually editing `.release-please-manifest.json` to set the new major version.
 
 **Note**: Type labels align with [Conventional Commits](https://www.conventionalcommits.org/) and semantic versioning to automate release management.
 

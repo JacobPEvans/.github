@@ -31,7 +31,7 @@ Must follow [Conventional Commits](https://www.conventionalcommits.org/):
 - `feat(api): add user authentication`
 - `fix(ui): resolve button alignment`
 - `docs(readme): update installation`
-- `feat!: remove deprecated v1 API` (breaking change)
+- `breaking(api): remove deprecated v1 API` (breaking change)
 
 ## Labels (Required per issue and PR)
 

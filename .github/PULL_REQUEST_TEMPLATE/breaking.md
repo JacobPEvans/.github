@@ -2,8 +2,8 @@
 
 ⚠️ **WARNING: This PR contains breaking changes** ⚠️
 
-<!-- PR Title Format: feat!: brief description OR breaking(scope): description -->
-<!-- Example: feat!: remove deprecated v1 API endpoints -->
+<!-- PR Title Format: breaking(scope): description -->
+<!-- Example: breaking(api): remove deprecated v1 API endpoints -->
 
 ## Breaking Changes Summary
 
@@ -90,8 +90,7 @@ See [LABELS.md](../docs/LABELS.md) for label definitions.
 
 <!-- Please confirm the following before submitting your pull request -->
 
-- [ ] PR title follows conventional commits format: `feat!: description` or `breaking(scope): description`
-- [ ] Commit body includes "BREAKING CHANGE:" section (if using feat! format)
+- [ ] PR title follows conventional commits format: `breaking(scope): description`
 - [ ] All commits are GPG signed
 - [ ] No merge commits (rebased if needed)
 - [ ] Migration path is clear and documented

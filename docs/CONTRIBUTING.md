@@ -39,7 +39,7 @@ git checkout -b chore/update-contributing-docs
 > **Note:** The old `fix/`, `docs/`, `test/`, and `refactor/` prefixes are no longer valid.
 > Use `bugfix/` for bug fixes and `chore/` for docs, tests, and refactoring work.
 
-The `claude/` prefix is reserved for automated branches created by AI tooling.
+The `claude/` and `copilot/` prefixes are reserved for automated branches created by AI tooling.
 
 ## Signing Your Commits
 
