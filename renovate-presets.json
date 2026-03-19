@@ -40,7 +40,10 @@
         "python/**",
         "microsoft/**",
         "Azure/**",
-        "raycast/**"
+        "raycast/**",
+        "aws-actions/**",
+        "google-github-actions/**",
+        "docker/**"
       ],
       "automerge": true,
       "automergeType": "pr",
@@ -50,6 +53,19 @@
     {
       "description": "Auto-merge pre-commit hooks (minor and patch)",
       "matchManagers": ["pre-commit"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "automerge": true,
+      "automergeType": "pr",
+      "automergeStrategy": "squash",
+      "minimumReleaseAge": "3 days"
+    },
+    {
+      "description": "Auto-merge trusted Terraform providers (3-day stabilization)",
+      "matchManagers": ["terraform"],
+      "matchDatasources": ["terraform-provider"],
+      "matchPackageNames": [
+        "hashicorp/*"
+      ],
       "matchUpdateTypes": ["minor", "patch"],
       "automerge": true,
       "automergeType": "pr",
