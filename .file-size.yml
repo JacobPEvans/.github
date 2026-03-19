@@ -1,0 +1,17 @@
+# File Size Limits
+# Per-repo overrides: create .file-size.yml in the repo root.
+# Sizes are in bytes. Parsed by _file-size.yml workflow via yq.
+
+defaults:
+  warn: 5120      # 5 KB
+  error: 10240    # 10 KB
+
+scan:
+  - .nix
+  - .md
+  - .sh
+  - .yml
+  - .yaml
+  - .tf
+  - .py
+  - .j2

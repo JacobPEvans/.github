@@ -74,3 +74,13 @@ repos:
       - id: check-branch
         name: Check branch naming conventions
         stages: [pre-push]
+
+  # ---------------------------------------------------------------------------
+  # File size enforcement
+  # ---------------------------------------------------------------------------
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: check-added-large-files
+        name: Check file sizes
+        args: ['--maxkb=10', '--enforce-all']

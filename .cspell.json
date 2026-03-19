@@ -37,8 +37,7 @@
     "narinfo",
     "nixpkgs",
     "Anson",
-    "pipefail",
-    "mikefarah"
+    "pipefail"
   ],
   "ignorePaths": [
     ".git",

@@ -1,12 +1,13 @@
 # Reusable: File Size Check
-# Delegates to repo's own script if available, otherwise runs inline check.
+# Checks file sizes against .file-size.yml config or workflow inputs.
+# yq is pre-installed on ubuntu-latest runners.
 name: _file-size
 
 on:
   workflow_call:
     inputs:
       max-file-size-kb:
-        description: "Maximum file size in KB"
+        description: "Maximum file size in KB (used when no .file-size.yml exists)"
         type: number
         default: 500
       exclude-patterns:
@@ -14,17 +15,18 @@ on:
         type: string
         default: '["./.git/*", "./node_modules/*", "./result*", "*.lock", "package-lock.json", "pnpm-lock.yaml"]'
 
+permissions: {}
+
 concurrency:
   group: file-size-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
-
-permissions:
-  contents: read
 
 jobs:
   check:
     name: Check
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v6
 
@@ -36,7 +38,38 @@ jobs:
           # Delegate to repo script if available
           [ -x "./scripts/workflows/check-file-sizes.sh" ] && exec ./scripts/workflows/check-file-sizes.sh
 
-          # Build find exclusions from JSON input
+          # Use .file-size.yml if present (yq is pre-installed on ubuntu-latest)
+          if [ -f ".file-size.yml" ]; then
+            WARN=$(yq '.defaults.warn // 5120' .file-size.yml)
+            ERR=$(yq '.defaults.error // 10240' .file-size.yml)
+
+            name_args=(); first=true
+            while IFS= read -r ext; do
+              [ -z "$ext" ] && continue
+              $first && first=false || name_args+=(-o)
+              name_args+=(-name "*${ext}")
+            done < <(yq '.scan // [] | .[]' .file-size.yml)
+
+            errors=0 warnings=0
+            while IFS= read -r -d '' f; do
+              size=$(stat -c%s "$f")
+              if [ "$size" -ge "$ERR" ]; then
+                echo "::error file=$f::$((size/1024))KB exceeds $((ERR/1024))KB limit"
+                ((errors++))
+              elif [ "$size" -ge "$WARN" ]; then
+                echo "::warning file=$f::$((size/1024))KB exceeds $((WARN/1024))KB warning"
+                ((warnings++))
+              fi
+            done < <(find . -type f \( "${name_args[@]}" \) \
+              -not -path "./.git/*" -not -path "./node_modules/*" -not -path "./result/*" \
+              -not -name "*.lock" -not -name "package-lock.json" -not -name "pnpm-lock.yaml" -print0)
+
+            echo "File size check: ${errors} error(s), ${warnings} warning(s)"
+            [ "$errors" -gt 0 ] && exit 1
+            exit 0
+          fi
+
+          # Fallback: use workflow inputs (no .file-size.yml)
           args=()
           for p in $(echo "$EXCLUDES" | jq -r '.[]'); do
             [[ "$p" == */* ]] && args+=(-not -path "$p") || args+=(-not -name "$p")
