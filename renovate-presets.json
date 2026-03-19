@@ -12,9 +12,11 @@
       "automerge": false
     },
     {
-      "description": "Auto-merge JacobPEvans-owned GitHub Actions (immediate)",
-      "matchDatasources": ["github-actions"],
-      "matchPackageNames": ["JacobPEvans/**"],
+      "description": "Auto-merge all JacobPEvans-owned dependencies (immediate, all ecosystems)",
+      "matchPackageNames": [
+        "JacobPEvans/**",
+        "https://github.com/JacobPEvans/**"
+      ],
       "automerge": true,
       "automergeType": "pr",
       "automergeStrategy": "squash",
@@ -22,7 +24,7 @@
     },
     {
       "description": "Auto-merge trusted GitHub Actions (3-day stabilization)",
-      "matchDatasources": ["github-actions"],
+      "matchManagers": ["github-actions"],
       "matchPackageNames": [
         "actions/**",
         "googleapis/**",
@@ -71,15 +73,6 @@
       "automergeType": "pr",
       "automergeStrategy": "squash",
       "minimumReleaseAge": "3 days"
-    },
-    {
-      "description": "Auto-merge JacobPEvans-owned Nix flake inputs (immediate)",
-      "matchManagers": ["nix"],
-      "matchDatasources": ["git-refs"],
-      "matchPackageNames": ["https://github.com/JacobPEvans/**"],
-      "automerge": true,
-      "automergeType": "pr",
-      "automergeStrategy": "squash"
     },
     {
       "description": "Auto-merge trusted Nix flake inputs (immediate, CI-gated)",
