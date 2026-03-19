@@ -19,8 +19,10 @@
 #   Calling repos must grant `contents: write` and `pull-requests: write` in the caller job permissions
 #
 # Required files in each calling repo:
-#   release-please-config.json     - release config (release-type, changelog-sections, extra-files)
 #   .release-please-manifest.json  - release-please manifest (e.g. {"." : "1.2.3"})
+#   release-please-config.json     - OPTIONAL: release config; a sensible default is
+#                                    generated at runtime when absent (simple release-type,
+#                                    VERSION file, v-prefixed tags, standard changelog sections)
 #
 # Secrets required:
 #   GH_ACTION_JACOBPEVANS_APP_ID  - GitHub App ID (repo-level secret)
@@ -52,6 +54,30 @@ jobs:
       pull-requests: write
     steps:
       - uses: actions/checkout@v6
+
+      - name: Ensure release-please config exists
+        run: |
+          if [ ! -f release-please-config.json ]; then
+            cat > release-please-config.json << 'DEFAULTS'
+          {
+            "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+            "release-type": "simple",
+            "version-file": "VERSION",
+            "include-v-in-tag": true,
+            "changelog-sections": [
+              {"type": "feat", "section": "Features"},
+              {"type": "fix", "section": "Bug Fixes"},
+              {"type": "perf", "section": "Performance"},
+              {"type": "docs", "section": "Documentation", "hidden": true},
+              {"type": "chore", "section": "Miscellaneous", "hidden": true},
+              {"type": "refactor", "section": "Refactoring", "hidden": true},
+              {"type": "test", "section": "Tests", "hidden": true},
+              {"type": "ci", "section": "CI", "hidden": true}
+            ]
+          }
+          DEFAULTS
+            echo "::notice::Using default release-please-config.json (repo has no custom config)"
+          fi
 
       - name: Generate GitHub App Token
         id: app-token
