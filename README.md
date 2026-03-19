@@ -141,14 +141,17 @@ Standardized [pull request templates][pr-templates-docs] that enforce convention
 
 [GitHub Actions workflows][workflows-docs] for label management and reusable CI:
 
-| Workflow                | Purpose                              | Trigger              |
-| ----------------------- | ------------------------------------ | -------------------- |
-| `auto-label-issues.yml` | Apply priority/size from issue forms | Issue creation       |
-| `label-sync.yml`        | Deploy `labels.yml` to all repos     | Push to main, manual |
-| `_file-size.yml`        | Reusable: file size/line checks      | `workflow_call`      |
-| `_markdown-lint.yml`    | Reusable: markdownlint-cli2          | `workflow_call`      |
-| `_nix-build.yml`        | Reusable: Nix build (macOS)          | `workflow_call`      |
-| `_nix-validate.yml`     | Reusable: Nix flake check (Linux)    | `workflow_call`      |
+| Workflow                     | Purpose                              | Trigger                          |
+| ---------------------------- | ------------------------------------ | -------------------------------- |
+| `auto-label-issues.yml`      | Apply priority/size from issue forms | Issue creation                   |
+| `codeql.yml`                 | Code scanning (GitHub Actions)       | Push/PR to main, weekly schedule |
+| `label-sync.yml`             | Deploy `labels.yml` to all repos     | Push to main, manual             |
+| `_copilot-setup-steps.yml`   | Reusable: Copilot setup steps        | `workflow_call`                  |
+| `_file-size.yml`             | Reusable: file size/line checks      | `workflow_call`                  |
+| `_markdown-lint.yml`         | Reusable: markdownlint-cli2          | `workflow_call`                  |
+| `_nix-build.yml`             | Reusable: Nix build (macOS)          | `workflow_call`                  |
+| `_nix-validate.yml`          | Reusable: Nix flake check (Linux)    | `workflow_call`                  |
+| `_release-please.yml`        | Reusable: versioning and changelog   | `workflow_call`                  |
 
 **Reusable workflows** (prefixed with `_`) are called by other repos via
 `uses: JacobPEvans/.github/.github/workflows/_name.yml@main`.

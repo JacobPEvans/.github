@@ -48,4 +48,9 @@ rules:
     - always
     - 100
 
+# NOTE: The headerPattern blocks `!` before `:` (e.g., `feat!:`), but the
+# `BREAKING CHANGE:` footer in commit bodies can still trigger major bumps.
+# Commitlint has no built-in rule to selectively block specific footers.
+# The _release-please.yml workflow guard catches this at PR time by closing
+# any release PR that proposes a major version bump.
 helpUrl: "https://www.conventionalcommits.org/"

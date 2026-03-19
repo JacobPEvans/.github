@@ -12,6 +12,8 @@ on:
         type: string
         default: "nix build .#homeConfigurations.$(whoami).activationPackage --print-build-logs"
 
+permissions: {}
+
 concurrency:
   group: nix-build-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
