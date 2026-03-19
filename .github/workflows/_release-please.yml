@@ -18,8 +18,8 @@
 #   "Allow GitHub Actions to create and approve pull requests" must be enabled
 #   Calling repos must grant `contents: write` and `pull-requests: write` in the caller job permissions
 #
-# Required files in each calling repo:
-#   .release-please-manifest.json  - release-please manifest (e.g. {"." : "1.2.3"})
+# Repo files:
+#   .release-please-manifest.json  - REQUIRED: version manifest (e.g. {"." : "1.2.3"})
 #   release-please-config.json     - OPTIONAL: release config; a sensible default is
 #                                    generated at runtime when absent (simple release-type,
 #                                    VERSION file, v-prefixed tags, standard changelog sections)
