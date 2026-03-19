@@ -53,6 +53,18 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      - name: Preflight - verify Actions can approve PRs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          CAN_APPROVE=$(gh api "/repos/${{ github.repository }}/actions/permissions/workflow" \
+            --jq '.can_approve_pull_request_reviews')
+          if [ "$CAN_APPROVE" != "true" ]; then
+            echo "::error::Repository setting 'Allow GitHub Actions to create and approve pull requests' is disabled."
+            echo "::error::Enable via: gh api --method PUT /repos/${{ github.repository }}/actions/permissions/workflow -f default_workflow_permissions=read -F can_approve_pull_request_reviews=true"
+            exit 1
+          fi
+
       - name: Generate GitHub App Token
         id: app-token
         uses: actions/create-github-app-token@v3
