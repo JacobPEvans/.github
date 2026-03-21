@@ -1,14 +1,9 @@
-# File Size Limits
-# Per-repo overrides: create .file-size.yml in the repo root.
-# Sizes are in bytes. Parsed by _file-size.yml workflow via yq.
-
-defaults:
-  warn: 5120      # 5 KB
-  error: 10240    # 10 KB
-
+# File size overrides for the .github repo
+# Inherits defaults: warn=6144, error=12288, scan=[.md,.nix,.tf], exempt=[CHANGELOG]
+# This repo has broader file types than the defaults
 scan:
-  - .nix
   - .md
+  - .nix
   - .sh
   - .yml
   - .yaml
