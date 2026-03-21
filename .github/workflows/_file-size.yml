@@ -1,25 +1,21 @@
 # Reusable: File Size Check
-# Checks file sizes against .file-size.yml config or workflow inputs.
+# Checks file sizes with sensible defaults. Override per-repo via .file-size.yml.
 # yq is pre-installed on ubuntu-latest runners.
 #
-# .file-size.yml schema:
+# Built-in defaults (no .file-size.yml needed):
+#   warn: 6144 (6KB), error: 12288 (12KB)
+#   scan: [.md, .nix, .tf]
+#   exempt: [CHANGELOG]
+#
+# .file-size.yml overrides (all fields optional):
 #   defaults: { warn: 6144, error: 12288 }  # bytes
-#   scan: [.md, .nix]                        # file extensions to check
-#   extended: { limit: 32768, files: [AGENTS] }  # higher limit for large docs
-#   exempt: [CHANGELOG, RUNBOOK]             # no limit (auto-generated files)
+#   scan: [.md, .nix]                        # replaces default scan list
+#   extended: { limit: 32768, files: [AGENTS] }  # additive higher limit
+#   exempt: [RUNBOOK]                        # additive to default [CHANGELOG]
 name: _file-size
 
 on:
   workflow_call:
-    inputs:
-      max-file-size-kb:
-        description: "Maximum file size in KB (used when no .file-size.yml exists)"
-        type: number
-        default: 500
-      exclude-patterns:
-        description: 'JSON array of find exclusions (path if contains /, name otherwise)'
-        type: string
-        default: '["./.git/*", "./node_modules/*", "./result*", "*.lock", "package-lock.json", "pnpm-lock.yaml"]'
 
 permissions: {}
 
@@ -37,75 +33,69 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Check file sizes
-        env:
-          MAX_KB: ${{ inputs.max-file-size-kb }}
-          EXCLUDES: ${{ inputs.exclude-patterns }}
         run: |
-          # Delegate to repo script if available
-          [ -x "./scripts/workflows/check-file-sizes.sh" ] && exec ./scripts/workflows/check-file-sizes.sh
+          # Built-in defaults
+          WARN=6144
+          ERR=12288
+          EXT_LIMIT=0
+          DEFAULT_SCAN=".md .nix .tf"
+          EXTENDED=" "
+          EXEMPT=" CHANGELOG "
 
-          # Use .file-size.yml if present (yq is pre-installed on ubuntu-latest)
+          # Override from .file-size.yml if present
           if [ -f ".file-size.yml" ]; then
-            WARN=$(yq '.defaults.warn // 5120' .file-size.yml)
-            ERR=$(yq '.defaults.error // 10240' .file-size.yml)
+            WARN=$(yq ".defaults.warn // $WARN" .file-size.yml)
+            ERR=$(yq ".defaults.error // $ERR" .file-size.yml)
             EXT_LIMIT=$(yq '.extended.limit // 0' .file-size.yml)
 
-            # Build space-separated lists for extended and exempt basenames
-            EXTENDED=" $(yq '.extended.files // [] | .[]' .file-size.yml | tr '\n' ' ')"
-            EXEMPT=" $(yq '.exempt // [] | .[]' .file-size.yml | tr '\n' ' ')"
+            # scan: replaces defaults if specified
+            cfg_scan=$(yq '.scan // [] | .[]' .file-size.yml | tr '\n' ' ')
+            [ -n "$cfg_scan" ] && DEFAULT_SCAN="$cfg_scan"
 
-            name_args=(); first=true
-            while IFS= read -r ext; do
-              [ -z "$ext" ] && continue
-              $first && first=false || name_args+=(-o)
-              name_args+=(-name "*${ext}")
-            done < <(yq '.scan // [] | .[]' .file-size.yml)
+            # extended.files: additive to defaults
+            cfg_ext=$(yq '.extended.files // [] | .[]' .file-size.yml | tr '\n' ' ')
+            [ -n "$cfg_ext" ] && EXTENDED="$EXTENDED$cfg_ext "
 
-            errors=0 warnings=0
-            while IFS= read -r -d '' f; do
-              base=$(basename "$f" | sed 's/\.[^.]*$//')
-              size=$(stat -c%s "$f")
-
-              # Skip exempt files
-              if [[ "$EXEMPT" == *" $base "* ]]; then continue; fi
-
-              # Determine limit: extended or standard
-              if [[ "$EXT_LIMIT" -gt 0 ]] && [[ "$EXTENDED" == *" $base "* ]]; then
-                limit=$EXT_LIMIT
-                warn_threshold=$limit
-              else
-                limit=$ERR
-                warn_threshold=$WARN
-              fi
-
-              if [ "$size" -gt "$limit" ]; then
-                echo "::error file=$f::$((size/1024))KB exceeds $((limit/1024))KB limit"
-                ((errors++))
-              elif [ "$size" -gt "$warn_threshold" ]; then
-                echo "::warning file=$f::$((size/1024))KB exceeds $((warn_threshold/1024))KB recommended"
-                ((warnings++))
-              fi
-            done < <(find . -type f \( "${name_args[@]}" \) \
-              -not -path "./.git/*" -not -path "./node_modules/*" -not -path "./result/*" \
-              -not -name "*.lock" -not -name "package-lock.json" -not -name "pnpm-lock.yaml" -print0)
-
-            echo "File size check: ${errors} error(s), ${warnings} warning(s)"
-            [ "$errors" -gt 0 ] && exit 1
-            exit 0
+            # exempt: additive to defaults (CHANGELOG always exempt)
+            cfg_exempt=$(yq '.exempt // [] | .[]' .file-size.yml | tr '\n' ' ')
+            [ -n "$cfg_exempt" ] && EXEMPT="$EXEMPT$cfg_exempt "
           fi
 
-          # Fallback: use workflow inputs (no .file-size.yml)
-          args=()
-          for p in $(echo "$EXCLUDES" | jq -r '.[]'); do
-            [[ "$p" == */* ]] && args+=(-not -path "$p") || args+=(-not -name "$p")
+          # Build find name arguments from scan extensions
+          name_args=(); first=true
+          for ext in $DEFAULT_SCAN; do
+            $first && first=false || name_args+=(-o)
+            name_args+=(-name "*${ext}")
           done
 
-          rc=0
+          errors=0 warnings=0
           while IFS= read -r -d '' f; do
-            kb=$(( $(stat -c%s "$f") / 1024 ))
-            if [ "$kb" -gt "$MAX_KB" ]; then
-              echo "::error file=$f::${kb}KB exceeds ${MAX_KB}KB limit"
-              rc=1
+            base=$(basename "$f" | sed 's/\.[^.]*$//')
+            size=$(stat -c%s "$f")
+
+            # Skip exempt files
+            if [[ "$EXEMPT" == *" $base "* ]]; then continue; fi
+
+            # Determine limit: extended or standard
+            if [[ "$EXT_LIMIT" -gt 0 ]] && [[ "$EXTENDED" == *" $base "* ]]; then
+              limit=$EXT_LIMIT
+              warn_threshold=$limit
+            else
+              limit=$ERR
+              warn_threshold=$WARN
             fi
-          done < <(find . -type f "${args[@]}" -print0)
-          exit $rc
+
+            if [ "$size" -gt "$limit" ]; then
+              echo "::error file=$f::$((size/1024))KB exceeds $((limit/1024))KB limit"
+              ((errors++))
+            elif [ "$size" -gt "$warn_threshold" ]; then
+              echo "::warning file=$f::$((size/1024))KB exceeds $((warn_threshold/1024))KB recommended"
+              ((warnings++))
+            fi
+          done < <(find . -type f \( "${name_args[@]}" \) \
+            -not -path "./.git/*" -not -path "./node_modules/*" -not -path "./result/*" \
+            -not -name "*.lock" -not -name "package-lock.json" -not -name "pnpm-lock.yaml" -print0)
+
+          echo "File size check: ${errors} error(s), ${warnings} warning(s)"
+          [ "$errors" -gt 0 ] && exit 1
+          exit 0
