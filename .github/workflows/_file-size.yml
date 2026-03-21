@@ -1,6 +1,12 @@
 # Reusable: File Size Check
 # Checks file sizes against .file-size.yml config or workflow inputs.
 # yq is pre-installed on ubuntu-latest runners.
+#
+# .file-size.yml schema:
+#   defaults: { warn: 6144, error: 12288 }  # bytes
+#   scan: [.md, .nix]                        # file extensions to check
+#   extended: { limit: 32768, files: [AGENTS] }  # higher limit for large docs
+#   exempt: [CHANGELOG, RUNBOOK]             # no limit (auto-generated files)
 name: _file-size
 
 on:
@@ -42,6 +48,11 @@ jobs:
           if [ -f ".file-size.yml" ]; then
             WARN=$(yq '.defaults.warn // 5120' .file-size.yml)
             ERR=$(yq '.defaults.error // 10240' .file-size.yml)
+            EXT_LIMIT=$(yq '.extended.limit // 0' .file-size.yml)
+
+            # Build space-separated lists for extended and exempt basenames
+            EXTENDED=" $(yq '.extended.files // [] | .[]' .file-size.yml | tr '\n' ' ')"
+            EXEMPT=" $(yq '.exempt // [] | .[]' .file-size.yml | tr '\n' ' ')"
 
             name_args=(); first=true
             while IFS= read -r ext; do
@@ -52,12 +63,26 @@ jobs:
 
             errors=0 warnings=0
             while IFS= read -r -d '' f; do
+              base=$(basename "$f" | sed 's/\.[^.]*$//')
               size=$(stat -c%s "$f")
-              if [ "$size" -ge "$ERR" ]; then
-                echo "::error file=$f::$((size/1024))KB exceeds $((ERR/1024))KB limit"
+
+              # Skip exempt files
+              if [[ "$EXEMPT" == *" $base "* ]]; then continue; fi
+
+              # Determine limit: extended or standard
+              if [[ "$EXT_LIMIT" -gt 0 ]] && [[ "$EXTENDED" == *" $base "* ]]; then
+                limit=$EXT_LIMIT
+                warn_threshold=$limit
+              else
+                limit=$ERR
+                warn_threshold=$WARN
+              fi
+
+              if [ "$size" -gt "$limit" ]; then
+                echo "::error file=$f::$((size/1024))KB exceeds $((limit/1024))KB limit"
                 ((errors++))
-              elif [ "$size" -ge "$WARN" ]; then
-                echo "::warning file=$f::$((size/1024))KB exceeds $((WARN/1024))KB warning"
+              elif [ "$size" -gt "$warn_threshold" ]; then
+                echo "::warning file=$f::$((size/1024))KB exceeds $((warn_threshold/1024))KB recommended"
                 ((warnings++))
               fi
             done < <(find . -type f \( "${name_args[@]}" \) \
