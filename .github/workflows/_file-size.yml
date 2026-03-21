@@ -87,10 +87,10 @@ jobs:
 
             if [ "$size" -gt "$limit" ]; then
               echo "::error file=$f::$((size/1024))KB exceeds $((limit/1024))KB limit"
-              ((errors++))
+              errors=$((errors + 1))
             elif [ "$size" -gt "$warn_threshold" ]; then
               echo "::warning file=$f::$((size/1024))KB exceeds $((warn_threshold/1024))KB recommended"
-              ((warnings++))
+              warnings=$((warnings + 1))
             fi
           done < <(find . -type f \( "${name_args[@]}" \) \
             -not -path "./.git/*" -not -path "./node_modules/*" -not -path "./result/*" \
