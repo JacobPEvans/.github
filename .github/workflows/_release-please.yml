@@ -72,7 +72,7 @@ jobs:
 
       - name: Find release PR number
         id: find-pr
-        if: steps.release.outputs.prs_created == 'true'
+        if: '!cancelled()'
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           BASE_BRANCH: ${{ github.ref_name }}
@@ -81,7 +81,7 @@ jobs:
           echo "number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
 
       - name: Guard against automated major bumps
-        if: steps.find-pr.outputs.number != ''
+        if: "!cancelled() && steps.find-pr.outputs.number != ''"
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           PR_NUMBER: ${{ steps.find-pr.outputs.number }}
@@ -108,14 +108,14 @@ jobs:
           fi
 
       - name: Enable auto-merge for release PR
-        if: steps.find-pr.outputs.number != ''
+        if: "!cancelled() && steps.find-pr.outputs.number != ''"
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           PR_NUMBER: ${{ steps.find-pr.outputs.number }}
         run: gh pr merge "$PR_NUMBER" --auto --squash
 
       - name: Approve release PR
-        if: steps.find-pr.outputs.number != ''
+        if: "!cancelled() && steps.find-pr.outputs.number != ''"
         env:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ steps.find-pr.outputs.number }}
