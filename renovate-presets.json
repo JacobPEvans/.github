@@ -59,11 +59,12 @@
       "minimumReleaseAge": "3 days"
     },
     {
-      "description": "Auto-merge trusted Terraform providers (3-day stabilization)",
+      "description": "Auto-merge trusted Terraform providers (3-day stabilization, minor/patch only)",
       "matchManagers": ["terraform"],
       "matchDatasources": ["terraform-provider"],
       "matchPackageNames": [
-        "hashicorp/*"
+        "hashicorp/*",
+        "bpg/*"
       ],
       "matchUpdateTypes": ["minor", "patch"],
       "automerge": true,
