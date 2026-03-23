@@ -73,6 +73,16 @@
       "minimumReleaseAge": "3 days"
     },
     {
+      "description": "Auto-merge trusted PyPI packages from HuggingFace (3-day stabilization, minor/patch only)",
+      "matchDatasources": ["pypi"],
+      "matchSourceUrls": ["https://github.com/huggingface/**"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "automerge": true,
+      "automergeType": "pr",
+      "automergeStrategy": "squash",
+      "minimumReleaseAge": "3 days"
+    },
+    {
       "description": "Auto-merge trusted Nix flake inputs (immediate, CI-gated)",
       "matchManagers": ["nix"],
       "matchDatasources": ["git-refs"],
