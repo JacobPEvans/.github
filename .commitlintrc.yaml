@@ -49,8 +49,8 @@ rules:
     - 100
 
 # NOTE: Two layers prevent automated major bumps:
-#   1. release-please config: "versioning": "always-bump-minor" in every repo's
-#      release-please-config.json (ignores BREAKING CHANGE footers entirely)
+#   1. Shared workflow: _release-please.yml injects "versioning": "always-bump-minor"
+#      into every repo's config at runtime (ignores BREAKING CHANGE footers entirely)
 #   2. Commitlint: headerPattern above blocks `!` before `:` (e.g., `feat!:`)
 # Major version bumps are human-initiated only via .release-please-manifest.json.
 helpUrl: "https://www.conventionalcommits.org/"

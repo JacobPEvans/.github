@@ -20,8 +20,8 @@
 #
 # Repo files:
 #   .release-please-manifest.json  - REQUIRED: version manifest (e.g. {"." : "1.2.3"})
-#   release-please-config.json     - REQUIRED: must include "versioning": "always-bump-minor"
-#                                    in every package to prevent automated major bumps
+#   release-please-config.json     - REQUIRED: release config (repo-specific settings only;
+#                                    versioning policy is enforced by this workflow centrally)
 #
 # Secrets required:
 #   GH_ACTION_JACOBPEVANS_APP_ID  - GitHub App ID (repo-level secret)
@@ -53,6 +53,15 @@ jobs:
       pull-requests: write
     steps:
       - uses: actions/checkout@v6
+
+      # Org policy: automated major version bumps are forbidden.
+      # This overrides any repo-level versioning config to ensure release-please
+      # never computes a major bump, regardless of BREAKING CHANGE footers.
+      # Major bumps are human-initiated only via .release-please-manifest.json.
+      - name: Enforce org-wide versioning policy (block automated major bumps)
+        run: |
+          jq '.packages[].versioning = "always-bump-minor"' release-please-config.json > /tmp/rp.json
+          mv /tmp/rp.json release-please-config.json
 
       - name: Generate GitHub App Token
         id: app-token
