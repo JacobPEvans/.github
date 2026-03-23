@@ -20,7 +20,7 @@
       "minimumReleaseAge": "0 days"
     },
     {
-      "description": "Auto-merge trusted GitHub Actions (3-day stabilization)",
+      "description": "Auto-merge trusted GitHub Actions (3-day stabilization, minor/patch only)",
       "matchManagers": ["github-actions"],
       "matchPackageNames": [
         "actions/**",
@@ -44,6 +44,7 @@
         "google-github-actions/**",
         "docker/**"
       ],
+      "matchUpdateTypes": ["minor", "patch"],
       "automerge": true,
       "automergeType": "pr",
       "automergeStrategy": "squash",
