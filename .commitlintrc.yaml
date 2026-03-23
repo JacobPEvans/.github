@@ -48,9 +48,9 @@ rules:
     - always
     - 100
 
-# NOTE: The headerPattern blocks `!` before `:` (e.g., `feat!:`), but the
-# `BREAKING CHANGE:` footer in commit bodies can still trigger major bumps.
-# Commitlint has no built-in rule to selectively block specific footers.
-# The _release-please.yml workflow guard catches this at PR time by closing
-# any release PR that proposes a major version bump.
+# NOTE: Two layers prevent automated major bumps:
+#   1. Shared workflow: _release-please.yml injects "versioning": "always-bump-minor"
+#      into every repo's config at runtime (prevents major bumps even with BREAKING CHANGE footers)
+#   2. Commitlint: headerPattern above blocks `!` before `:` (e.g., `feat!:`)
+# Major version bumps are human-initiated only via .release-please-manifest.json.
 helpUrl: "https://www.conventionalcommits.org/"
