@@ -20,7 +20,7 @@
       "minimumReleaseAge": "0 days"
     },
     {
-      "description": "Auto-merge trusted GitHub Actions (3-day stabilization, minor/patch only)",
+      "description": "Auto-merge trusted GitHub Actions including major (3-day stabilization)",
       "matchManagers": ["github-actions"],
       "matchPackageNames": [
         "actions/**",
@@ -44,16 +44,6 @@
         "google-github-actions/**",
         "docker/**"
       ],
-      "matchUpdateTypes": ["minor", "patch"],
-      "automerge": true,
-      "automergeType": "pr",
-      "automergeStrategy": "squash",
-      "minimumReleaseAge": "3 days"
-    },
-    {
-      "description": "Auto-merge GitHub-owned Actions including major (most trusted org)",
-      "matchManagers": ["github-actions"],
-      "matchPackageNames": ["actions/**", "github/**"],
       "matchUpdateTypes": ["major", "minor", "patch"],
       "automerge": true,
       "automergeType": "pr",
