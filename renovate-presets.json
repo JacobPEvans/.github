@@ -2,6 +2,16 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "description": "JacobPEvans org-wide Renovate preset",
   "platformAutomerge": true,
+  "customManagers": [
+    {
+      "description": "Nix version pins annotated with renovate comments",
+      "customType": "regex",
+      "fileMatch": ["\\.nix$"],
+      "matchStrings": [
+        "#\\s*renovate:\\s*datasource=(?<datasource>\\S+)\\s+depName=(?<depName>\\S+)\\n\\s*\\S+\\s*=\\s*\"(?<currentValue>[^\"]+)\";"
+      ]
+    }
+  ],
   "packageRules": [
     {
       "description": "Never auto-merge major updates - require human review (overridden by trusted package rules below)",
@@ -102,6 +112,23 @@
       "automerge": true,
       "automergeType": "pr",
       "automergeStrategy": "squash"
+    },
+    {
+      "description": "GitHub releases use v-prefixed tags for custom Nix packages",
+      "matchDatasources": ["github-releases"],
+      "matchManagers": ["custom.regex"],
+      "extractVersion": "^v(?<version>.*)$"
+    },
+    {
+      "description": "Auto-merge trusted PyPI packages from HuggingFace (custom managers)",
+      "matchDatasources": ["pypi"],
+      "matchManagers": ["custom.regex"],
+      "matchPackageNames": ["huggingface-hub", "huggingface-mcp-server"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "automerge": true,
+      "automergeType": "pr",
+      "automergeStrategy": "squash",
+      "minimumReleaseAge": "3 days"
     }
   ]
 }
