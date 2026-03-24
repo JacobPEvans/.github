@@ -8,7 +8,7 @@
       "customType": "regex",
       "fileMatch": ["\\.nix$"],
       "matchStrings": [
-        "#\\s*renovate:\\s*datasource=(?<datasource>\\S+)\\s+depName=(?<depName>\\S+)\\n\\s*\\S+\\s*=\\s*\"(?<currentValue>[^\"]+)\";"
+        "#\\s*renovate:\\s*datasource=(?<datasource>\\S+)\\s+depName=(?<depName>\\S+)\\r?\\n\\s*\\S+\\s*=\\s*\"(?<currentValue>[^\"]+)\";"
       ]
     }
   ],
@@ -117,7 +117,7 @@
       "description": "GitHub releases use v-prefixed tags for custom Nix packages",
       "matchDatasources": ["github-releases"],
       "matchManagers": ["custom.regex"],
-      "extractVersion": "^v(?<version>.*)$"
+      "extractVersion": "^v(?<version>.+)$"
     },
     {
       "description": "Auto-merge trusted PyPI packages from HuggingFace (custom managers)",
