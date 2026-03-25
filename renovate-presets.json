@@ -93,7 +93,7 @@
       "minimumReleaseAge": "3 days"
     },
     {
-      "description": "Auto-merge trusted Nix flake inputs (immediate, CI-gated)",
+      "description": "Auto-merge trusted Nix flake inputs (3-day stabilization, CI-gated)",
       "matchManagers": ["nix"],
       "matchDatasources": ["git-refs"],
       "matchPackageNames": [
