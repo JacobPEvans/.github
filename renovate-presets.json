@@ -40,7 +40,6 @@
         "DeterminateSystems/**",
         "peter-evans/**",
         "DavidAnson/**",
-        "aquasecurity/**",
         "dorny/**",
         "github/**",
         "softprops/**",
@@ -94,7 +93,7 @@
       "minimumReleaseAge": "3 days"
     },
     {
-      "description": "Auto-merge trusted Nix flake inputs (immediate, CI-gated)",
+      "description": "Auto-merge trusted Nix flake inputs (3-day stabilization, CI-gated)",
       "matchManagers": ["nix"],
       "matchDatasources": ["git-refs"],
       "matchPackageNames": [
@@ -111,7 +110,8 @@
       ],
       "automerge": true,
       "automergeType": "pr",
-      "automergeStrategy": "squash"
+      "automergeStrategy": "squash",
+      "minimumReleaseAge": "3 days"
     },
     {
       "description": "GitHub releases use v-prefixed tags for custom Nix packages",
