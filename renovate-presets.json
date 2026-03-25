@@ -40,7 +40,6 @@
         "DeterminateSystems/**",
         "peter-evans/**",
         "DavidAnson/**",
-        "aquasecurity/**",
         "dorny/**",
         "github/**",
         "softprops/**",
@@ -111,7 +110,8 @@
       ],
       "automerge": true,
       "automergeType": "pr",
-      "automergeStrategy": "squash"
+      "automergeStrategy": "squash",
+      "minimumReleaseAge": "3 days"
     },
     {
       "description": "GitHub releases use v-prefixed tags for custom Nix packages",
