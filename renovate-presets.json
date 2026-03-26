@@ -2,6 +2,14 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "description": "JacobPEvans org-wide Renovate preset",
   "platformAutomerge": true,
+  "vulnerabilityAlerts": {
+    "enabled": true,
+    "labels": ["type:security"],
+    "automerge": true,
+    "automergeType": "pr",
+    "automergeStrategy": "squash",
+    "minimumReleaseAge": "0 days"
+  },
   "customManagers": [
     {
       "description": "Nix version pins annotated with renovate comments",
