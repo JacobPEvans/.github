@@ -1,4 +1,7 @@
-name: Cribl Pack Validation
+# Reusable: Cribl Pack Validation
+# Runs shared pytest suite against caller's pack repo on ubuntu-latest.
+name: _cribl-pack-validate
+
 on:
   workflow_call:
     inputs:
@@ -7,17 +10,25 @@ on:
         required: true
         type: string
 
+concurrency:
+  group: cribl-pack-validate-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
 jobs:
   validate:
+    name: Validate
     runs-on: ubuntu-latest
     steps:
       - name: Checkout pack repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Checkout shared test suite
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
-          repository: JacobPEvans/.github
+          repository: ${{ github.repository_owner }}/.github
           path: .github-shared
           sparse-checkout: tests/cribl-pack
 

@@ -19,7 +19,14 @@ def pack_root(request):
 
 @pytest.fixture(scope="session")
 def pack_type(request):
-    return request.config.getoption("--pack-type")
+    value = request.config.getoption("--pack-type")
+    allowed = {"edge", "stream"}
+    if value not in allowed:
+        pytest.fail(
+            f"Invalid --pack-type value: {value!r}. "
+            f"Expected one of: {', '.join(sorted(allowed))}."
+        )
+    return value
 
 
 @pytest.fixture(scope="session")
@@ -85,4 +92,8 @@ def sample_json_files(pack_root):
     samples_dir = pack_root / "data" / "samples"
     if not samples_dir.exists():
         return []
-    return list(samples_dir.rglob("*.json"))
+    files = []
+    files.extend(samples_dir.rglob("*.json"))
+    files.extend(samples_dir.rglob("*.jsonl"))
+    files.extend(samples_dir.rglob("*.ndjson"))
+    return list(files)

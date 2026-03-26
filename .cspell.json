@@ -41,7 +41,14 @@
     "zizmor",
     "Zizmor",
     "endgroup",
-    "lockfiles"
+    "lockfiles",
+    "addoption",
+    "logstream",
+    "xoxb",
+    "changeme",
+    "passthru",
+    "filt",
+    "pyyaml"
   ],
   "ignorePaths": [
     ".git",
