@@ -1,0 +1,26 @@
+# Multi-ecosystem lockfile vulnerability scanning via Google OSV
+#
+# Reusable workflow — called from repo-level ci-gate.yml files.
+# Scans lockfiles (uv.lock, package-lock.json, .terraform.lock.hcl, etc.)
+# for known vulnerabilities across all supported ecosystems.
+name: OSV Vulnerability Scan
+
+on:
+  workflow_call: {}
+
+permissions:
+  contents: read
+
+jobs:
+  osv-scan:
+    name: OSV Scanner
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Run OSV Scanner
+        uses: google/osv-scanner-action/osv-scanner-action@v2
+        with:
+          scan-args: |-
+            --recursive
+            .
