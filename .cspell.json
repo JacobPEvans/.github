@@ -41,7 +41,13 @@
     "zizmor",
     "Zizmor",
     "endgroup",
-    "lockfiles"
+    "lockfiles",
+    "pygments",
+    "GHSA",
+    "wwwm",
+    "AdlLexer",
+    "ReDoS",
+    "transitive"
   ],
   "ignorePaths": [
     ".git",
