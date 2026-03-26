@@ -3,10 +3,14 @@
 # Reusable workflow — called from repo-level ci-gate.yml files.
 # Scans lockfiles (uv.lock, package-lock.json, .terraform.lock.hcl, etc.)
 # for known vulnerabilities across all supported ecosystems.
-name: OSV Vulnerability Scan
+name: _osv-scan
 
 on:
   workflow_call: {}
+
+concurrency:
+  group: osv-scan-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read

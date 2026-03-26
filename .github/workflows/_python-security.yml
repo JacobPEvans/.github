@@ -2,7 +2,7 @@
 #
 # Reusable workflow — called from repo-level ci-gate.yml files.
 # Scans Python projects for known CVEs in resolved dependencies.
-name: Python Security Scan
+name: _python-security
 
 on:
   workflow_call:
@@ -11,6 +11,10 @@ on:
         description: 'Space-separated list of directories containing pyproject.toml'
         required: true
         type: string
+
+concurrency:
+  group: python-security-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -32,11 +36,7 @@ jobs:
           for dir in $PYTHON_DIRS; do
             echo "::group::Scanning $dir"
             cd "$GITHUB_WORKSPACE/$dir"
-            uv venv .venv
-            . .venv/bin/activate
-            uv pip install .
-            uv pip install pip-audit
-            pip-audit --progress-spinner=off --desc
-            deactivate
+            uv export --format requirements-txt --output-file requirements.txt --locked
+            uvx pip-audit --progress-spinner=off --desc -r requirements.txt
             echo "::endgroup::"
           done
