@@ -1,0 +1,38 @@
+name: Cribl Pack Validation
+on:
+  workflow_call:
+    inputs:
+      pack-type:
+        description: "Pack type: edge or stream"
+        required: true
+        type: string
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout pack repo
+        uses: actions/checkout@v4
+
+      - name: Checkout shared test suite
+        uses: actions/checkout@v4
+        with:
+          repository: JacobPEvans/.github
+          path: .github-shared
+          sparse-checkout: tests/cribl-pack
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install test dependencies
+        run: pip install pytest pyyaml
+
+      - name: Run pack validation tests
+        env:
+          PACK_TYPE: ${{ inputs.pack-type }}
+        run: |
+          pytest .github-shared/tests/cribl-pack/ -v \
+            --pack-root="${GITHUB_WORKSPACE}" \
+            --pack-type="${PACK_TYPE}"
