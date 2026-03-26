@@ -20,3 +20,5 @@ overrides:
     config:
       # release-please generates long lines with PR links
       MD013: false
+      # release-please generates double blank lines between version header and section
+      MD012: false
