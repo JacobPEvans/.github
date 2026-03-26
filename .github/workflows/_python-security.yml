@@ -46,7 +46,7 @@ jobs:
           for dir in $PYTHON_DIRS; do
             echo "::group::Scanning $dir"
             cd "$GITHUB_WORKSPACE/$dir"
-            uv export --format requirements-txt --output-file requirements.txt --locked
+            uv export --format requirements-txt --output-file requirements.txt --locked --no-editable
             # shellcheck disable=SC2086
             uvx pip-audit --progress-spinner=off --desc -r requirements.txt $ignore_args
             echo "::endgroup::"
