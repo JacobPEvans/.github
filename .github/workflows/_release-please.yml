@@ -91,7 +91,8 @@ jobs:
 
       # Bot approval (github.token) was triggering premature auto-merge evaluation
       # before CI checks registered, causing auto-merge to get stuck with rulesets
-      # (github/community#162623). Removed — required_approving_review_count is 0.
+      # (github/community#162623). Removed; repos requiring approvals will leave
+      # auto-merge pending until the required human reviews are submitted.
       - name: Enable auto-merge for release PR
         if: "!cancelled() && steps.find-pr.outputs.number != ''"
         env:
