@@ -278,7 +278,13 @@ class TestSampleData:
             text = sf.read_text().strip()
             if not text:
                 continue
-            # Try parsing as JSON (single object) or JSONL (multiple lines)
+            # Try parsing as a single JSON document first (pretty-printed)
+            try:
+                json.loads(text)
+                continue  # Valid JSON document
+            except json.JSONDecodeError:
+                pass
+            # Fall back to JSONL (one JSON object per line)
             for i, line in enumerate(text.splitlines(), 1):
                 line = line.strip()
                 if not line:
@@ -287,7 +293,7 @@ class TestSampleData:
                     json.loads(line)
                 except json.JSONDecodeError as e:
                     errors.append(f"{sf.name}:{i}: {e}")
-                    break  # One error per file is enough
+                    break
         assert not errors, (
             "Invalid JSON in sample files:\n" + "\n".join(errors)
         )
