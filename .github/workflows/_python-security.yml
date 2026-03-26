@@ -26,8 +26,10 @@ jobs:
         uses: astral-sh/setup-uv@v6
 
       - name: Audit Python dependencies
+        env:
+          PYTHON_DIRS: ${{ inputs.python-dirs }}
         run: |
-          for dir in ${{ inputs.python-dirs }}; do
+          for dir in $PYTHON_DIRS; do
             echo "::group::Scanning $dir"
             cd "$GITHUB_WORKSPACE/$dir"
             uv venv .venv

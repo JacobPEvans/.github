@@ -37,7 +37,11 @@
     "narinfo",
     "nixpkgs",
     "Anson",
-    "pipefail"
+    "pipefail",
+    "zizmor",
+    "Zizmor",
+    "endgroup",
+    "lockfiles"
   ],
   "ignorePaths": [
     ".git",
