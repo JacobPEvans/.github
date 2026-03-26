@@ -1,0 +1,42 @@
+# Python dependency vulnerability scanning via pip-audit
+#
+# Reusable workflow — called from repo-level ci-gate.yml files.
+# Scans Python projects for known CVEs in resolved dependencies.
+name: _python-security
+
+on:
+  workflow_call:
+    inputs:
+      python-dirs:
+        description: 'Space-separated list of directories containing pyproject.toml'
+        required: true
+        type: string
+
+concurrency:
+  group: python-security-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  pip-audit:
+    name: pip-audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+
+      - name: Audit Python dependencies
+        env:
+          PYTHON_DIRS: ${{ inputs.python-dirs }}
+        run: |
+          for dir in $PYTHON_DIRS; do
+            echo "::group::Scanning $dir"
+            cd "$GITHUB_WORKSPACE/$dir"
+            uv export --format requirements-txt --output-file requirements.txt --locked
+            uvx pip-audit --progress-spinner=off --desc -r requirements.txt
+            echo "::endgroup::"
+          done
