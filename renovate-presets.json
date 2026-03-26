@@ -4,7 +4,7 @@
   "platformAutomerge": true,
   "vulnerabilityAlerts": {
     "enabled": true,
-    "labels": ["security"],
+    "labels": ["type:security"],
     "automerge": true,
     "automergeType": "pr",
     "automergeStrategy": "squash",
