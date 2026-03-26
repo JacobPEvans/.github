@@ -15,7 +15,6 @@
 #         GH_APP_PRIVATE_KEY: ${{ secrets.GH_APP_PRIVATE_KEY }}
 #
 # Org/repo prerequisites:
-#   "Allow GitHub Actions to create and approve pull requests" must be enabled
 #   Calling repos must grant `contents: write` and `pull-requests: write` in the caller job permissions
 #
 # Repo files:
@@ -90,16 +89,13 @@ jobs:
           PR_NUMBER=$(gh pr list --head "release-please--branches--${BASE_BRANCH}" --json number --jq '.[0].number // empty')
           echo "number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
 
+      # Bot approval (github.token) was triggering premature auto-merge evaluation
+      # before CI checks registered, causing auto-merge to get stuck with rulesets
+      # (github/community#162623). Removed; repos requiring approvals will leave
+      # auto-merge pending until the required human reviews are submitted.
       - name: Enable auto-merge for release PR
         if: "!cancelled() && steps.find-pr.outputs.number != ''"
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           PR_NUMBER: ${{ steps.find-pr.outputs.number }}
         run: gh pr merge "$PR_NUMBER" --auto --squash
-
-      - name: Approve release PR
-        if: "!cancelled() && steps.find-pr.outputs.number != ''"
-        env:
-          GH_TOKEN: ${{ github.token }}
-          PR_NUMBER: ${{ steps.find-pr.outputs.number }}
-        run: gh pr review "$PR_NUMBER" --approve
