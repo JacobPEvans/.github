@@ -50,6 +50,7 @@
         "Azure/**",
         "raycast/**",
         "aws-actions/**",
+        "google/**",
         "google-github-actions/**",
         "docker/**"
       ],
