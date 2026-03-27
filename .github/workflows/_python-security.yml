@@ -38,10 +38,11 @@ jobs:
         env:
           PYTHON_DIRS: ${{ inputs.python-dirs }}
           IGNORE_VULNS: ${{ inputs.ignore-vulns }}
+        shell: bash
         run: |
-          ignore_args=""
+          ignore_args=()
           for vuln_id in $IGNORE_VULNS; do
-            ignore_args="$ignore_args --ignore-vuln $vuln_id"
+            ignore_args+=(--ignore-vuln "$vuln_id")
           done
           for dir in $PYTHON_DIRS; do
             echo "::group::Scanning $dir"
@@ -50,7 +51,6 @@ jobs:
               | grep -v '^\.\s*$' \
               | grep -v '^-e ' \
               > requirements.txt
-            # shellcheck disable=SC2086
-            uvx pip-audit --progress-spinner=off --desc -r requirements.txt $ignore_args
+            uvx pip-audit --progress-spinner=off --desc -r requirements.txt "${ignore_args[@]}"
             echo "::endgroup::"
           done

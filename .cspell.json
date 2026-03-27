@@ -41,7 +41,8 @@
     "zizmor",
     "Zizmor",
     "endgroup",
-    "lockfiles"
+    "lockfiles",
+    "vulns"
   ],
   "ignorePaths": [
     ".git",
