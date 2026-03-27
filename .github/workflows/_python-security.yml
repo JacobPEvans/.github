@@ -47,10 +47,10 @@ jobs:
           for dir in $PYTHON_DIRS; do
             echo "::group::Scanning $dir"
             cd "$GITHUB_WORKSPACE/$dir"
-            uv export --format requirements-txt --locked --no-editable \
-              | grep -v '^\.\s*$' \
-              | grep -v '^-e ' \
-              > requirements.txt
+            # --no-emit-project avoids exporting the local project as an editable requirement when
+            # hashes are present, which would cause pip / pip-audit to fail with
+            # "editable requirement cannot be installed when requiring hashes".
+            uv export --format requirements-txt --output-file requirements.txt --locked --no-emit-project
             uvx pip-audit --progress-spinner=off --desc -r requirements.txt "${ignore_args[@]}"
             echo "::endgroup::"
           done

@@ -42,6 +42,12 @@
     "Zizmor",
     "endgroup",
     "lockfiles",
+    "pygments",
+    "GHSA",
+    "wwwm",
+    "AdlLexer",
+    "ReDoS",
+    "transitive",
     "vulns"
   ],
   "ignorePaths": [
