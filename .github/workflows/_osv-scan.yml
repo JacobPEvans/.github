@@ -22,9 +22,19 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      - name: Check for config file
+        id: config
+        run: |
+          if [ -f osv-scanner.toml ]; then
+            echo "args=--config=osv-scanner.toml" >> "$GITHUB_OUTPUT"
+          else
+            echo "args=" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Run OSV Scanner
         uses: google/osv-scanner-action/osv-scanner-action@v2.3.5
         with:
           scan-args: |-
+            ${{ steps.config.outputs.args }}
             --recursive
             .
