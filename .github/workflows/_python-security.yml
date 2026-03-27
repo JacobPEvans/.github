@@ -36,7 +36,15 @@ jobs:
           for dir in $PYTHON_DIRS; do
             echo "::group::Scanning $dir"
             cd "$GITHUB_WORKSPACE/$dir"
-            uv export --format requirements-txt --output-file requirements.txt --locked
-            uvx pip-audit --progress-spinner=off --desc -r requirements.txt
+            # --no-emit-project avoids exporting the local project as an editable requirement when
+            # hashes are present, which would cause pip / pip-audit to fail with
+            # "editable requirement cannot be installed when requiring hashes".
+            uv export --format requirements-txt --output-file requirements.txt --locked --no-emit-project
+            # GHSA-5239-wwwm-4pmq (CVE-2026-4539): ReDoS in pygments AdlLexer — transitive dep via
+            # rich and pytest; only triggered when parsing ADL files (not done here); no fix yet.
+            # Remove this flag once pygments releases a patched version (tracked in nix-ai#355).
+            uvx pip-audit --progress-spinner=off --desc \
+              --ignore-vuln GHSA-5239-wwwm-4pmq \
+              -r requirements.txt
             echo "::endgroup::"
           done
