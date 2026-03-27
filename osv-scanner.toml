@@ -1,8 +1,9 @@
 # Org-wide OSV vulnerability ignores
 #
 # Central config inherited by all repos via _osv-scan.yml.
-# Only add entries here when NO fix is available upstream.
-# Remove entries promptly when upstream patches land.
+# Only add entries here for vulns that cannot be immediately fixed
+# (e.g., no upstream patch yet, or upgrade blocked/pending Renovate rollout).
+# Remove entries promptly when upgrades land.
 #
 # Repos can override with a local osv-scanner.toml (takes precedence).
 
