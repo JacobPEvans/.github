@@ -22,10 +22,22 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Check for config file
+      - name: Fetch central OSV config
+        if: hashFiles('osv-scanner.toml') == ''
+        uses: actions/checkout@v6
+        with:
+          repository: ${{ github.repository_owner }}/.github
+          path: .central-config
+          sparse-checkout: osv-scanner.toml
+          sparse-checkout-cone-mode: false
+
+      - name: Apply config (local overrides central)
         id: config
         run: |
           if [ -f osv-scanner.toml ]; then
+            echo "args=--config=osv-scanner.toml" >> "$GITHUB_OUTPUT"
+          elif [ -f .central-config/osv-scanner.toml ]; then
+            cp .central-config/osv-scanner.toml osv-scanner.toml
             echo "args=--config=osv-scanner.toml" >> "$GITHUB_OUTPUT"
           else
             echo "args=" >> "$GITHUB_OUTPUT"
