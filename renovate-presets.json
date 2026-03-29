@@ -10,6 +10,7 @@
     "automergeStrategy": "squash",
     "minimumReleaseAge": "0 days"
   },
+  "timezone": "America/Chicago",
   "lockFileMaintenance": {
     "enabled": true,
     "schedule": ["before 7am on Monday", "before 7am on Thursday"]
@@ -144,7 +145,7 @@
       "minimumReleaseAge": "3 days"
     },
     {
-      "description": "Twice-weekly schedule for custom regex managers (bunx/uvx/uv wrappers)",
+      "description": "Twice-weekly schedule for all custom regex managers",
       "matchManagers": ["custom.regex"],
       "schedule": ["after 7am on Monday", "after 7am on Thursday"]
     },
