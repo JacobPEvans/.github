@@ -150,8 +150,13 @@
       "schedule": ["after 7am on Monday", "after 7am on Thursday"]
     },
     {
-      "description": "Twice-weekly schedule for pep621 managed packages",
+      "description": "Auto-merge pep621 Python packages (minor/patch, 3-day stabilization)",
       "matchManagers": ["pep621"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "automerge": true,
+      "automergeType": "pr",
+      "automergeStrategy": "squash",
+      "minimumReleaseAge": "3 days",
       "schedule": ["after 7am on Monday", "after 7am on Thursday"]
     }
   ]
