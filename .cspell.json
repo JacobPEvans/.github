@@ -47,7 +47,14 @@
     "wwwm",
     "AdlLexer",
     "ReDoS",
-    "transitive"
+    "transitive",
+    "addoption",
+    "logstream",
+    "xoxb",
+    "changeme",
+    "passthru",
+    "filt",
+    "pyyaml"
   ],
   "ignorePaths": [
     ".git",
