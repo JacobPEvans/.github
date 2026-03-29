@@ -6,29 +6,3 @@
 # Remove entries promptly when upgrades land.
 #
 # Repos can override with a local osv-scanner.toml (takes precedence).
-
-# pygments 2.19.2 — Low severity (3.3), ReDoS in AdlLexer
-# No patched version available upstream
-[[IgnoredVulns]]
-id = "GHSA-5239-wwwm-4pmq"
-reason = "pygments 2.19.2 is the latest version; no fix available upstream"
-
-# nltk 3.9.3 — High severity (7.5), no patched version for this CVE
-[[IgnoredVulns]]
-id = "GHSA-jm6w-m3j8-898g"
-reason = "nltk 3.9.3 has no fix for this CVE"
-
-# nltk 3.9.3 — Medium severity (5.1), no patched version available
-[[IgnoredVulns]]
-id = "GHSA-rf74-v2fm-23pw"
-reason = "nltk 3.9.3 has no fix available upstream"
-
-# nltk 3.9.3 — Medium severity (6.1), fix available in 3.9.4
-[[IgnoredVulns]]
-id = "GHSA-gfwx-w7gr-fvh7"
-reason = "nltk upgrade to 3.9.4 pending Renovate PR"
-
-# requests 2.32.5 — Medium severity (4.4), fix available in 2.33.0
-[[IgnoredVulns]]
-id = "GHSA-gc5v-m9x4-r6x2"
-reason = "requests upgrade to 2.33.0 pending Renovate PR"
