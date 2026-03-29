@@ -10,6 +10,11 @@
     "automergeStrategy": "squash",
     "minimumReleaseAge": "0 days"
   },
+  "timezone": "America/Chicago",
+  "lockFileMaintenance": {
+    "enabled": true,
+    "schedule": ["before 7am on Monday", "before 7am on Thursday"]
+  },
   "customManagers": [
     {
       "description": "Nix version pins annotated with renovate comments",
@@ -138,6 +143,16 @@
       "automergeType": "pr",
       "automergeStrategy": "squash",
       "minimumReleaseAge": "3 days"
+    },
+    {
+      "description": "Twice-weekly schedule for all custom regex managers",
+      "matchManagers": ["custom.regex"],
+      "schedule": ["after 7am on Monday", "after 7am on Thursday"]
+    },
+    {
+      "description": "Twice-weekly schedule for pep621 managed packages",
+      "matchManagers": ["pep621"],
+      "schedule": ["after 7am on Monday", "after 7am on Thursday"]
     }
   ]
 }
