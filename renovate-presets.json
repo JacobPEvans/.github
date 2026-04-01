@@ -2,21 +2,20 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "description": "JacobPEvans org-wide Renovate preset",
   "platformAutomerge": true,
+  "automergeType": "pr",
+  "automergeStrategy": "squash",
+  "minimumReleaseAge": "3 days",
+  "timezone": "America/Chicago",
   "vulnerabilityAlerts": {
     "enabled": true,
     "labels": ["type:security"],
     "automerge": true,
-    "automergeType": "pr",
-    "automergeStrategy": "squash",
     "minimumReleaseAge": "0 days"
   },
-  "timezone": "America/Chicago",
   "lockFileMaintenance": {
     "enabled": true,
     "schedule": ["before 7am on Monday", "before 7am on Thursday"],
-    "automerge": true,
-    "automergeType": "pr",
-    "automergeStrategy": "squash"
+    "automerge": true
   },
   "customManagers": [
     {
@@ -41,12 +40,10 @@
         "https://github.com/JacobPEvans/**"
       ],
       "automerge": true,
-      "automergeType": "pr",
-      "automergeStrategy": "squash",
       "minimumReleaseAge": "0 days"
     },
     {
-      "description": "Auto-merge trusted orgs — all managers, all update types (3-day stabilization)",
+      "description": "Auto-merge trusted orgs — all managers, all update types (1-day stabilization)",
       "matchPackageNames": [
         "actions/**",
         "ansible/**",
@@ -144,39 +141,28 @@
         "https://github.com/wakatime/**"
       ],
       "automerge": true,
-      "automergeType": "pr",
-      "automergeStrategy": "squash",
-      "minimumReleaseAge": "3 days"
+      "minimumReleaseAge": "1 day"
     },
     {
       "description": "Auto-merge pre-commit hooks (minor and patch)",
       "matchManagers": ["pre-commit"],
       "matchUpdateTypes": ["minor", "patch"],
-      "automerge": true,
-      "automergeType": "pr",
-      "automergeStrategy": "squash",
-      "minimumReleaseAge": "3 days"
+      "automerge": true
     },
     {
-      "description": "Auto-merge trusted Terraform providers (3-day stabilization, minor/patch only)",
+      "description": "Auto-merge trusted Terraform providers (minor/patch only)",
       "matchManagers": ["terraform"],
       "matchDatasources": ["terraform-provider"],
       "matchPackageNames": ["bpg/*"],
       "matchUpdateTypes": ["minor", "patch"],
-      "automerge": true,
-      "automergeType": "pr",
-      "automergeStrategy": "squash",
-      "minimumReleaseAge": "3 days"
+      "automerge": true
     },
     {
-      "description": "Auto-merge trusted PyPI packages from HuggingFace (3-day stabilization, minor/patch only)",
+      "description": "Auto-merge trusted PyPI packages from HuggingFace (minor/patch only)",
       "matchDatasources": ["pypi"],
       "matchSourceUrls": ["https://github.com/huggingface/**"],
       "matchUpdateTypes": ["minor", "patch"],
-      "automerge": true,
-      "automergeType": "pr",
-      "automergeStrategy": "squash",
-      "minimumReleaseAge": "3 days"
+      "automerge": true
     },
     {
       "description": "GitHub releases use v-prefixed tags for custom Nix packages",
@@ -190,13 +176,10 @@
       "schedule": ["after 7am on Monday", "after 7am on Thursday"]
     },
     {
-      "description": "Auto-merge pep621 Python packages (minor/patch, 3-day stabilization)",
+      "description": "Auto-merge pep621 Python packages (minor/patch)",
       "matchManagers": ["pep621"],
       "matchUpdateTypes": ["minor", "patch"],
       "automerge": true,
-      "automergeType": "pr",
-      "automergeStrategy": "squash",
-      "minimumReleaseAge": "3 days",
       "schedule": ["after 7am on Monday", "after 7am on Thursday"]
     }
   ]
