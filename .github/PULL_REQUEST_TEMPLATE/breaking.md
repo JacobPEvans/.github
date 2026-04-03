@@ -91,7 +91,7 @@ See [LABELS.md](../docs/LABELS.md) for label definitions.
 <!-- Please confirm the following before submitting your pull request -->
 
 - [ ] PR title follows conventional commits format: `breaking(scope): description`
-- [ ] All commits are GPG signed
+- [ ] All commits are signed
 - [ ] No merge commits (rebased if needed)
 - [ ] Migration path is clear and documented
 - [ ] All tests passing

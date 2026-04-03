@@ -81,7 +81,7 @@ See [LABELS.md](../docs/LABELS.md) for label definitions.
 
 - [ ] PR title follows conventional commits format: `type(scope): description`
 - [ ] Commits follow conventional commits specification
-- [ ] All commits are GPG signed
+- [ ] All commits are signed
 - [ ] No merge commits (rebased if needed)
 - [ ] PR is focused on a single concern
 - [ ] Self-review completed

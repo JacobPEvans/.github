@@ -75,7 +75,7 @@ See [LABELS.md](../docs/LABELS.md) for label definitions.
 
 - [ ] PR title follows conventional commits format: `refactor(scope): description`
 - [ ] Commits follow conventional commits specification
-- [ ] All commits are GPG signed
+- [ ] All commits are signed
 - [ ] No merge commits (rebased if needed)
 - [ ] No functional changes (or clearly documented)
 - [ ] All tests passing

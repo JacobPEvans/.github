@@ -121,7 +121,7 @@ Standardized [pull request templates][pr-templates-docs] that enforce convention
 - Conventional commit format in PR title (`type(scope): description`)
 - Related issue linking
 - Type, priority, and size labels
-- GPG-signed commits
+- Signed commits
 
 **Selecting a template**:
 
