@@ -1,0 +1,87 @@
+# Reusable: Nix Hash Auto-Fix
+# Fixes stale fetchFromGitHub hashes on Renovate PRs.
+#
+# Problem: Renovate's regex manager bumps version strings in .nix files
+# but cannot update source/vendor hashes. This breaks builds.
+#
+# Solution: After Renovate bumps a version, this workflow runs nix-update
+# to recalculate hashes and pushes a fixup commit.
+#
+# Usage in ci-gate.yml:
+#   nix-hash-autofix:
+#     needs: changes
+#     if: needs.changes.outputs.nix == 'true' && github.event.pull_request.user.login == 'jacobpevans-github-actions[bot]'
+#     uses: JacobPEvans/.github/.github/workflows/_nix-hash-autofix.yml@main
+#     with:
+#       packages: "gh-aw"
+#     secrets: inherit
+name: _nix-hash-autofix
+
+on:
+  workflow_call:
+    inputs:
+      packages:
+        description: "Space-separated list of flake package attributes to update (e.g., 'gh-aw git-flow-next')"
+        required: true
+        type: string
+
+permissions: {}
+
+concurrency:
+  group: nix-hash-autofix-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  autofix:
+    name: Fix Nix Hashes
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: read
+    steps:
+      - name: Generate GitHub App Token
+        id: app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          app-id: ${{ secrets.GH_ACTION_JACOBPEVANS_APP_ID }}
+          private-key: ${{ secrets.GH_APP_PRIVATE_KEY }}
+
+      - name: Checkout PR branch
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.head_ref }}
+          token: ${{ steps.app-token.outputs.token }}
+
+      - name: Install Nix
+        uses: DeterminateSystems/determinate-nix-action@v3
+
+      - name: Update package hashes
+        id: update
+        env:
+          PACKAGES: ${{ inputs.packages }}
+        run: |
+          for pkg in $PACKAGES; do
+            echo "::group::Updating $pkg"
+            # nix-update recalculates src hash and vendorHash
+            # --version=skip keeps Renovate's version bump, only fixes hashes
+            if nix run nixpkgs#nix-update -- --flake "$pkg" --version=skip 2>&1; then
+              echo "Updated $pkg"
+            else
+              echo "::warning::Failed to update $pkg (may already be correct)"
+            fi
+            echo "::endgroup::"
+          done
+          if [ -n "$(git diff --name-only)" ]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Commit and push hash fixes
+        if: steps.update.outputs.changed == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "fix(deps): auto-update Nix package hashes
+
+          nix-update recalculated hashes after Renovate version bump."
+          git push
