@@ -45,9 +45,8 @@ The `claude/` and `copilot/` prefixes are reserved for automated branches create
 
 **Commit signing is required** for all contributions. This verifies that commits come from their claimed author.
 
-> **Automated PRs** (Copilot, Renovate, GitHub Actions): Commits are signed automatically via
-> GitHub's native app signing. No setup needed — just assign an issue to Copilot or let Renovate
-> do its thing.
+> **Automated PRs** (Copilot, Renovate, GitHub Actions): In this organization, automated commits
+> are signed via GitHub's native app signing. No setup needed for bot-authored PRs.
 
 ### Human Contributors — Getting Started
 
