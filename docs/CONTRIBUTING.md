@@ -43,9 +43,12 @@ The `claude/` and `copilot/` prefixes are reserved for automated branches create
 
 ## Signing Your Commits
 
-**Commit signing is required** for all contributions. This verifies that commits actually come from you.
+**Commit signing is required** for all contributions. This verifies that commits come from their claimed author.
 
-### Getting Started with Commit Signing
+> **Automated PRs** (Copilot, Renovate, GitHub Actions): In this organization, automated commits
+> are signed via GitHub's native app signing. No setup needed for bot-authored PRs.
+
+### Human Contributors — Getting Started
 
 If you've never signed commits before, don't worry—it only takes a few minutes to set up:
 
@@ -169,7 +172,7 @@ Before submitting your PR:
 - [ ] Related issues are linked in the description
 - [ ] Type, priority, and size labels are applied
 - [ ] Commits follow conventional commits specification
-- [ ] All commits are GPG signed
+- [ ] All commits are signed
 - [ ] No merge commits (rebase if needed)
 - [ ] Markdown linting passes
 - [ ] PR is focused on a single concern

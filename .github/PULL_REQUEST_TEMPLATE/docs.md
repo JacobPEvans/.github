@@ -62,7 +62,7 @@ See [LABELS.md](../docs/LABELS.md) for label definitions.
 
 - [ ] Follows existing documentation structure
 - [ ] PR title follows conventional commits format: `docs(scope): description`
-- [ ] All commits are GPG signed
+- [ ] All commits are signed
 - [ ] No merge commits (rebased if needed)
 - [ ] Markdown linting passed
 - [ ] Self-review completed
