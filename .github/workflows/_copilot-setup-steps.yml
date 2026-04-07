@@ -1,3 +1,8 @@
+# DEPRECATED 2026-04-07: Moved to JacobPEvans/ai-workflows
+# All AI workflows live in ai-workflows, not .github.
+# Use: uses: JacobPEvans/ai-workflows/.github/workflows/_copilot-setup-steps.yml@main
+# To be deleted after nix-darwin and nix-ai are updated.
+#
 # Reusable: Copilot Setup Steps (Nix)
 # Sets up a Nix development environment for GitHub Copilot coding agents.
 #
@@ -17,6 +22,7 @@ on:
 jobs:
   copilot-setup-steps:
     name: Copilot Setup Steps
+    if: false
     runs-on: ubuntu-latest
     permissions:
       contents: read
