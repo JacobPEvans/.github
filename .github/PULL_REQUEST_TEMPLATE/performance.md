@@ -83,7 +83,7 @@ See [LABELS.md](../docs/LABELS.md) for label definitions.
 
 - [ ] PR title follows conventional commits format: `perf(scope): description`
 - [ ] Commits follow conventional commits specification
-- [ ] All commits are GPG signed
+- [ ] All commits are signed
 - [ ] No merge commits (rebased if needed)
 - [ ] Benchmarks prove improvement
 - [ ] All tests passing
