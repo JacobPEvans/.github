@@ -29,6 +29,29 @@
       ]
     },
     {
+      "description": "npm packages pinned in Nix string literals (bunx/npx wrappers, MCP server args)",
+      "customType": "regex",
+      "fileMatch": ["\\.nix$"],
+      "matchStrings": [
+        "\"(?<depName>@[a-zA-Z0-9-]+/[a-zA-Z0-9][a-zA-Z0-9._-]*)@(?<currentValue>[\\d][^\\s\"]*)\"",
+        "bunx\\s+--bun\\s+(?<depName>(?:@[^@/]+\\/)?[^@\\s]+)@(?<currentValue>[\\d][^\\s]*)"
+      ],
+      "datasourceTemplate": "npm"
+    },
+    {
+      "description": "uv/uvx PyPI packages pinned in Nix modules",
+      "customType": "regex",
+      "fileMatch": ["\\.nix$"],
+      "matchStrings": [
+        "uvx\\s+--from\\s+\"(?<depName>[a-zA-Z0-9][a-zA-Z0-9._-]*)(?:\\[[^\\]]+\\])?==(?<currentValue>[\\d][^\\s\"]*)\"",
+        "uv\\s+run[^\"]*--with\\s+\"(?<depName>[a-zA-Z0-9][a-zA-Z0-9._-]*)(?:\\[[^\\]]+\\])?==(?<currentValue>[\\d][^\\s\"]*)\"",
+        "\"--from\"\\n\\s+\"(?<depName>[a-zA-Z0-9][a-zA-Z0-9._-]*)(?:\\[[^\\]]+\\])?==(?<currentValue>[\\d][^\\s\"]*)\"",
+        "\"--with\"\\n\\s+\"(?<depName>[a-zA-Z0-9][a-zA-Z0-9._-]*)(?:\\[[^\\]]+\\])?==(?<currentValue>[\\d][^\\s\"]*)\"",
+        "\\buv\\S*\\s+tool\\s+install\\s+\"(?<depName>[a-zA-Z0-9][a-zA-Z0-9._-]*)(?:\\[[^\\]]+\\])?==(?<currentValue>[\\d][^\\s\"]*)\""
+      ],
+      "datasourceTemplate": "pypi"
+    },
+    {
       "description": "npx version pins in GitHub Actions workflows annotated with renovate comments",
       "customType": "regex",
       "fileMatch": ["\\.github/workflows/.*\\.ya?ml$"],
