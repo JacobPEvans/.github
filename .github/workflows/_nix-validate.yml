@@ -4,6 +4,15 @@ name: _nix-validate
 
 on:
   workflow_call:
+    inputs:
+      runner_label:
+        description: >-
+          GitHub Actions runner label to run the validate job on. Defaults to
+          ubuntu-latest. Pass a RunsOn label (see runs-on.com job labels docs)
+          to opt the calling repo into self-hosted runners.
+        type: string
+        required: false
+        default: ubuntu-latest
 
 concurrency:
   group: nix-validate-${{ github.workflow }}-${{ github.ref }}
@@ -15,7 +24,7 @@ permissions:
 jobs:
   validate:
     name: Validate
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner_label }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
