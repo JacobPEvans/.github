@@ -89,13 +89,16 @@ jobs:
           PR_NUMBER=$(gh pr list --head "release-please--branches--${BASE_BRANCH}" --json number --jq '.[0].number // empty')
           echo "number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
 
-      # Bot approval (github.token) was triggering premature auto-merge evaluation
-      # before CI checks registered, causing auto-merge to get stuck with rulesets
-      # (github/community#162623). Removed; repos requiring approvals will leave
-      # auto-merge pending until the required human reviews are submitted.
-      - name: Enable auto-merge for release PR
+      # Disable+re-enable handles RC3 (stale auto-merge queue: PR is CLEAN with
+      # auto-merge enabled but GitHub never executes the merge). The retry loop
+      # handles RC2 (transient GraphQL errors from `gh pr merge --auto`).
+      # Bot approval was removed earlier (github/community#162623).
+      - name: Enable auto-merge for release PR (with re-poke + retry)
         if: "!cancelled() && steps.find-pr.outputs.number != ''"
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           PR_NUMBER: ${{ steps.find-pr.outputs.number }}
-        run: gh pr merge "$PR_NUMBER" --auto --squash
+        run: |
+          gh pr merge "$PR_NUMBER" --disable-auto 2>/dev/null || true
+          for _ in 1 2 3; do gh pr merge "$PR_NUMBER" --auto --squash && exit 0; sleep 15; done
+          exit 1
