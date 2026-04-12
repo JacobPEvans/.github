@@ -32,15 +32,15 @@ ansiblelint
 crbl
 endfor
 equalto
-fqcn
-selectattr
 fluxcd
+fqcn
 hostvars
 kubeconform
 kubectx
 kubens
 kubeval
 orbstack
+selectattr
 
 # Secrets & identity
 doppler
