@@ -5,8 +5,6 @@
 # Core ecosystem
 agentic
 agenticai
-antigravity
-anthropic
 bifrost
 claude
 claudecode
@@ -14,13 +12,10 @@ codex
 copilot
 gemini
 gpt
-llm
 llms
 mcp
 mlx
-multimodal
 ollama
-openai
 openrouter
 qwen
 vllm
@@ -28,12 +23,9 @@ vllm
 # Tooling & libraries
 embeddings
 huggingface
-langchain
 rag
-tokenizer
 
 # Model families
-flash
 haiku
 opus
 sonnet
@@ -43,11 +35,9 @@ subagent
 subagents
 toolcall
 toolcalls
-toolchain
 toolsets
 
 # Safety & security terms
 backdoors
 exfiltration
 jailbreak
-unsanitized

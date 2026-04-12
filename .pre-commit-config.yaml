@@ -59,7 +59,6 @@ repos:
           - "@cspell/dict-markdown@2.0.16"
           - "@cspell/dict-node@5.0.9"
           - "@cspell/dict-npm@5.2.38"
-          - "@cspell/dict-powershell@5.0.15"
           - "@cspell/dict-python@4.2.26"
           - "@cspell/dict-shell@1.1.2"
           - "@cspell/dict-software-terms@5.2.2"

@@ -2,62 +2,31 @@
 # Linters, test runners, commit/release automation, git workflow terms.
 
 # Linters & formatters
-commitlint
 commitlintrc
-cspell
 deadnix
-markdownlint
-mypy
-pyright
-ruff
-shellcheck
-shfmt
 statix
-yamllint
 zizmor
 
 # Test & runtime
 addoption
-pytest
 usefixtures
-venv
-xfail
 
 # Commit / PR / release
-automerge
-autoupdate
-conventionalcommits
 frontmatter
-precommit
 release-please
 renovate
 renovatebot
-semver
 
 # Security & code scanning
-codecov
-codeql
-dependabot
 ghsa
 redos
 vulns
 
 # Git workflow
-gitignored
-hotfix
-pipefail
 transitive
-triage
 triaged
-unshallow
-wontfix
 worktree
 worktrees
-
-# Build & tooling misc
-pycache
-pygments
-templated
 
 # Third-party GitHub Action authors (referenced as `user/repo@tag`)
 aquasecurity
