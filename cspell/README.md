@@ -26,11 +26,15 @@ Four layers, each covering a distinct concern:
 | 1. Official `@cspell/dict-*` | Universal tech dicts (git, bash, k8s, terraform, python, etc.) | Consumer pre-commit `additional_dependencies` |
 | 2. Org custom dictionaries | Gaps the official dicts miss (AI, infra, nix, org) | `cspell/dicts/*.txt` here |
 | 3. Org base config | Wires layers 1+2 via `import` + `dictionaryDefinitions` | `cspell/base.json` here |
-| 4. Repo local config | Layer 3 import + words unique to that repo | `cspell.json` in each consumer |
+| 4. Repo local config | Layer 3 import + words unique to that repo | `.cspell.json` in each consumer |
 
 ## How to consume in a new repo
 
-### 1. Minimal `cspell.json`
+### 1. Minimal `.cspell.json`
+
+> cspell auto-discovers both `cspell.json` and `.cspell.json`; this repo and the
+> examples below use the dotfile form. Use whichever matches the consuming repo,
+> but prefer `.cspell.json` for new repos.
 
 ```json
 {
@@ -138,4 +142,7 @@ Trade-offs:
 - **Network-dependent** at check time — fine for pre-commit and CI, both of
   which already hit github.com constantly
 - **No version pinning** — if this becomes a problem later, pin by replacing
-  `main` with a tag (`@v1`) in the import URL
+  `main` with a git tag in the URL path. For example:
+  `https://raw.githubusercontent.com/JacobPEvans/.github/v1.0.0/cspell/base.json`
+  (raw.githubusercontent.com accepts any branch, tag, or commit SHA as the ref
+  segment — no `@` prefix)

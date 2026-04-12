@@ -10,7 +10,6 @@ vmid
 
 # Observability & log pipeline
 cribl
-crbl
 dedup
 hec
 jaeger
