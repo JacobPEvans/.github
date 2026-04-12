@@ -17,15 +17,30 @@ sourcetype
 sourcetypes
 tempo
 
+# Linux / macOS system tools
+bootout
+procps
+tmpfs
+
+# Networking / homelab
+homelab
+ubiquiti
+unifi
+
 # IaC & deployment
 ansiblelint
+crbl
+endfor
+equalto
 fluxcd
+fqcn
 hostvars
 kubeconform
 kubectx
 kubens
 kubeval
 orbstack
+selectattr
 
 # Secrets & identity
 doppler
