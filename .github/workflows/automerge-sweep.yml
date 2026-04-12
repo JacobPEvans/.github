@@ -12,14 +12,16 @@ on:
     - cron: "*/10 * * * *"
   workflow_dispatch:
 
+concurrency:
+  group: automerge-sweep
+  cancel-in-progress: true
+
 permissions: {}
 
 jobs:
   sweep:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      pull-requests: write
+    permissions: {}
     strategy:
       fail-fast: false
       matrix:
@@ -55,18 +57,29 @@ jobs:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           REPO: ${{ matrix.repo }}
         run: |
-          gh pr list -R "JacobPEvans/${REPO}" --state open \
+          gh pr list -R "JacobPEvans/${REPO}" --state open --limit 1000 \
             --json number,author,autoMergeRequest,mergeStateStatus,isDraft \
             --jq '
               .[] | select(
                 .isDraft == false and
-                (.author.login | test("^(renovate|dependabot|jacobpevans-github-actions)")) and
+                (.author.login | test("^(renovate\\[bot\\]|dependabot\\[bot\\]|jacobpevans-github-actions\\[bot\\])$")) and
                 (.autoMergeRequest != null) and
                 (.mergeStateStatus == "CLEAN")
-              ) | .number
-            ' | while read -r pr; do
+              ) | [.number, .autoMergeRequest.mergeMethod] | @tsv
+            ' | while IFS=$'\t' read -r pr merge_method; do
               echo "Poking JacobPEvans/${REPO}#${pr}"
-              gh pr merge "${pr}" -R "JacobPEvans/${REPO}" --disable-auto 2>/dev/null || true
+              case "${merge_method}" in
+                MERGE)  merge_flag="--merge"  ;;
+                REBASE) merge_flag="--rebase" ;;
+                SQUASH) merge_flag="--squash" ;;
+                *)
+                  echo "::warning::Unknown merge method '${merge_method}' for JacobPEvans/${REPO}#${pr}; defaulting to --squash"
+                  merge_flag="--squash"
+                  ;;
+              esac
+              gh pr merge "${pr}" -R "JacobPEvans/${REPO}" --disable-auto 2>/dev/null \
+                || echo "::warning::Failed to disable auto-merge for JacobPEvans/${REPO}#${pr}"
               sleep 2
-              gh pr merge "${pr}" -R "JacobPEvans/${REPO}" --auto --squash || true
+              gh pr merge "${pr}" -R "JacobPEvans/${REPO}" --auto "${merge_flag}" \
+                || echo "::warning::Failed to re-enable auto-merge for JacobPEvans/${REPO}#${pr}"
             done
