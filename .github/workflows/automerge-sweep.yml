@@ -49,7 +49,6 @@ jobs:
           private-key: ${{ secrets.GH_APP_PRIVATE_KEY }}
           owner: JacobPEvans
           repositories: ${{ matrix.repo }}
-          permission-contents: write
           permission-pull-requests: write
 
       - name: Poke stuck trusted PRs
