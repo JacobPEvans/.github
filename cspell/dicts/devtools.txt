@@ -2,9 +2,13 @@
 # Linters, test runners, commit/release automation, git workflow terms.
 
 # Linters & formatters
+argjson
 commitlintrc
 deadnix
+ghostty
+schemafile
 statix
+treefmt
 zizmor
 
 # Test & runtime

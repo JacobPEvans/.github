@@ -19,3 +19,4 @@ nixpkgs
 passthru
 pkgs
 pmset
+stdenv
