@@ -1,0 +1,53 @@
+# AI/LLM/Agentic ecosystem — covers modern AI tools as of 2026
+# No official @cspell/dict-ai or @cspell/dict-llm exists; this file fills the gap.
+# Add new terms here when they land across 2+ org repos.
+
+# Core ecosystem
+agentic
+agenticai
+antigravity
+anthropic
+bifrost
+claude
+claudecode
+codex
+copilot
+gemini
+gpt
+llm
+llms
+mcp
+mlx
+multimodal
+ollama
+openai
+openrouter
+qwen
+vllm
+
+# Tooling & libraries
+embeddings
+huggingface
+langchain
+rag
+tokenizer
+
+# Model families
+flash
+haiku
+opus
+sonnet
+
+# Orchestration
+subagent
+subagents
+toolcall
+toolcalls
+toolchain
+toolsets
+
+# Safety & security terms
+backdoors
+exfiltration
+jailbreak
+unsanitized

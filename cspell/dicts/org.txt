@@ -1,0 +1,7 @@
+# JacobPEvans org identifiers, project names, shared code references.
+
+agentsmd
+jacobpevans
+jevans
+raycast-smart-issue
+visicore
