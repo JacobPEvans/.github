@@ -1,0 +1,25 @@
+# Nix / NixOS / nix-darwin / home-manager / flakes terminology.
+
+cachix
+devenv
+direnv
+envrc
+flake
+flakes
+hammerspoon
+launchctl
+launchd
+lockfiles
+mkshell
+narinfo
+nh
+nix
+nix-ai
+nix-darwin
+nix-devenv
+nix-home
+nixos
+nixpkgs
+passthru
+pkgs
+pmset

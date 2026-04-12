@@ -46,6 +46,25 @@ repos:
     hooks:
       - id: cspell
         name: Check spelling
+        additional_dependencies:
+          - "@cspell/dict-aws"
+          - "@cspell/dict-bash"
+          - "@cspell/dict-companies"
+          - "@cspell/dict-data-science"
+          - "@cspell/dict-docker"
+          - "@cspell/dict-filetypes"
+          - "@cspell/dict-git"
+          - "@cspell/dict-html"
+          - "@cspell/dict-k8s"
+          - "@cspell/dict-markdown"
+          - "@cspell/dict-node"
+          - "@cspell/dict-npm"
+          - "@cspell/dict-powershell"
+          - "@cspell/dict-python"
+          - "@cspell/dict-shell"
+          - "@cspell/dict-software-terms"
+          - "@cspell/dict-terraform"
+          - "@cspell/dict-typescript"
 
   # ---------------------------------------------------------------------------
   # Link checking
