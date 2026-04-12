@@ -7,17 +7,20 @@
   ],
   "words": [
     "AdlLexer",
+    "agentics",
     "Anson",
     "cchk",
     "changeme",
     "endgroup",
     "filt",
+    "githubnext",
     "logstream",
     "signingkey",
     "wwwm",
     "xoxb"
   ],
   "ignorePaths": [
-    "*.json"
+    "*.json",
+    ".github/aw/**"
   ]
 }
