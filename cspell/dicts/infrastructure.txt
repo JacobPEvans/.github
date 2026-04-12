@@ -2,56 +2,32 @@
 # Proxmox, observability, secrets management, IaC supplements.
 
 # Proxmox
-lxc
 pve
-proxmox
 virtiofs
 vmid
 
 # Observability & log pipeline
 cribl
-crbl
 dedup
 hec
 jaeger
-loki
-opentelemetry
-otlp
 otlphttp
 prometheus
 sourcetype
 sourcetypes
-splunk
 tempo
 
 # IaC & deployment
-ansible
 ansiblelint
-argocd
 fluxcd
 hostvars
 kubeconform
 kubectx
 kubens
 kubeval
-kustomization
-kustomize
-opentofu
 orbstack
-packer
-paramiko
-pyyaml
-terragrunt
-tflint
-tfsec
-tfvars
 
 # Secrets & identity
 doppler
 dopplerhq
 sops
-vault
-
-# Monitoring
-grafana
-helm

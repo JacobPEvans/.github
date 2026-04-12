@@ -26,11 +26,15 @@ Four layers, each covering a distinct concern:
 | 1. Official `@cspell/dict-*` | Universal tech dicts (git, bash, k8s, terraform, python, etc.) | Consumer pre-commit `additional_dependencies` |
 | 2. Org custom dictionaries | Gaps the official dicts miss (AI, infra, nix, org) | `cspell/dicts/*.txt` here |
 | 3. Org base config | Wires layers 1+2 via `import` + `dictionaryDefinitions` | `cspell/base.json` here |
-| 4. Repo local config | Layer 3 import + words unique to that repo | `cspell.json` in each consumer |
+| 4. Repo local config | Layer 3 import + words unique to that repo | `.cspell.json` in each consumer |
 
 ## How to consume in a new repo
 
-### 1. Minimal `cspell.json`
+### 1. Minimal `.cspell.json`
+
+> cspell auto-discovers both `cspell.json` and `.cspell.json`; this repo and the
+> examples below use the dotfile form. Use whichever matches the consuming repo,
+> but prefer `.cspell.json` for new repos.
 
 ```json
 {
@@ -68,29 +72,28 @@ needs the official `@cspell/dict-*` npm packages installed there:
     - id: cspell
       name: Check spelling
       additional_dependencies:
-        - '@cspell/dict-software-terms'
-        - '@cspell/dict-aws'
-        - '@cspell/dict-k8s'
-        - '@cspell/dict-docker'
-        - '@cspell/dict-terraform'
-        - '@cspell/dict-shell'
-        - '@cspell/dict-bash'
-        - '@cspell/dict-python'
-        - '@cspell/dict-typescript'
-        - '@cspell/dict-node'
-        - '@cspell/dict-npm'
-        - '@cspell/dict-git'
-        - '@cspell/dict-html'
-        - '@cspell/dict-markdown'
-        - '@cspell/dict-filetypes'
-        - '@cspell/dict-companies'
-        - '@cspell/dict-data-science'
-        - '@cspell/dict-powershell'
+        - "@cspell/dict-aws@4.0.17"
+        - "@cspell/dict-bash@4.2.2"
+        - "@cspell/dict-companies@3.2.11"
+        - "@cspell/dict-data-science@2.0.13"
+        - "@cspell/dict-docker@1.1.17"
+        - "@cspell/dict-filetypes@3.0.18"
+        - "@cspell/dict-git@3.1.0"
+        - "@cspell/dict-html@4.0.15"
+        - "@cspell/dict-k8s@1.0.12"
+        - "@cspell/dict-markdown@2.0.16"
+        - "@cspell/dict-node@5.0.9"
+        - "@cspell/dict-npm@5.2.38"
+        - "@cspell/dict-python@4.2.26"
+        - "@cspell/dict-shell@1.1.2"
+        - "@cspell/dict-software-terms@5.2.2"
+        - "@cspell/dict-terraform@1.1.3"
+        - "@cspell/dict-typescript@3.2.3"
 ```
 
 This list MUST match the `import` array in `cspell/base.json`. When a package
 is added or removed there, update this block in every consumer repo in the same
-PR wave.
+PR wave. Renovate keeps the pinned versions current once the PR lands.
 
 ### 3. Verify
 
@@ -138,4 +141,7 @@ Trade-offs:
 - **Network-dependent** at check time — fine for pre-commit and CI, both of
   which already hit github.com constantly
 - **No version pinning** — if this becomes a problem later, pin by replacing
-  `main` with a tag (`@v1`) in the import URL
+  `main` with a git tag in the URL path. For example:
+  `https://raw.githubusercontent.com/JacobPEvans/.github/v1.0.0/cspell/base.json`
+  (raw.githubusercontent.com accepts any branch, tag, or commit SHA as the ref
+  segment — no `@` prefix)

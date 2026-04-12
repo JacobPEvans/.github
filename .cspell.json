@@ -18,9 +18,6 @@
     "xoxb"
   ],
   "ignorePaths": [
-    ".git",
-    "node_modules",
-    "*.json",
-    "LICENSE"
+    "*.json"
   ]
 }

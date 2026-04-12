@@ -4,15 +4,11 @@ cachix
 devenv
 direnv
 envrc
-flake
 flakes
 hammerspoon
-launchctl
-launchd
 lockfiles
 mkshell
 narinfo
-nh
 nix
 nix-ai
 nix-darwin
