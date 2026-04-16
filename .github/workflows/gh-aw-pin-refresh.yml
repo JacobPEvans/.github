@@ -1,0 +1,26 @@
+name: gh-aw pin refresh
+
+on:
+  schedule:
+    - cron: "0 12 * * 1"  # Monday 7am CT
+    - cron: "0 12 * * 4"  # Thursday 7am CT
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: 'compile = refresh SHA pins only; upgrade = full gh-aw infrastructure update'
+        type: choice
+        default: 'compile'
+        options:
+          - compile
+          - upgrade
+
+permissions: {}
+
+jobs:
+  refresh:
+    uses: JacobPEvans/.github/.github/workflows/_gh-aw-pin-refresh.yml@main
+    with:
+      operation: ${{ inputs.operation }}
+    secrets:
+      GH_ACTION_JACOBPEVANS_APP_ID: ${{ secrets.GH_ACTION_JACOBPEVANS_APP_ID }}
+      GH_APP_PRIVATE_KEY: ${{ secrets.GH_APP_PRIVATE_KEY }}
