@@ -5,6 +5,11 @@
   "automergeType": "pr",
   "automergeStrategy": "squash",
   "pinGitHubActionDigests": true,
+  "ignorePaths": [
+    ".github/workflows/*.lock.yml",
+    ".github/workflows/agentics-maintenance.yml",
+    ".github/aw/**"
+  ],
   "minimumReleaseAge": "3 days",
   "timezone": "America/Chicago",
   "vulnerabilityAlerts": {

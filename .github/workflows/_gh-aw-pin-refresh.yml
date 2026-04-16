@@ -1,0 +1,95 @@
+# Reusable: gh-aw action pin refresh
+# Refreshes SHA pins in gh-aw generated files via `gh aw compile --force-refresh-action-pins`.
+#
+# Replaces Renovate for generated gh-aw files, which Renovate cannot update correctly
+# (Renovate only patches `uses:` lines but leaves manifest JSON and actions-lock.json
+# inconsistent).
+#
+# Usage from a caller workflow:
+#
+#   jobs:
+#     refresh:
+#       permissions:
+#         contents: write
+#         pull-requests: write
+#       uses: JacobPEvans/.github/.github/workflows/_gh-aw-pin-refresh.yml@main
+#       with:
+#         operation: compile   # or 'upgrade' for full gh-aw infrastructure update
+#       secrets:
+#         GH_ACTION_JACOBPEVANS_APP_ID: ${{ secrets.GH_ACTION_JACOBPEVANS_APP_ID }}
+#         GH_APP_PRIVATE_KEY: ${{ secrets.GH_APP_PRIVATE_KEY }}
+#
+# Secrets required:
+#   GH_ACTION_JACOBPEVANS_APP_ID  - GitHub App ID
+#   GH_APP_PRIVATE_KEY            - GitHub App private key
+#
+# The GitHub App token is required so the resulting PR triggers `pull_request`
+# workflows (e.g. CI gate, CodeQL). PRs created with GITHUB_TOKEN do NOT trigger them.
+# The App also satisfies `required_signatures` branch protection.
+name: _gh-aw-pin-refresh
+
+on:
+  workflow_call:
+    inputs:
+      operation:
+        description: 'compile = refresh SHA pins only; upgrade = full gh-aw infrastructure update'
+        type: string
+        default: 'compile'
+    secrets:
+      GH_ACTION_JACOBPEVANS_APP_ID:
+        required: true
+      GH_APP_PRIVATE_KEY:
+        required: true
+
+permissions: {}
+
+jobs:
+  refresh-pins:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Generate GitHub App Token
+        id: app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          app-id: ${{ secrets.GH_ACTION_JACOBPEVANS_APP_ID }}
+          private-key: ${{ secrets.GH_APP_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
+
+      - uses: actions/checkout@v6
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+
+      - name: Install gh-aw CLI
+        uses: github/gh-aw-actions/setup-cli@v0.68.3
+        with:
+          version: v0.68.3
+
+      - name: Refresh action pins
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_AW_OPERATION: ${{ inputs.operation }}
+        run: |
+          if [ "$GH_AW_OPERATION" = "upgrade" ]; then
+            gh aw upgrade
+          else
+            gh aw compile --force-refresh-action-pins
+          fi
+
+      - name: Create pull request
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+          branch: gh-aw/refresh-action-pins
+          delete-branch: true
+          title: "fix(deps): refresh gh-aw action SHA pins"
+          body: |
+            Automated refresh of action SHA pins via `gh aw compile --force-refresh-action-pins`.
+
+            Updates `actions-lock.json`, all `*.lock.yml` workflows, and
+            `agentics-maintenance.yml` with consistent, freshly-resolved SHAs.
+          labels: dependencies
+          commit-message: "fix(deps): refresh gh-aw action SHA pins"
