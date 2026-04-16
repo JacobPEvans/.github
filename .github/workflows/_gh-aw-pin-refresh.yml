@@ -9,6 +9,9 @@
 #
 #   jobs:
 #     refresh:
+#       permissions:
+#         contents: write
+#         pull-requests: write
 #       uses: JacobPEvans/.github/.github/workflows/_gh-aw-pin-refresh.yml@main
 #       with:
 #         operation: compile   # or 'upgrade' for full gh-aw infrastructure update
@@ -61,7 +64,7 @@ jobs:
       - name: Install gh-aw CLI
         uses: github/gh-aw-actions/setup-cli@v0.68.3
         with:
-          version: latest
+          version: v0.68.3
 
       - name: Refresh action pins
         env:
