@@ -1,6 +1,26 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "description": "JacobPEvans org-wide Renovate preset",
+
+  // ============================================================================
+  // DO NOT set platformAutomerge to true.
+  //
+  // GitHub's native auto-merge queue has a known bug (RC3) where PRs pass all
+  // checks, show mergeStateStatus=CLEAN with autoMergeRequest set, and GitHub
+  // simply never executes the merge. PRs stall for days with no error.
+  //
+  // With platformAutomerge=false, Renovate handles the merge directly via API
+  // on its next run cycle (~1hr worst case). Same signed squash commits, same
+  // branch protection compliance, but with built-in retry logic instead of
+  // relying on GitHub's flaky event-driven queue.
+  //
+  // History: Multiple workaround attempts were tried and abandoned:
+  //   - PR #162: automerge-sweep.yml (scheduled poke every 10min across 14 repos)
+  //   - feat/automerge-reliability: 500-line automerge-healer.yml
+  // All were complex workarounds. This one-line fix is the actual solution.
+  //
+  // Changed: 2026-04-17 (PR #196)
+  // ============================================================================
   "platformAutomerge": false,
   "automergeType": "pr",
   "automergeStrategy": "squash",
