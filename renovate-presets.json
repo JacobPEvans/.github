@@ -1,7 +1,7 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "description": "JacobPEvans org-wide Renovate preset",
-  "platformAutomerge": true,
+  "platformAutomerge": false,
   "automergeType": "pr",
   "automergeStrategy": "squash",
   "pinGitHubActionDigests": true,
