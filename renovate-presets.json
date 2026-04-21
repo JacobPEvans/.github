@@ -70,6 +70,15 @@
   ],
   "packageRules": [
     {
+      "description": "Disable all updates in gh-aw generated files — managed by gh-aw-pin-refresh workflow, not Renovate",
+      "matchFileNames": [
+        ".github/workflows/*.lock.yml",
+        ".github/workflows/agentics-maintenance.yml",
+        ".github/aw/**"
+      ],
+      "enabled": false
+    },
+    {
       "description": "Never auto-merge major updates - require human review (overridden by trusted package rules below)",
       "matchUpdateTypes": ["major"],
       "automerge": false
