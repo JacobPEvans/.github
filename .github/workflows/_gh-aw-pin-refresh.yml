@@ -12,6 +12,7 @@
 #       permissions:
 #         contents: write
 #         pull-requests: write
+#         workflows: write
 #       uses: JacobPEvans/.github/.github/workflows/_gh-aw-pin-refresh.yml@main
 #       with:
 #         operation: compile   # or 'upgrade' for full gh-aw infrastructure update
@@ -49,6 +50,7 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
+      workflows: write
     steps:
       - name: Generate GitHub App Token
         id: app-token
@@ -58,6 +60,7 @@ jobs:
           private-key: ${{ secrets.GH_APP_PRIVATE_KEY }}
           permission-contents: write
           permission-pull-requests: write
+          permission-workflows: write
 
       - uses: actions/checkout@v6
         with:
