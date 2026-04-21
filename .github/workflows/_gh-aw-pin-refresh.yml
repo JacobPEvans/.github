@@ -25,7 +25,8 @@
 #
 # The GitHub App token is required so the resulting PR triggers `pull_request`
 # workflows (e.g. CI gate, CodeQL). PRs created with GITHUB_TOKEN do NOT trigger them.
-# The App also satisfies `required_signatures` branch protection.
+# `sign-commits: true` in create-pull-request satisfies `required_signatures` branch protection
+# by creating commits via the GitHub API (signed) rather than local `git commit` (unsigned).
 name: _gh-aw-pin-refresh
 
 on:
@@ -84,6 +85,7 @@ jobs:
         uses: peter-evans/create-pull-request@v8
         with:
           token: ${{ steps.app-token.outputs.token }}
+          sign-commits: true
           branch: gh-aw/refresh-action-pins
           delete-branch: true
           title: "fix(deps): refresh gh-aw action SHA pins"
