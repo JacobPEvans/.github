@@ -33,6 +33,7 @@ jobs:
     name: Retrigger Missing CI Gate
     runs-on: ubuntu-latest
     permissions:
+      actions: read
       contents: read
       pull-requests: read
     steps:
