@@ -25,6 +25,7 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
+      workflows: write
     uses: JacobPEvans/.github/.github/workflows/_gh-aw-pin-refresh.yml@main
     with:
       operation: ${{ inputs.operation || 'compile' }}
