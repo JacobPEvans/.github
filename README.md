@@ -1,5 +1,7 @@
 # .github
 
+[![CodeQL](https://github.com/JacobPEvans/.github/actions/workflows/codeql.yml/badge.svg)](https://github.com/JacobPEvans/.github/actions/workflows/codeql.yml)
+
 Default community health files, issue templates, and shared configurations for all JacobPEvans repositories.
 
 ## About This Repository
