@@ -5,6 +5,7 @@
     "WARNING: platformAutomerge MUST stay false. GitHub's auto-merge queue has a known bug (RC3) where PRs pass all checks but GitHub never executes the merge — PRs stall for days with no error. With false, Renovate merges directly via API with built-in retry logic. See PR #196 for full history. Do NOT set this to true."
   ],
   "platformAutomerge": false,
+  "baseBranchPatterns": ["$default"],
   "automergeType": "pr",
   "automergeStrategy": "squash",
   "pinGitHubActionDigests": true,
