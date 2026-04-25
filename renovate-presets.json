@@ -237,8 +237,8 @@
       "schedule": ["after 7am on Monday", "after 7am on Thursday"]
     },
     {
-      "description": "Auto-merge pep621 Python packages (minor/patch)",
-      "matchManagers": ["pep621"],
+      "description": "Auto-merge Python packages (minor/patch) across pep621 (pyproject.toml) and pip_requirements (requirements.txt). Subject to the global 3-day stabilization (1-day for trusted-org packages); security fixes still go through the 0-day vulnerabilityAlerts path.",
+      "matchManagers": ["pep621", "pip_requirements"],
       "matchUpdateTypes": ["minor", "patch"],
       "automerge": true,
       "schedule": ["after 7am on Monday", "after 7am on Thursday"]
