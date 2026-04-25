@@ -15,48 +15,7 @@ that don't define their own versions.
 - `.github/ISSUE_TEMPLATE/` — Issue forms (bug, feature, docs, chore); all require `priority` + `size` labels
 - `.github/PULL_REQUEST_TEMPLATE/` — PR templates per change type; all require Conventional Commits format
 - `docs/CONTRIBUTING.md` — Inherited contributing guidelines
-
-## New repository onboarding
-
-When Renovate (Mend) is enabled on a new public repo it auto-opens a "Configure
-Renovate" PR that scaffolds a minimal `renovate.json` with only
-`{"extends": ["config:recommended"]}`. **That on-board PR must not be merged
-as-is.** Edit the renovate config to also extend the org preset:
-
-```json
-{
-  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": [
-    "config:recommended",
-    "local>JacobPEvans/.github:renovate-presets"
-  ]
-}
-```
-
-Without `local>JacobPEvans/.github:renovate-presets`, the repo loses
-`lockFileMaintenance`, the trusted-org auto-merge allow-list, the 3-day
-default stabilization, the 0-day `vulnerabilityAlerts` automerge, and every
-custom manager defined in `renovate-presets.json`.
-
-This is verifiable with the audit one-liner:
-
-```sh
-for repo in $(gh repo list JacobPEvans --visibility public --limit 1000 --json name --jq '.[].name'); do
-  for f in renovate.json renovate.json5 .github/renovate.json; do
-    body=$(gh api "repos/JacobPEvans/$repo/contents/$f" 2>/dev/null | jq -r '.content // empty' | base64 -d 2>/dev/null) || continue
-    [ -z "$body" ] && continue
-    if echo "$body" | grep -q "JacobPEvans/.github:renovate-presets"; then
-      echo "OK   $repo ($f)"
-    else
-      echo "MISS $repo ($f)"
-    fi
-    break
-  done
-done | sort
-```
-
-Any `MISS` line is a repo that will silently fall behind on dependency
-updates and security patches.
+- `docs/RENOVATE.md` — Renovate onboarding guide (always extend the org preset)
 
 ## Common Tasks
 
