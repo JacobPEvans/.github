@@ -2,7 +2,10 @@
 
 ## Repo Purpose
 
-This is the `.github` community health repository for JacobPEvans. It provides default community files (issue templates, PR templates, CONTRIBUTING.md, etc.) that are automatically inherited by all public repos that don't define their own versions.
+This is the `.github` community health repository for JacobPEvans. It
+provides default community files (issue templates, PR templates,
+CONTRIBUTING.md, etc.) that are automatically inherited by all public repos
+that don't define their own versions.
 
 ## Key Files
 
@@ -12,6 +15,7 @@ This is the `.github` community health repository for JacobPEvans. It provides d
 - `.github/ISSUE_TEMPLATE/` — Issue forms (bug, feature, docs, chore); all require `priority` + `size` labels
 - `.github/PULL_REQUEST_TEMPLATE/` — PR templates per change type; all require Conventional Commits format
 - `docs/CONTRIBUTING.md` — Inherited contributing guidelines
+- `docs/RENOVATE.md` — Renovate onboarding guide (always extend the org preset)
 
 ## Common Tasks
 

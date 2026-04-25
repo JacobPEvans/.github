@@ -237,8 +237,8 @@
       "schedule": ["after 7am on Monday", "after 7am on Thursday"]
     },
     {
-      "description": "Auto-merge pep621 Python packages (minor/patch)",
-      "matchManagers": ["pep621"],
+      "description": "Auto-merge Python packages (minor/patch) — pep621 and pip_requirements",
+      "matchManagers": ["pep621", "pip_requirements"],
       "matchUpdateTypes": ["minor", "patch"],
       "automerge": true,
       "schedule": ["after 7am on Monday", "after 7am on Thursday"]
