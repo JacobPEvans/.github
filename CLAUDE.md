@@ -41,7 +41,7 @@ custom manager defined in `renovate-presets.json`.
 This is verifiable with the audit one-liner:
 
 ```sh
-for repo in $(gh repo list JacobPEvans --visibility public --limit 50 --json name --jq '.[].name'); do
+for repo in $(gh repo list JacobPEvans --visibility public --limit 1000 --json name --jq '.[].name'); do
   for f in renovate.json renovate.json5 .github/renovate.json; do
     body=$(gh api "repos/JacobPEvans/$repo/contents/$f" 2>/dev/null | jq -r '.content // empty' | base64 -d 2>/dev/null) || continue
     [ -z "$body" ] && continue
