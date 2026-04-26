@@ -32,4 +32,5 @@ jobs:
         with:
           globs: |
             **/*.md
+            !CHANGELOG.md
             !**/node_modules/**
