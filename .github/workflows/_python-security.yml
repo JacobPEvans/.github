@@ -11,6 +11,15 @@ on:
         description: 'Space-separated list of directories containing pyproject.toml'
         required: true
         type: string
+      ignore-vulns:
+        description: |
+          Space-separated list of vulnerability IDs (GHSA / CVE / PYSEC) to
+          skip. Use only for transitive dependencies with no available
+          upstream fix; document the rationale and a tracking issue in the
+          calling repo. Each ID is passed to `pip-audit --ignore-vuln`.
+        required: false
+        type: string
+        default: ''
 
 concurrency:
   group: python-security-${{ github.workflow }}-${{ github.ref }}
@@ -29,17 +38,16 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v8.1.0
 
+      - name: Checkout central scripts
+        uses: actions/checkout@v6
+        with:
+          repository: ${{ github.repository_owner }}/.github
+          path: .central-config
+          sparse-checkout: scripts/run-pip-audit.sh
+          sparse-checkout-cone-mode: false
+
       - name: Audit Python dependencies
         env:
           PYTHON_DIRS: ${{ inputs.python-dirs }}
-        run: |
-          for dir in $PYTHON_DIRS; do
-            echo "::group::Scanning $dir"
-            cd "$GITHUB_WORKSPACE/$dir"
-            # --no-emit-project avoids exporting the local project as an editable requirement when
-            # hashes are present, which would cause pip / pip-audit to fail with
-            # "editable requirement cannot be installed when requiring hashes".
-            uv export --format requirements-txt --output-file requirements.txt --locked --no-emit-project
-            uvx pip-audit --progress-spinner=off --desc -r requirements.txt
-            echo "::endgroup::"
-          done
+          IGNORE_VULNS: ${{ inputs.ignore-vulns }}
+        run: bash "$GITHUB_WORKSPACE/.central-config/scripts/run-pip-audit.sh"
