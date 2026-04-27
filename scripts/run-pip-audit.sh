@@ -21,6 +21,10 @@ for dir in $PYTHON_DIRS; do
     echo "::group::Scanning $dir"
     trap 'echo "::endgroup::"' EXIT
     cd "$GITHUB_WORKSPACE/$dir"
+    # Sync lock file in case pyproject.toml version was bumped (e.g. by
+    # release-please) without a corresponding `uv lock` run. This is a
+    # no-op when the lock file is already up to date.
+    uv lock
     # --no-emit-project avoids exporting the local project as an editable
     # requirement when hashes are present, which would cause pip / pip-audit
     # to fail with "editable requirement cannot be installed when requiring
