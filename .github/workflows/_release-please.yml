@@ -96,6 +96,12 @@ jobs:
           PR_NUMBER=$(gh pr list --head "release-please--branches--${BASE_BRANCH}" --json number --jq '.[0].number // empty')
           echo "number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
 
+      - name: Re-fail on genuine release-please error
+        if: "!cancelled() && steps.release.outcome == 'failure' && steps.find-pr.outputs.number == ''"
+        run: |
+          echo "::error::release-please-action failed and no release PR was found via REST. This is a genuine failure (auth/config/API error), not a transient label-application race."
+          exit 1
+
       # Disable+re-enable handles RC3 (stale auto-merge queue: PR is CLEAN with
       # auto-merge enabled but GitHub never executes the merge). The retry loop
       # handles RC2 (transient GraphQL errors from `gh pr merge --auto`).
