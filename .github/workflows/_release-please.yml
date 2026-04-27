@@ -72,8 +72,15 @@ jobs:
           permission-pull-requests: write
           permission-issues: write
 
+      # `continue-on-error` tolerates the upstream label-application race:
+      # release-please-action opens the PR successfully, then immediately tries
+      # to apply `autorelease: pending` via GraphQL — but the PR's global node ID
+      # hasn't propagated yet, so GitHub returns "Could not resolve to a node".
+      # The PR is still created and the downstream `Find release PR number` step
+      # discovers it via REST, so a label-only failure should not fail the job.
       - uses: googleapis/release-please-action@v5
         id: release
+        continue-on-error: true
         with:
           token: ${{ steps.app-token.outputs.token }}
           manifest-file: .release-please-manifest.json
