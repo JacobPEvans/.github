@@ -135,7 +135,8 @@ jobs:
     needs: changes
     runs-on: ubuntu-latest
     permissions:
-      actions: write  # required to cancel sibling jobs
+      actions: write   # required to cancel sibling jobs
+      contents: read   # required for actions/checkout sparse-checkout
     # Hardcoded ceiling — GHA expressions don't support arithmetic so this
     # can't be derived from `queue_timeout_minutes`. 30 min handles up to a
     # ~25-minute queue_timeout with comfortable margin.
@@ -164,7 +165,7 @@ jobs:
   gate:
     name: Merge Gate
     needs: [changes, watchdog, nix-validate, markdown-lint, file-size, python-security]
-    if: ${{ !cancelled() }}
+    if: ${{ always() && !cancelled() }}
     runs-on: ubuntu-latest
     steps:
       - name: Aggregate results

@@ -21,13 +21,13 @@ set -euo pipefail
 : "${REPO:?required}"
 : "${RUN_ID:?required}"
 
-sleep "$((QUEUE_TIMEOUT_MINUTES * 60))"
+sleep "$(awk "BEGIN{printf \"%d\", $QUEUE_TIMEOUT_MINUTES * 60}")"
 
 # Names whose `status == "queued"` is intentional at this point in the run.
 # The watchdog itself is mid-execution; the gate is awaiting watchdog.
 exempt_filter='.name != "Queue Watchdog" and .name != "Merge Gate"'
 
-stuck=$(gh api "repos/${REPO}/actions/runs/${RUN_ID}/jobs?per_page=100" \
+stuck=$(gh api --paginate "repos/${REPO}/actions/runs/${RUN_ID}/jobs?per_page=100" \
   --jq ".jobs[] | select(.status == \"queued\" and ${exempt_filter}) | \"\(.id)\t\(.name)\"")
 
 if [ -z "$stuck" ]; then
