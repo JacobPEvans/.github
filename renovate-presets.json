@@ -34,38 +34,36 @@
       "customType": "regex",
       "fileMatch": ["\\.nix$"],
       "matchStrings": [
-        "#\\s*renovate:\\s*datasource=(?<datasource>\\S+)\\s+depName=(?<depName>\\S+)\\r?\\n\\s*\\S+\\s*=\\s*\"(?<currentValue>[^\"]+)\";"
+        "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)\\s*\\r?\\n\\s*[\\w.-]+\\s*=\\s*\"(?<currentValue>[^\"]+)\";"
       ]
     },
     {
-      "description": "npm packages pinned in Nix string literals (bunx wrappers, MCP server args)",
+      "description": "npm packages pinned in Nix string literals (bunx wrappers, MCP server args). Captured currentValue is delimited by quote/whitespace; Renovate validates as npm versioning.",
       "customType": "regex",
       "fileMatch": ["\\.nix$"],
       "matchStrings": [
-        "\"(?<depName>@[a-zA-Z0-9-]+/[a-zA-Z0-9][a-zA-Z0-9._-]*)@(?<currentValue>[\\d][^\\s\"]*)\"",
-        "bunx\\s+--bun\\s+(?<depName>(?:@[^@/]+\\/)?[^@\\s]+)@(?<currentValue>[\\d][^\\s\"']*)"
+        "\"(?<depName>@[a-z0-9][a-z0-9._-]*/[a-z0-9][a-z0-9._-]*)@(?<currentValue>\\d[^\"]*)\"",
+        "bunx\\s+--bun\\s+(?<depName>(?:@[a-z0-9][a-z0-9._-]*/)?[a-z0-9][a-z0-9._-]*)@(?<currentValue>\\d[^\\s\"]*)"
       ],
-      "datasourceTemplate": "npm"
+      "datasourceTemplate": "npm",
+      "versioningTemplate": "npm"
     },
     {
-      "description": "uv/uvx PyPI packages pinned in Nix modules",
+      "description": "uv/uvx PyPI packages pinned in Nix modules. Single consolidated regex covers: 'uvx --from', 'uv run ... --with' (incl. line continuation), 'uv tool install', and multi-line '--from' / '--with' arg lists. Captured currentValue is delimited by closing quote; Renovate validates as PEP 440.",
       "customType": "regex",
       "fileMatch": ["\\.nix$"],
       "matchStrings": [
-        "uvx\\s+--from\\s+\"(?<depName>[a-zA-Z0-9][a-zA-Z0-9._-]*)(?:\\[[^\\]]+\\])?==(?<currentValue>[\\d][^\\s\"]*)\"",
-        "uv\\s+run[^\"]*--with\\s+\"(?<depName>[a-zA-Z0-9][a-zA-Z0-9._-]*)(?:\\[[^\\]]+\\])?==(?<currentValue>[\\d][^\\s\"]*)\"",
-        "\"--from\"\\r?\\n\\s+\"(?<depName>[a-zA-Z0-9][a-zA-Z0-9._-]*)(?:\\[[^\\]]+\\])?==(?<currentValue>[\\d][^\\s\"]*)\"",
-        "\"--with\"\\r?\\n\\s+\"(?<depName>[a-zA-Z0-9][a-zA-Z0-9._-]*)(?:\\[[^\\]]+\\])?==(?<currentValue>[\\d][^\\s\"]*)\"",
-        "\\buv\\S*\\s+tool\\s+install\\s+\"(?<depName>[a-zA-Z0-9][a-zA-Z0-9._-]*)(?:\\[[^\\]]+\\])?==(?<currentValue>[\\d][^\\s\"]*)\""
+        "(?:uvx\\s+--from|uv\\s+run\\b[^\"]*--with|uv\\s+tool\\s+install|\"--(?:from|with)\"\\s*\\r?\\n\\s*)\\s+\"(?<depName>[a-zA-Z0-9][a-zA-Z0-9._-]*)(?:\\[[^\\]]+\\])?==(?<currentValue>\\d[^\"]*)\""
       ],
-      "datasourceTemplate": "pypi"
+      "datasourceTemplate": "pypi",
+      "versioningTemplate": "pep440"
     },
     {
-      "description": "npx version pins in GitHub Actions workflows annotated with renovate comments",
+      "description": "npx version pins in GitHub Actions workflows annotated with renovate comments. Captured currentValue is delimited by whitespace; Renovate validates per the comment's datasource.",
       "customType": "regex",
       "fileMatch": ["\\.github/workflows/.*\\.ya?ml$"],
       "matchStrings": [
-        "#\\s*renovate:\\s*datasource=(?<datasource>\\S+)\\s+depName=(?<depName>\\S+)[\\r\\n]+[\\s\\S]*?\\bnpx\\b\\s+(?:--yes\\s+|-y\\s+)?\\S+@(?<currentValue>[^\\s\"']+)"
+        "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)\\s*\\r?\\n[\\s\\S]*?\\bnpx\\s+(?:-y\\s+|--yes\\s+)?\\S+@(?<currentValue>\\S+)"
       ]
     }
   ],
