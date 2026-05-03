@@ -70,7 +70,7 @@ jobs:
 
           errors=0 warnings=0
           while IFS= read -r -d '' f; do
-            base=$(basename "$f" | sed 's/\.[^.]*$//')
+            base="${f##*/}"; base="${base%.*}"
             size=$(stat -c%s "$f")
 
             # Skip exempt files
