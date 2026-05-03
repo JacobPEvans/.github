@@ -42,8 +42,8 @@
       "customType": "regex",
       "fileMatch": ["\\.nix$"],
       "matchStrings": [
-        "\"(?<depName>@[a-z0-9][a-z0-9._-]*/[a-z0-9][a-z0-9._-]*)@(?<currentValue>\\d[^\"]*)\"",
-        "bunx\\s+--bun\\s+(?<depName>(?:@[a-z0-9][a-z0-9._-]*/)?[a-z0-9][a-z0-9._-]*)@(?<currentValue>\\d[^\\s\"]*)"
+        "\"(?<depName>@[a-z0-9][a-z0-9._-]*/[a-z0-9][a-z0-9._-]*)@(?<currentValue>\\d[^\\s\"]*)\"",
+        "bunx\\s+--bun\\s+(?<depName>(?:@[a-z0-9][a-z0-9._-]*/)?[a-z0-9][a-z0-9._-]*)@(?<currentValue>\\d[^\\s\"']*)"
       ],
       "datasourceTemplate": "npm",
       "versioningTemplate": "npm"
@@ -63,7 +63,7 @@
       "customType": "regex",
       "fileMatch": ["\\.github/workflows/.*\\.ya?ml$"],
       "matchStrings": [
-        "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)\\s*\\r?\\n[\\s\\S]*?\\bnpx\\s+(?:-y\\s+|--yes\\s+)?\\S+@(?<currentValue>\\S+)"
+        "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)\\s*\\r?\\n[\\s\\S]*?\\bnpx\\s+(?:-y\\s+|--yes\\s+)?\\S+@(?<currentValue>[^\\s\"']+)"
       ]
     }
   ],
