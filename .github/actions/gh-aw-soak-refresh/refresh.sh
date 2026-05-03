@@ -24,15 +24,27 @@ gh aw compile --force-refresh-action-pins
 
 NOW=$(date -u +%s)
 
+# Capture jq output up front so a jq failure aborts via `set -e`. A while-read
+# fed by `< <(jq ...)` would silently swallow jq's exit status and let the run
+# continue with no rewinds applied.
+CHANGED=$(jq -r --slurpfile b "$BEFORE" -f "$SCRIPT_DIR/diff-changed-pins.jq" "$LOCK")
+
 while IFS='|' read -r key repo new_sha old_sha; do
-  d=$(gh api "repos/$repo/commits/$new_sha" --jq .commit.committer.date 2>/dev/null) || continue
-  age_h=$(((NOW - $(date -d "$d" +%s)) / 3600))
+  # Fail closed: if the commit-date lookup fails (rate limit, transient network,
+  # SHA not yet visible), treat the entry as "too new" and rewind to the
+  # predecessor. Adopting an unverified fresh SHA would break the soak guarantee.
+  if d=$(gh api "repos/$repo/commits/$new_sha" --jq .commit.committer.date 2>/dev/null); then
+    age_h=$(((NOW - $(date -d "$d" +%s)) / 3600))
+  else
+    echo "warn: commit-date lookup failed for $repo@$new_sha; failing closed (rewind)"
+    age_h=0
+  fi
   if [ "$age_h" -lt 24 ]; then
     tmp=$(mktemp)
     jq --arg k "$key" --arg s "$old_sha" '.entries[$k].sha = $s' "$LOCK" >"$tmp"
     mv "$tmp" "$LOCK"
     echo "rewound: $key  $new_sha -> $old_sha  (commit was ${age_h}h old)"
   fi
-done < <(jq -r --slurpfile b "$BEFORE" -f "$SCRIPT_DIR/diff-changed-pins.jq" "$LOCK")
+done <<< "$CHANGED"
 
 gh aw compile
