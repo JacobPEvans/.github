@@ -1,0 +1,124 @@
+# Reusable: Release Please — Quiet-Window Auto-Merge
+#
+# Merges the open release-please Release PR only after it has been idle
+# (no new commits) for a configurable number of minutes. Run this on a
+# cron schedule so that a burst of near-simultaneous PRs all land in the
+# same release rather than triggering back-to-back releases.
+#
+# Typical caller (add to each repo that opts into quiet-window releases):
+#
+#   name: release-please-auto-merge
+#   on:
+#     schedule:
+#       - cron: '*/15 * * * *'
+#     workflow_dispatch:
+#   permissions: {}
+#   jobs:
+#     merge:
+#       permissions:
+#         contents: write
+#         pull-requests: write
+#       uses: JacobPEvans/.github/.github/workflows/_release-please-auto-merge.yml@main
+#       with:
+#         quiet-minutes: 10
+#       secrets:
+#         GH_APP_PRIVATE_KEY: ${{ secrets.GH_APP_PRIVATE_KEY }}
+#
+#   In the same repo, also set auto-merge: false on the _release-please.yml
+#   caller so the two workflows don't race.
+#
+# Variables required:
+#   GH_APP_ID  - GitHub App ID (org/repo configuration variable, not a secret)
+#
+# Secrets required:
+#   GH_APP_PRIVATE_KEY  - GitHub App private key
+#
+# Note: GitHub cron scheduling can drift 5-15 min under platform load.
+# A quiet-minutes: 10 window may effectively become 10-25 min end-to-end.
+name: _release-please-auto-merge
+
+on:
+  workflow_call:
+    inputs:
+      quiet-minutes:
+        description: Minimum idle minutes before merging the release PR.
+        type: number
+        default: 10
+      merge-method:
+        description: Merge method passed to `gh pr merge` (squash, merge, rebase).
+        type: string
+        default: squash
+      base-branch:
+        description: Base branch to check for an open release PR.
+        type: string
+        default: ${{ github.event.repository.default_branch }}
+    secrets:
+      GH_APP_PRIVATE_KEY:
+        required: true
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions: {}
+
+jobs:
+  auto-merge:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Generate GitHub App Token
+        id: app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          app-id: ${{ vars.GH_APP_ID }}
+          private-key: ${{ secrets.GH_APP_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
+
+      - name: Check release PR idle time and enable auto-merge
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          BASE_BRANCH: ${{ inputs.base-branch }}
+          QUIET_SECONDS: ${{ fromJSON(inputs.quiet-minutes) * 60 }}
+          MERGE_METHOD: ${{ inputs.merge-method }}
+        run: |
+          case "$MERGE_METHOD" in
+            squash|merge|rebase) ;;
+            *) echo "Invalid merge-method: $MERGE_METHOD"; exit 1 ;;
+          esac
+
+          PR=$(gh pr list \
+            --repo "$GITHUB_REPOSITORY" \
+            --head "release-please--branches--${BASE_BRANCH}" \
+            --state open \
+            --json number,updatedAt,labels \
+            --jq '.[0] // empty')
+
+          [ -z "$PR" ] && { echo "No open release PR found."; exit 0; }
+
+          PR_NUMBER=$(echo "$PR" | jq -r '.number')
+          UPDATED_AT=$(echo "$PR" | jq -r '.updatedAt')
+
+          if echo "$PR" | jq -e '.labels[].name | select(. == "do-not-merge" or . == "hold")' > /dev/null 2>&1; then
+            echo "Release PR #${PR_NUMBER} has a hold label -- skipping."
+            exit 0
+          fi
+
+          NOW=$(date +%s)
+          UPDATED=$(date -d "$UPDATED_AT" +%s 2>/dev/null || date -j -f "%Y-%m-%dT%H:%M:%SZ" "$UPDATED_AT" +%s)
+          IDLE=$(( NOW - UPDATED ))
+
+          echo "Release PR #${PR_NUMBER} idle for ${IDLE}s (threshold: ${QUIET_SECONDS}s)."
+          [ "$IDLE" -lt "$QUIET_SECONDS" ] && { echo "Not quiet yet -- skipping."; exit 0; }
+
+          # Disable+re-enable handles stale auto-merge queue (RC3).
+          # Retry loop handles transient GraphQL errors (RC2).
+          gh pr merge "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --disable-auto 2>/dev/null || true
+          for _ in 1 2 3; do
+            gh pr merge "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --auto "--${MERGE_METHOD}" && exit 0
+            sleep 15
+          done
+          exit 1
