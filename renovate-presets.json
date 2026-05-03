@@ -20,7 +20,9 @@
     "enabled": true,
     "labels": ["type:security"],
     "automerge": true,
-    "minimumReleaseAge": "0 days"
+    "minimumReleaseAge": "0 days",
+    "rangeStrategy": "bump",
+    "vulnerabilityFixStrategy": "highest"
   },
   "lockFileMaintenance": {
     "enabled": true,
@@ -30,45 +32,18 @@
   },
   "customManagers": [
     {
-      "description": "Nix version pins annotated with renovate comments",
+      "description": "Renovate-annotated version pins in Nix files",
       "customType": "regex",
-      "fileMatch": ["\\.nix$"],
+      "managerFilePatterns": ["/\\.nix$/"],
       "matchStrings": [
-        "#\\s*renovate:\\s*datasource=(?<datasource>\\S+)\\s+depName=(?<depName>\\S+)\\r?\\n\\s*\\S+\\s*=\\s*\"(?<currentValue>[^\"]+)\";"
-      ]
-    },
-    {
-      "description": "npm packages pinned in Nix string literals (bunx wrappers, MCP server args)",
-      "customType": "regex",
-      "fileMatch": ["\\.nix$"],
-      "matchStrings": [
-        "\"(?<depName>@[a-zA-Z0-9-]+/[a-zA-Z0-9][a-zA-Z0-9._-]*)@(?<currentValue>[\\d][^\\s\"]*)\"",
-        "bunx\\s+--bun\\s+(?<depName>(?:@[^@/]+\\/)?[^@\\s]+)@(?<currentValue>[\\d][^\\s\"']*)"
+        "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)(?: versioning=(?<versioning>\\S+))?\\s+\\S+\\s*=\\s*\"(?<currentValue>[^\"]+)\""
       ],
-      "datasourceTemplate": "npm"
-    },
-    {
-      "description": "uv/uvx PyPI packages pinned in Nix modules",
-      "customType": "regex",
-      "fileMatch": ["\\.nix$"],
-      "matchStrings": [
-        "uvx\\s+--from\\s+\"(?<depName>[a-zA-Z0-9][a-zA-Z0-9._-]*)(?:\\[[^\\]]+\\])?==(?<currentValue>[\\d][^\\s\"]*)\"",
-        "uv\\s+run[^\"]*--with\\s+\"(?<depName>[a-zA-Z0-9][a-zA-Z0-9._-]*)(?:\\[[^\\]]+\\])?==(?<currentValue>[\\d][^\\s\"]*)\"",
-        "\"--from\"\\r?\\n\\s+\"(?<depName>[a-zA-Z0-9][a-zA-Z0-9._-]*)(?:\\[[^\\]]+\\])?==(?<currentValue>[\\d][^\\s\"]*)\"",
-        "\"--with\"\\r?\\n\\s+\"(?<depName>[a-zA-Z0-9][a-zA-Z0-9._-]*)(?:\\[[^\\]]+\\])?==(?<currentValue>[\\d][^\\s\"]*)\"",
-        "\\buv\\S*\\s+tool\\s+install\\s+\"(?<depName>[a-zA-Z0-9][a-zA-Z0-9._-]*)(?:\\[[^\\]]+\\])?==(?<currentValue>[\\d][^\\s\"]*)\""
-      ],
-      "datasourceTemplate": "pypi"
-    },
-    {
-      "description": "npx version pins in GitHub Actions workflows annotated with renovate comments",
-      "customType": "regex",
-      "fileMatch": ["\\.github/workflows/.*\\.ya?ml$"],
-      "matchStrings": [
-        "#\\s*renovate:\\s*datasource=(?<datasource>\\S+)\\s+depName=(?<depName>\\S+)[\\r\\n]+[\\s\\S]*?\\bnpx\\b\\s+(?:--yes\\s+|-y\\s+)?\\S+@(?<currentValue>[^\\s\"']+)"
-      ]
+      "versioningTemplate": "{{#if versioning}}{{{versioning}}}{{else}}semver-coerced{{/if}}"
     }
   ],
+  "pep723": {
+    "managerFilePatterns": ["/\\.py$/"]
+  },
   "packageRules": [
     {
       "description": "Disable all updates in gh-aw generated files — managed by gh-aw-pin-refresh workflow, not Renovate",
