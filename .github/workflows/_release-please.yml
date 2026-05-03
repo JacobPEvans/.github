@@ -10,21 +10,30 @@
 #         contents: write
 #         pull-requests: write
 #       uses: JacobPEvans/.github/.github/workflows/_release-please.yml@main
+#       with:
+#         auto-merge: true   # default; set false to use the quiet-window cron instead
 #       secrets:
-#         GH_ACTION_JACOBPEVANS_APP_ID: ${{ secrets.GH_ACTION_JACOBPEVANS_APP_ID }}
 #         GH_APP_PRIVATE_KEY: ${{ secrets.GH_APP_PRIVATE_KEY }}
 #
+# Quiet-window alternative (batch multiple PRs into one release):
+#   Set auto-merge: false here, then add a separate caller that runs on a
+#   cron schedule and calls _release-please-auto-merge.yml@main.
+#   See _release-please-auto-merge.yml for the opt-in shape.
+#
 # Org/repo prerequisites:
-#   Calling repos must grant `contents: write` and `pull-requests: write` in the caller job permissions
+#   Calling repos must grant `contents: write` and `pull-requests: write` in the caller job
+#   permissions block.
 #
 # Repo files:
 #   .release-please-manifest.json  - REQUIRED: version manifest (e.g. {"." : "1.2.3"})
 #   release-please-config.json     - REQUIRED: release config (repo-specific settings only;
 #                                    versioning policy is enforced by this workflow centrally)
 #
+# Variables required:
+#   GH_APP_ID  - GitHub App ID (org/repo configuration variable, not a secret)
+#
 # Secrets required:
-#   GH_ACTION_JACOBPEVANS_APP_ID  - GitHub App ID (repo-level secret)
-#   GH_APP_PRIVATE_KEY            - GitHub App private key (repo-level secret)
+#   GH_APP_PRIVATE_KEY  - GitHub App private key
 #
 # The GitHub App token is required so release-please PRs trigger `pull_request`
 # workflows (e.g. CI Gate). PRs created with GITHUB_TOKEN do NOT trigger them.
@@ -32,9 +41,15 @@ name: _release-please
 
 on:
   workflow_call:
+    inputs:
+      auto-merge:
+        description: >
+          Enable eager auto-merge of the release PR as soon as checks pass.
+          Set to false and add the _release-please-auto-merge.yml cron caller
+          to use the quiet-window batching flow instead.
+        type: boolean
+        default: true
     secrets:
-      GH_ACTION_JACOBPEVANS_APP_ID:
-        required: true
       GH_APP_PRIVATE_KEY:
         required: true
 
@@ -66,7 +81,7 @@ jobs:
         id: app-token
         uses: actions/create-github-app-token@v3
         with:
-          app-id: ${{ secrets.GH_ACTION_JACOBPEVANS_APP_ID }}
+          app-id: ${{ vars.GH_APP_ID }}
           private-key: ${{ secrets.GH_APP_PRIVATE_KEY }}
           permission-contents: write
           permission-pull-requests: write
@@ -94,7 +109,7 @@ jobs:
       # handles RC2 (transient GraphQL errors from `gh pr merge --auto`).
       # Bot approval was removed earlier (github/community#162623).
       - name: Enable auto-merge for release PR (with re-poke + retry)
-        if: "!cancelled() && steps.find-pr.outputs.number != ''"
+        if: "!cancelled() && inputs.auto-merge && steps.find-pr.outputs.number != ''"
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           PR_NUMBER: ${{ steps.find-pr.outputs.number }}
