@@ -16,12 +16,13 @@
 #       with:
 #         operation: compile   # or 'upgrade' for full gh-aw infrastructure update
 #       secrets:
-#         GH_ACTION_JACOBPEVANS_APP_ID: ${{ secrets.GH_ACTION_JACOBPEVANS_APP_ID }}
 #         GH_APP_PRIVATE_KEY: ${{ secrets.GH_APP_PRIVATE_KEY }}
 #
 # Secrets required:
-#   GH_ACTION_JACOBPEVANS_APP_ID  - GitHub App ID
-#   GH_APP_PRIVATE_KEY            - GitHub App private key
+#   GH_APP_PRIVATE_KEY   - GitHub App private key (repo-level secret, distributed by secrets-sync)
+#
+# Variables required (flow automatically from calling repo):
+#   GH_APP_CLIENT_ID     - GitHub App Client ID (non-sensitive, distributed by secrets-sync)
 #
 # The GitHub App token is required so the resulting PR triggers `pull_request`
 # workflows (e.g. CI gate, CodeQL). PRs created with GITHUB_TOKEN do NOT trigger them.
@@ -37,10 +38,10 @@ on:
         type: string
         default: 'compile'
     secrets:
-      GH_ACTION_JACOBPEVANS_APP_ID:
-        required: true
       GH_APP_PRIVATE_KEY:
         required: true
+      GH_ACTION_JACOBPEVANS_APP_ID:
+        required: false  # legacy — accepted for backward compat, removed in Phase 5a
 
 permissions: {}
 
@@ -55,7 +56,7 @@ jobs:
         id: app-token
         uses: actions/create-github-app-token@v3
         with:
-          app-id: ${{ secrets.GH_ACTION_JACOBPEVANS_APP_ID }}
+          client-id: ${{ vars.GH_APP_CLIENT_ID }}
           private-key: ${{ secrets.GH_APP_PRIVATE_KEY }}
           permission-contents: write
           permission-pull-requests: write

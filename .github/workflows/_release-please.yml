@@ -22,7 +22,7 @@
 #
 # Org/repo prerequisites:
 #   Calling repos must grant `contents: write` and `pull-requests: write` in the caller job
-#   permissions block.
+#   permissions block. Calling repos must have `vars.GH_APP_CLIENT_ID` set (via secrets-sync).
 #
 # Repo files:
 #   .release-please-manifest.json  - REQUIRED: version manifest (e.g. {"." : "1.2.3"})
@@ -33,7 +33,11 @@
 #   GH_APP_ID  - GitHub App ID (org/repo configuration variable, not a secret)
 #
 # Secrets required:
-#   GH_APP_PRIVATE_KEY  - GitHub App private key
+#   GH_APP_PRIVATE_KEY   - GitHub App private key (repo-level secret, distributed by secrets-sync)
+#
+# Variables required (flow automatically from calling repo):
+#   GH_APP_CLIENT_ID     - GitHub App Client ID (non-sensitive, distributed by secrets-sync)
+#   GH_APP_ID            - GitHub App numeric ID (for bot email construction)
 #
 # The GitHub App token is required so release-please PRs trigger `pull_request`
 # workflows (e.g. CI Gate). PRs created with GITHUB_TOKEN do NOT trigger them.
@@ -52,6 +56,8 @@ on:
     secrets:
       GH_APP_PRIVATE_KEY:
         required: true
+      GH_ACTION_JACOBPEVANS_APP_ID:
+        required: false  # legacy — accepted for backward compat, removed in Phase 5a
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -81,7 +87,7 @@ jobs:
         id: app-token
         uses: actions/create-github-app-token@v3
         with:
-          app-id: ${{ vars.GH_APP_ID }}
+          client-id: ${{ vars.GH_APP_CLIENT_ID }}
           private-key: ${{ secrets.GH_APP_PRIVATE_KEY }}
           permission-contents: write
           permission-pull-requests: write
