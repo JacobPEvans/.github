@@ -1,3 +1,7 @@
+---
+skill-groups: [core, git]
+---
+
 # AGENTS.md
 
 Central config repo. Provides defaults for all JacobPEvans repos.
