@@ -28,12 +28,11 @@ jobs:
   # Enumerate the public repos to fan out to (this .github repo excluded).
   # Owner is JacobPEvans-personal: the bare JacobPEvans login is now an empty
   # placeholder org, so the old `gh repo list JacobPEvans` returned zero repos.
-  # `environment: automation` is required: GH_PAT_WORKFLOW_DISPATCH is scoped to
-  # that environment, so without it the secret resolves empty and the matrix is
-  # built from an unauthenticated listing.
+  # Public listing only, so the repo-scoped GITHUB_TOKEN is sufficient and no
+  # cross-repo credential is minted here. The fan-out below mints its own,
+  # scoped to one repo per matrix leg.
   list:
     runs-on: ubuntu-latest
-    environment: automation
     outputs:
       repos: ${{ steps.list.outputs.repos }}
     steps:
@@ -44,7 +43,7 @@ jobs:
       # is gojq, not jq).
       - id: list
         env:
-          GH_TOKEN: ${{ secrets.GH_PAT_WORKFLOW_DISPATCH }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           repos=$(gh repo list JacobPEvans-personal --visibility public --limit 100 --json name \
@@ -54,7 +53,8 @@ jobs:
 
   # Fan out one isolated job per repo. Same trusted, pinned action as `self`,
   # retargeted by overriding GITHUB_REPOSITORY (EndBug/label-sync reads its
-  # target from that env var) and authenticated with the cross-repo PAT.
+  # target from that env var) and authenticated with an App installation token
+  # minted for that one repository.
   # Replaces the previous `gh label clone` loop, which deadlocked
   # (`all goroutines are asleep`) on every repo and swallowed the failure.
   # Additive by design (delete-other-labels defaults to false) to match the
@@ -70,10 +70,19 @@ jobs:
         repo: ${{ fromJSON(needs.list.outputs.repos) }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+      # Scoped to exactly the repo this matrix leg writes to.
+      - id: app-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ secrets.GH_APP_CLIENT_ID }}
+          private-key: ${{ secrets.GH_APP_PRIVATE_KEY }}
+          owner: JacobPEvans-personal
+          repositories: ${{ matrix.repo }}
+          permission-issues: write
       - name: Sync labels to ${{ matrix.repo }}
         uses: EndBug/label-sync@52074158190acb45f3077f9099fea818aa43f97a # v2
         env:
           GITHUB_REPOSITORY: JacobPEvans-personal/${{ matrix.repo }}
         with:
           config-file: .github/labels.yml
-          token: ${{ secrets.GH_PAT_WORKFLOW_DISPATCH }}
+          token: ${{ steps.app-token.outputs.token }}
