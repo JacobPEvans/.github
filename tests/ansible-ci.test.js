@@ -112,6 +112,24 @@ test('the molecule output is false when the caller repo has no Molecule scenario
   );
   assert.match(
     ansibleCi,
-    /molecule: >-\n\s+\$\{\{ steps\.molecule_scenarios\.outputs\.present == 'true'\n\s+&& \(steps\.filter\.outputs\.molecule == 'true'/,
+    /molecule: >-\n\s+\$\{\{ steps\.molecule_scenarios\.outputs\.present == 'true'\n\s+&& \(\(steps\.filter\.outputs\.molecule == 'true'\n\s+&& steps\.nondocs\.outputs\.match == 'true'\)/,
+  );
+});
+
+test('the molecule output is false when the selector maps the change to no scenario', () => {
+  assert.match(
+    ansibleCi,
+    /&& github\.ref == 'refs\/heads\/main'\)\)\n\s+&& steps\.scenario_scope\.outputs\.scenarios != '\[\]' \}\}/,
+  );
+});
+
+test('a Markdown-only change selects no lint or Molecule outside the push to main', () => {
+  assert.match(
+    ansibleCi,
+    /id: nondocs\n\s+with:\n(?:.*\n)*?\s+predicate-quantifier: every\n\s+filters: \|\n\s+match:\n\s+- '\*\*'\n\s+- '!\*\*\/\*\.md'\n\s+- '!\*\*\/\*\.mdx'/,
+  );
+  assert.match(
+    ansibleCi,
+    /ansible: >-\n\s+\$\{\{ \(steps\.filter\.outputs\.ansible == 'true'\n\s+&& steps\.nondocs\.outputs\.match == 'true'\)\n\s+\|\| \(github\.event_name == 'push'/,
   );
 });
