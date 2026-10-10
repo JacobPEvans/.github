@@ -18,8 +18,8 @@ test('separates generated output from repository control plane', () => {
 
 test('extracts publisher source metadata without logging the body', () => {
   assert.equal(
-    sourceLine('Summary\n\nDocs-Publisher-Source: private/docs@0123456789abcdef0123456789abcdef01234567\n'),
-    'Docs-Publisher-Source: private/docs@0123456789abcdef0123456789abcdef01234567',
+    sourceLine('Summary\n\nDocs-Publisher-Source: 0123456789abcdef0123456789abcdef01234567\n'),
+    'Docs-Publisher-Source: 0123456789abcdef0123456789abcdef01234567',
   );
   assert.equal(sourceLine('Summary only'), undefined);
 });
@@ -60,31 +60,36 @@ test('allows control-plane changes without publisher identity', async () => {
 
 test('rejects generated paths without the configured publisher', async () => {
   const previousLogin = process.env.DOCS_PUBLISHER_LOGIN;
-  const previousSource = process.env.DOCS_PUBLISHER_SOURCE_REPOSITORY;
   delete process.env.DOCS_PUBLISHER_LOGIN;
-  delete process.env.DOCS_PUBLISHER_SOURCE_REPOSITORY;
   const state = harness({ files: ['docs.json'] });
   await run(state);
   assert.equal(state.failures.length, 1);
   if (previousLogin === undefined) delete process.env.DOCS_PUBLISHER_LOGIN;
   else process.env.DOCS_PUBLISHER_LOGIN = previousLogin;
-  if (previousSource === undefined) delete process.env.DOCS_PUBLISHER_SOURCE_REPOSITORY;
-  else process.env.DOCS_PUBLISHER_SOURCE_REPOSITORY = previousSource;
 });
 
 test('accepts a pinned generated projection from the publisher', async () => {
   const previousLogin = process.env.DOCS_PUBLISHER_LOGIN;
-  const previousSource = process.env.DOCS_PUBLISHER_SOURCE_REPOSITORY;
   process.env.DOCS_PUBLISHER_LOGIN = 'publisher[bot]';
-  process.env.DOCS_PUBLISHER_SOURCE_REPOSITORY = 'private/docs';
   const state = harness({
     files: ['docs.json', 'guides/example.mdx'],
-    body: 'Docs-Publisher-Source: private/docs@0123456789abcdef0123456789abcdef01234567',
+    body: 'Docs-Publisher-Source: 0123456789abcdef0123456789abcdef01234567',
   });
   await run(state);
   assert.deepEqual(state.failures, []);
   if (previousLogin === undefined) delete process.env.DOCS_PUBLISHER_LOGIN;
   else process.env.DOCS_PUBLISHER_LOGIN = previousLogin;
-  if (previousSource === undefined) delete process.env.DOCS_PUBLISHER_SOURCE_REPOSITORY;
-  else process.env.DOCS_PUBLISHER_SOURCE_REPOSITORY = previousSource;
+});
+
+test('rejects a source trailer that names a repository', async () => {
+  const previousLogin = process.env.DOCS_PUBLISHER_LOGIN;
+  process.env.DOCS_PUBLISHER_LOGIN = 'publisher[bot]';
+  const state = harness({
+    files: ['docs.json'],
+    body: 'Docs-Publisher-Source: owner/source@0123456789abcdef0123456789abcdef01234567',
+  });
+  await run(state);
+  assert.equal(state.failures.length, 1);
+  if (previousLogin === undefined) delete process.env.DOCS_PUBLISHER_LOGIN;
+  else process.env.DOCS_PUBLISHER_LOGIN = previousLogin;
 });

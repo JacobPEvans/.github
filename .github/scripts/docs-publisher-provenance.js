@@ -49,11 +49,10 @@ module.exports = async ({ github, context, core }) => {
   }
 
   const expectedLogin = process.env.DOCS_PUBLISHER_LOGIN;
-  const expectedSource = process.env.DOCS_PUBLISHER_SOURCE_REPOSITORY;
   const authorLogin = pullRequest.user?.login;
   const source = sourceLine(pullRequest.body || '');
 
-  if (!expectedLogin || !expectedSource) {
+  if (!expectedLogin) {
     core.setFailed('Documentation publisher identity variables are not configured.');
     return;
   }
@@ -66,9 +65,10 @@ module.exports = async ({ github, context, core }) => {
     return;
   }
 
-  const expectedPrefix = `Docs-Publisher-Source: ${expectedSource}@`;
-  const sourceRevision = source?.slice(expectedPrefix.length);
-  if (!source?.startsWith(expectedPrefix) || !/^[0-9a-f]{40}$/.test(sourceRevision || '')) {
+  // The trailer carries only the source commit; the publisher App identity
+  // above names the source, so the PR body never names a private repository.
+  const sourceRevision = source?.slice('Docs-Publisher-Source:'.length).trim();
+  if (!/^[0-9a-f]{40}$/.test(sourceRevision || '')) {
     core.setFailed('Generated documentation changes require a pinned private-source revision.');
     return;
   }

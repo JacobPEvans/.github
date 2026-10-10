@@ -27,7 +27,6 @@ jobs:
     timeout-minutes: 10
     env:
       DOCS_PUBLISHER_LOGIN: ${{ vars.DOCS_PUBLISHER_LOGIN }}
-      DOCS_PUBLISHER_SOURCE_REPOSITORY: ${{ vars.DOCS_PUBLISHER_SOURCE_REPOSITORY }}
     steps:
       - name: Checkout policy implementation
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
