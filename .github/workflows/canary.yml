@@ -2,10 +2,12 @@
 # Caller-contract canary for the reusable workflows this repo publishes.
 #
 # Stack jobs call reusables through local paths, so the code under test is the
-# PR head (pull_request) or the pushed commit (push to main). The release
-# commit is never re-canaried. Fixtures under tests/canary/<stack>/ are reached
-# only through the directory inputs a reusable exposes; the rest run against
-# the repo root.
+# PR head (pull_request) or the pushed commit (push to main). On push, only a
+# release commit runs the stacks: its Canary check is what gates the major-tag
+# move, and every other commit was already canaried as a pull request. The
+# release commit is never re-canaried. Fixtures under tests/canary/<stack>/
+# are reached only through the directory inputs a reusable exposes; the rest
+# run against the repo root.
 #
 # The `promote` job at the end runs on push to main after this run's summary
 # succeeds. It moves the floating major tag when a release tag already names
@@ -45,6 +47,9 @@ jobs:
   # watchdog needs. dependency_review and zizmor are off: the repo's own gate
   # already runs them once per PR, and the canary would repeat them per stack.
   ansible:
+    if: >-
+      github.event_name == 'pull_request' ||
+      startsWith(github.event.head_commit.message, 'chore(main): release ')
     permissions:
       contents: read
       pull-requests: read
@@ -61,6 +66,9 @@ jobs:
       zizmor: false
 
   nix:
+    if: >-
+      github.event_name == 'pull_request' ||
+      startsWith(github.event.head_commit.message, 'chore(main): release ')
     permissions:
       contents: read
       pull-requests: read
@@ -76,6 +84,9 @@ jobs:
       zizmor: false
 
   tofu:
+    if: >-
+      github.event_name == 'pull_request' ||
+      startsWith(github.event.head_commit.message, 'chore(main): release ')
     permissions:
       contents: read
       pull-requests: read
@@ -98,6 +109,9 @@ jobs:
   # needs a root pyproject.toml this repo does not have. _python-security.yml
   # takes a directory, so it exercises the fixture instead.
   python:
+    if: >-
+      github.event_name == 'pull_request' ||
+      startsWith(github.event.head_commit.message, 'chore(main): release ')
     permissions:
       contents: read
       pull-requests: read
@@ -113,6 +127,9 @@ jobs:
       zizmor: false
 
   docs:
+    if: >-
+      github.event_name == 'pull_request' ||
+      startsWith(github.event.head_commit.message, 'chore(main): release ')
     permissions:
       contents: read
       pull-requests: read
@@ -130,6 +147,9 @@ jobs:
   # Molecule-relevant paths on a PR, so a PR touching only workflows skips
   # Molecule. A push to main runs the full scenario set.
   ansible-direct:
+    if: >-
+      github.event_name == 'pull_request' ||
+      startsWith(github.event.head_commit.message, 'chore(main): release ')
     permissions:
       contents: read
       pull-requests: read
@@ -155,6 +175,9 @@ jobs:
           - 'tests/**'
 
   template-callers:
+    if: >-
+      github.event_name == 'pull_request' ||
+      startsWith(github.event.head_commit.message, 'chore(main): release ')
     name: Template Callers
     runs-on: ubuntu-24.04
     timeout-minutes: 5
@@ -183,7 +206,9 @@ jobs:
   canary-summary:
     name: Canary
     needs: [ansible, nix, tofu, python, docs, ansible-direct, template-callers]
-    if: ${{ always() }}
+    if: >-
+      always() && (github.event_name == 'pull_request' ||
+      startsWith(github.event.head_commit.message, 'chore(main): release '))
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions: {}
