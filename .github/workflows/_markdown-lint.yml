@@ -26,6 +26,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
+          fetch-depth: 2
           persist-credentials: false
 
       - name: Checkout org markdownlint config
@@ -47,7 +48,28 @@ jobs:
         if: hashFiles('.markdownlint-cli2.jsonc', '.markdownlint-cli2.yaml', '.markdownlint-cli2.cjs', '.markdownlint-cli2.mjs', '.markdownlint.jsonc', '.markdownlint.json', '.markdownlint.yaml', '.markdownlint.yml', '.markdownlint.cjs', '.markdownlint.mjs') == ''
         run: cp .org-markdownlint-checkout/.markdownlint-cli2.yaml .markdownlint-cli2.yaml
 
+      - name: List changed Markdown files
+        # Pull requests lint only the Markdown they add or modify, so a PR is
+        # never red for files it did not touch. HEAD is the PR merge commit and
+        # HEAD^1 the base tip, so the diff is exactly the PR's change.
+        id: changed
+        if: github.event_name == 'pull_request'
+        run: |
+          {
+            echo 'files<<CHANGED_MD_EOF'
+            git diff --name-only --diff-filter=ACMR HEAD^1 HEAD -- '*.md' \
+              ':!CHANGELOG.md' ':!**/node_modules/**' ':!**/.github/aw/imports/**' ':!.org-github/**'
+            echo 'CHANGED_MD_EOF'
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Run markdownlint on changed files
+        if: github.event_name == 'pull_request' && steps.changed.outputs.files != ''
+        uses: DavidAnson/markdownlint-cli2-action@21c1be1b93ad9ed58fa840aacc3f279cde2a72ff # v24
+        with:
+          globs: ${{ steps.changed.outputs.files }}
+
       - name: Run markdownlint
+        if: github.event_name != 'pull_request'
         uses: DavidAnson/markdownlint-cli2-action@21c1be1b93ad9ed58fa840aacc3f279cde2a72ff # v24
         with:
           globs: |
