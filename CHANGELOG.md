@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.11.1](https://github.com/dryvist/.github/compare/v1.11.0...v1.11.1) (2026-10-10)
+
+
+### Bug Fixes
+
+* **ci:** group push canary runs per commit ([#331](https://github.com/dryvist/.github/issues/331)) ([e968330](https://github.com/dryvist/.github/commit/e96833048381056e21d40e5f828d2125b1f3622d))
+* **ci:** run the push canary only on release commits ([#336](https://github.com/dryvist/.github/issues/336)) ([067b3dc](https://github.com/dryvist/.github/commit/067b3dcae8bbd377cb1f17d3dc5fafe030368e91))
+* **docs:** verify publisher provenance by commit SHA only ([#332](https://github.com/dryvist/.github/issues/332)) ([4231559](https://github.com/dryvist/.github/commit/423155971e1817f0a60d34b12979fa1a95d949af))
+* **markdown-lint:** lint only changed Markdown files on pull requests ([#335](https://github.com/dryvist/.github/issues/335)) ([4dbe743](https://github.com/dryvist/.github/commit/4dbe743818649d558e3b43eb121c65a3a602a010))
+
 ## [1.11.0](https://github.com/dryvist/.github/compare/v1.10.0...v1.11.0) (2026-10-10)
 
 
