@@ -515,7 +515,7 @@ jobs:
             `nix flake check --no-build` passed.
 
             ${{ steps.moved.outputs.nixpkgs_moved == 'true'
-              && '**A `nixpkgs*` input moved, so auto-merge is withheld.** A channel jump rebuilds the world on live machine configurations — review the package diff before merging.'
+              && '**A `nixpkgs*` input moved, so auto-merge is withheld.**'
               || steps.classify.outputs.automerge == 'true'
               && 'No `nixpkgs*` input moved and every first-party bump is patch-level, so this auto-merges once CI is green.'
               || '**Auto-merge is withheld.** A first-party input moved by a minor or major release, or its tag is unresolved.' }}

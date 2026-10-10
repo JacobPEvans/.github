@@ -4,8 +4,9 @@
 # Stack jobs call reusables through local paths, so the code under test is the
 # PR head (pull_request) or the pushed commit (push to main). On push, only a
 # release commit runs the stacks: its Canary check is what gates the major-tag
-# move, and every other commit was already canaried as a pull request. The
-# release commit is never re-canaried. Fixtures under tests/canary/<stack>/
+# move, and every other commit was already canaried as a pull request. Release
+# PRs are squash-merged with their release-please title so the push matches.
+# The release commit is never re-canaried. Fixtures under tests/canary/<stack>/
 # are reached only through the directory inputs a reusable exposes; the rest
 # run against the repo root.
 #
