@@ -51,7 +51,7 @@ jobs:
     permissions:
       contents: read
       pull-requests: read
-    uses: dryvist/ai-workflows/.github/workflows/scope-classify.yml@d1d335bdb010b47108374e8a6152a7926477a32a # v0.48.1
+    uses: dryvist/ai-workflows/.github/workflows/scope-classify.yml@e77c7f08b2f33f5dd3e1dff25c65056892ece445 # v0.48.2
     secrets:
       TYPESAFE_API_KEY: ${{ secrets.TYPESAFE_API_KEY }}
 
@@ -85,7 +85,7 @@ jobs:
     permissions:
       contents: read
       pull-requests: write
-    uses: dryvist/ai-workflows/.github/workflows/pr-agent.yml@d1d335bdb010b47108374e8a6152a7926477a32a # v0.48.1
+    uses: dryvist/ai-workflows/.github/workflows/pr-agent.yml@e77c7f08b2f33f5dd3e1dff25c65056892ece445 # v0.48.2
     with:
       review: true
       # improve stays off: over 84 org-wide runs (2026-09-18/19) it took a
