@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.11.2](https://github.com/dryvist/.github/compare/v1.11.1...v1.11.2) (2026-10-10)
+
+
+### Bug Fixes
+
+* **flake-lock:** shorten the nixpkgs auto-merge notice in the PR body ([#338](https://github.com/dryvist/.github/issues/338)) ([00f914d](https://github.com/dryvist/.github/commit/00f914dd92e6dbb8f0f5e05fd0253d826217c0ed))
+
 ## [1.11.1](https://github.com/dryvist/.github/compare/v1.11.0...v1.11.1) (2026-10-10)
 
 
