@@ -1,5 +1,24 @@
 # Changelog
 
+## [1.11.0](https://github.com/dryvist/.github/compare/v1.10.0...v1.11.0) (2026-10-10)
+
+
+### Features
+
+* **renovate:** pin first-party actions by digest; automerge patch only ([#319](https://github.com/dryvist/.github/issues/319)) ([642dca2](https://github.com/dryvist/.github/commit/642dca28c55ddc803cae90c098bb883ea0bf163c))
+
+
+### Bug Fixes
+
+* **automerge-sweep:** hold on needs-review instead of needs-human ([cd7f735](https://github.com/dryvist/.github/commit/cd7f735ab78a426e68d2f02084273ccf329478f3))
+* **ci:** stop applying the needs-human label ([d42a839](https://github.com/dryvist/.github/commit/d42a839247a2f6260e0bc4991a10d428e02b2644))
+* **ci:** stop applying the needs-human label ([#329](https://github.com/dryvist/.github/issues/329)) ([d42a839](https://github.com/dryvist/.github/commit/d42a839247a2f6260e0bc4991a10d428e02b2644))
+* **ci:** write the flake bump summary outside the checkout ([#327](https://github.com/dryvist/.github/issues/327)) ([0f9052c](https://github.com/dryvist/.github/commit/0f9052c1dbf41edf3f08b83cd723b2def903e0d4))
+* **flake-lock-fresh:** re-pins and new locks pass the --pr check ([#326](https://github.com/dryvist/.github/issues/326)) ([aa7efc7](https://github.com/dryvist/.github/commit/aa7efc77746e35813d25f71cb4b37c7e48f2b481))
+* **flake-lock:** stop labelling withheld bumps needs-human ([761550f](https://github.com/dryvist/.github/commit/761550faedead14a0086c021c411b42cc6219716))
+* **labels:** remove the needs-human label definition ([1734324](https://github.com/dryvist/.github/commit/17343242148209ccd1d1969d56995631c7802e92))
+* **renovate:** drop the needs-human label from first-party digest updates ([647b408](https://github.com/dryvist/.github/commit/647b40898fc33a16f87bf803753cc2885c0d9228))
+
 ## [1.10.0](https://github.com/dryvist/.github/compare/v1.9.13...v1.10.0) (2026-10-10)
 
 
