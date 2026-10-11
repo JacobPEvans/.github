@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.13.2](https://github.com/dryvist/.github/compare/v1.13.1...v1.13.2) (2026-10-11)
+
+
+### Bug Fixes
+
+* **sweep:** match first-party 'update dependency' titles ([#368](https://github.com/dryvist/.github/issues/368)) ([befbdee](https://github.com/dryvist/.github/commit/befbdeec3fa9579db6118064728860ab0e89cb44))
+
 ## [1.13.1](https://github.com/dryvist/.github/compare/v1.13.0...v1.13.1) (2026-10-11)
 
 
