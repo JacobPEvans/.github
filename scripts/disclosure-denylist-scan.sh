@@ -39,18 +39,33 @@ if [[ ! -s "$PATTERNS_FILE" ]]; then
   exit 2
 fi
 
+# Patterns are matched with `grep -w`, which bounds each one to a whole token so
+# a denylisted identifier no longer fires inside an unrelated word. `grep -w`
+# counts underscore as a word character, so underscores are normalized to spaces
+# on BOTH sides — patterns here, haystack at each call site — making `_` bound an
+# identifier like every other separator. This mirrors gh-guard's hits_denylist(),
+# whose measured result on 102 real PR bodies was 0% false positives with full
+# recall on every hard identifier leak in that corpus.
+BOUNDED_PATTERNS="$(mktemp)"
+trap 'rm -f "$PATTERNS_FILE" "$BOUNDED_PATTERNS"' EXIT
+tr '_' ' ' < "$PATTERNS_FILE" > "$BOUNDED_PATTERNS"
+
 hits=0
 
 scan_file() {
   local label="$1" path="$2"
   [[ -f "$path" ]] || return 0
-  # -H forces the "path:line:content" shape even for a single file; cut
-  # drops the content field so only "label:line" ever reaches stdout.
-  while IFS=: read -r _path lineno; do
+  # -n gives "line:content"; cut keeps only the number, so no matched term or
+  # line content ever reaches stdout. Underscores are normalized to spaces
+  # first: grep -w treats `_` as a word character, so without this an
+  # identifier glued to a word by `_` would escape the boundary.
+  while read -r lineno; do
     [[ -n "$lineno" ]] || continue
     echo "${label}:${lineno}"
     hits=$((hits + 1))
-  done < <(grep -niHFf "$PATTERNS_FILE" -- "$path" | cut -d: -f1,2 || true)
+  done < <(tr '_' ' ' < "$path" \
+             | grep -niwFf "$BOUNDED_PATTERNS" \
+             | cut -d: -f1 || true)
 }
 
 # Lines the PR adds (base ref...HEAD). Unchanged lines in a touched file were
@@ -68,7 +83,9 @@ scan_added() {
     [[ -n "$n" ]] || continue
     echo "${f}:$(sed -n "${n}p" "$numbers")"
     hits=$((hits + 1))
-  done < <(grep -niFf "$PATTERNS_FILE" -- "$content" | cut -d: -f1 || true)
+  done < <(tr '_' ' ' < "$content" \
+             | grep -niwFf "$BOUNDED_PATTERNS" \
+             | cut -d: -f1 || true)
   rm -f "$content" "$numbers"
 }
 
