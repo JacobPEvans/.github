@@ -26,6 +26,7 @@ case "$1 $2" in
     case "$mode" in
       ok) exit 0 ;;
       404) echo "HTTP 404: Not Found" >&2; exit 1 ;;
+      missing) echo "could not find any workflow run with ID $3" >&2; exit 1 ;;
       completed) echo "HTTP 409: Cannot cancel a workflow run that is completed." >&2; exit 1 ;;
       *) echo "HTTP 500: boom" >&2; exit 1 ;;
     esac ;;
@@ -60,10 +61,10 @@ test('cancels queued and in-progress runs and skips completed runs and the curre
   assert.deepEqual(r.cancelled, ['1', '2']);
 });
 
-test('treats a 404 and an already-completed response as cancelled', () => {
+test('treats a 404, a missing run and an already-completed response as cancelled', () => {
   const r = run({
     runs: [run1(1, 'queued'), run1(2, 'in_progress'), run1(3, 'queued')],
-    modes: { 1: '404', 2: 'completed' },
+    modes: { 1: '404', 2: 'completed', 3: 'missing' },
   });
   assert.equal(r.status, 0, r.stdout + r.stderr);
   assert.deepEqual(r.cancelled, ['1', '2', '3']);

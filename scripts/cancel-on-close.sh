@@ -8,7 +8,8 @@
 #        GH_TOKEN token with actions:write (read by gh)
 #        RUN_ID   the run executing this script; it is never cancelled (optional)
 #
-# A run that is already gone (HTTP 404) or already completed counts as cancelled.
+# A run that is already gone (HTTP 404, or gh's "could not find any workflow run")
+# or already completed counts as cancelled.
 # Any other error fails the script.
 set -euo pipefail
 
@@ -24,7 +25,7 @@ while read -r id; do
   [ "$id" = "$keep" ] && continue
   if err=$(gh run cancel "$id" --repo "$repo" 2>&1); then
     echo "cancelled run $id"
-  elif grep -qiE 'HTTP 404|already completed|that is completed' <<<"$err"; then
+  elif grep -qiE 'HTTP 404|could not find any workflow run|already completed|that is completed' <<<"$err"; then
     echo "::notice::run $id is already gone or completed; treated as cancelled"
   else
     echo "$err" >&2
