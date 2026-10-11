@@ -50,7 +50,7 @@ permissions:
 jobs:
   gate:
     name: Policy Gate
-    uses: dryvist/ai-workflows/.github/workflows/policy-gate.yml@a5fcd42bd8843822f56f05346f6392ca7d9e0aec # v0.48.6
+    uses: dryvist/ai-workflows/.github/workflows/policy-gate.yml@70d7a6ad0d566017d6c063c5786b997084f3f5c4 # v0.48.7
     with:
       runner_label: ${{ inputs.runner_label }}
       model: ${{ inputs.model }}

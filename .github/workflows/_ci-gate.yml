@@ -481,7 +481,7 @@ jobs:
   # https://github.com/dryvist/ai-workflows/blob/main/.github/scope-rubric.md
   scope:
     name: Classify CI scope (Jev)
-    uses: dryvist/ai-workflows/.github/workflows/scope-classify.yml@a5fcd42bd8843822f56f05346f6392ca7d9e0aec # v0.48.6
+    uses: dryvist/ai-workflows/.github/workflows/scope-classify.yml@70d7a6ad0d566017d6c063c5786b997084f3f5c4 # v0.48.7
     secrets:
       TYPESAFE_API_KEY: ${{ secrets.TYPESAFE_API_KEY }}
 
