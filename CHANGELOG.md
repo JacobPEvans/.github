@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.13.1](https://github.com/dryvist/.github/compare/v1.13.0...v1.13.1) (2026-10-11)
+
+
+### Bug Fixes
+
+* **release-please:** mint the release App token with workflows write ([#367](https://github.com/dryvist/.github/issues/367)) ([ab6f31e](https://github.com/dryvist/.github/commit/ab6f31ece48e407b3e4d6f9cb9bcd4dc8182db8b))
+* **sweep:** merge-commit fallback and first-party label holds ([#365](https://github.com/dryvist/.github/issues/365)) ([7e5c2f3](https://github.com/dryvist/.github/commit/7e5c2f31a7923cf069f8e4bbe0362d85707ae6af))
+
 ## [1.13.0](https://github.com/dryvist/.github/compare/v1.12.1...v1.13.0) (2026-10-11)
 
 
