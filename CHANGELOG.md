@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.12.1](https://github.com/dryvist/.github/compare/v1.12.0...v1.12.1) (2026-10-11)
+
+
+### Bug Fixes
+
+* **python-security:** audit a dependency-free export with --no-deps ([#355](https://github.com/dryvist/.github/issues/355)) ([5174f36](https://github.com/dryvist/.github/commit/5174f363786722a8167b0ac5d0dc02dee086bc43))
+* **python-security:** audit the hash-pinned export without installing it ([#353](https://github.com/dryvist/.github/issues/353)) ([9ab3179](https://github.com/dryvist/.github/commit/9ab3179e716de4617cbcfa25f8fa0417470a548d))
+
 ## [1.12.0](https://github.com/dryvist/.github/compare/v1.11.4...v1.12.0) (2026-10-11)
 
 
