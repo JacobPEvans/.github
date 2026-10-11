@@ -76,6 +76,41 @@ class DisclosureDenylistScanTest(unittest.TestCase):
         self.assertNotIn("SECRET-TERM", result.stdout)
         self.assertNotIn("SECRET-TERM", result.stderr)
 
+    def test_existing_term_in_touched_file_is_not_rescanned(self):
+        (self.repo / "CHANGELOG.md").write_text("old SECRET-TERM entry\n")
+        run_git(self.repo, "add", "-A")
+        run_git(self.repo, "commit", "-q", "-m", "history")
+        self.base_sha = subprocess.run(
+            ["git", "-C", str(self.repo), "rev-parse", "HEAD"],
+            check=True, capture_output=True, text=True,
+        ).stdout.strip()
+        (self.repo / "CHANGELOG.md").write_text("new entry\nold SECRET-TERM entry\n")
+        run_git(self.repo, "add", "-A")
+        run_git(self.repo, "commit", "-q", "-m", "prepend")
+
+        result = self._run()
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_added_line_hit_reports_its_new_line_number(self):
+        (self.repo / "README.md").write_text("hello\nfine\nnow ANOTHER-TERM\n")
+        run_git(self.repo, "add", "-A")
+        run_git(self.repo, "commit", "-q", "-m", "append")
+
+        result = self._run()
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("README.md:3", result.stdout)
+        self.assertNotIn("ANOTHER-TERM", result.stdout + result.stderr)
+
+    def test_added_line_starting_with_plus_plus_is_scanned(self):
+        (self.repo / "README.md").write_text("hello\n++ ANOTHER-TERM\nafter\n")
+        run_git(self.repo, "add", "-A")
+        run_git(self.repo, "commit", "-q", "-m", "plus-prefixed line")
+
+        result = self._run()
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("README.md:2", result.stdout)
+        self.assertNotIn("ANOTHER-TERM", result.stdout + result.stderr)
+
     def test_pr_title_hit_fails_without_leaking_it(self):
         result = self._run(env_extra={"PR_TITLE": "fix ANOTHER-TERM handling"})
         self.assertEqual(result.returncode, 1)

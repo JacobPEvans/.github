@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Disclosure denylist scan — fails a PR if any changed file, the PR title, or
+# Disclosure denylist scan — fails a PR if any line it adds, the PR title, or
 # the PR body contains a fixed string from the org denylist
 # (DISCLOSURE_DENYLIST, materialized to a file by the caller workflow).
 #
@@ -10,7 +10,7 @@
 #
 # Usage: disclosure-denylist-scan.sh <denylist-file> <base-ref>
 #   <denylist-file> — one fixed string per line (blank lines / #-comments skipped)
-#   <base-ref>      — git ref to diff against for the changed-file set
+#   <base-ref>      — git ref to diff against; only lines added since it are scanned
 #
 # Reads PR_TITLE / PR_BODY from the environment (may be unset outside a PR).
 #
@@ -53,12 +53,30 @@ scan_file() {
   done < <(grep -niHFf "$PATTERNS_FILE" -- "$path" | cut -d: -f1,2 || true)
 }
 
-# Changed files in the PR diff (working tree vs. base ref).
+# Lines the PR adds (base ref...HEAD). Unchanged lines in a touched file were
+# already scanned when they were added, so a regenerated file (CHANGELOG) does
+# not re-flag its history. Each hit reports the line's number in the new file.
+scan_added() {
+  local f="$1" content numbers n
+  content="$(mktemp)"; numbers="$(mktemp)"
+  git diff -U0 --no-color --no-ext-diff "$BASE_REF"...HEAD -- "$f" | awk -v c="$content" -v l="$numbers" '
+    /^@@/ { inhunk = 1; split($3, a, ","); line = substr(a[1], 2) + 0; next }
+    !inhunk { next }
+    /^\+/ { print substr($0, 2) > c; print line > l; line++ }
+  '
+  while IFS=: read -r n _; do
+    [[ -n "$n" ]] || continue
+    echo "${f}:$(sed -n "${n}p" "$numbers")"
+    hits=$((hits + 1))
+  done < <(grep -niFf "$PATTERNS_FILE" -- "$content" | cut -d: -f1 || true)
+  rm -f "$content" "$numbers"
+}
+
 if git rev-parse -q --verify "$BASE_REF" >/dev/null; then
   while IFS= read -r f; do
     [[ -n "$f" ]] || continue
-    scan_file "$f" "$f"
-  done < <(git diff --name-only "$BASE_REF"...HEAD -- . 2>/dev/null || true)
+    scan_added "$f"
+  done < <(git diff --name-only --diff-filter=d "$BASE_REF"...HEAD -- . 2>/dev/null || true)
 else
   echo "::error::base ref not found: $BASE_REF" >&2
   exit 2
