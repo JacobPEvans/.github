@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.14.0](https://github.com/dryvist/.github/compare/v1.13.2...v1.14.0) (2026-10-11)
+
+
+### Features
+
+* **sweep:** merge manual-repo bot PRs after local triage label ([#370](https://github.com/dryvist/.github/issues/370)) ([20261b3](https://github.com/dryvist/.github/commit/20261b3bfc9db529e9bfa2476e4a657b29fb27bc))
+
+
+### Bug Fixes
+
+* **disclosure-gate:** match denylist terms as whole tokens only ([1873ec1](https://github.com/dryvist/.github/commit/1873ec1e8cde3af533d2c8aabc1930c48c79bed5))
+* **disclosure-gate:** match denylist terms as whole tokens only ([#374](https://github.com/dryvist/.github/issues/374)) ([189d6c2](https://github.com/dryvist/.github/commit/189d6c2e757aeb6355977f3ff575dd04fd082ee1))
+* **pin-policy:** fail the first-party pin checks by default ([#372](https://github.com/dryvist/.github/issues/372)) ([f2bc2ed](https://github.com/dryvist/.github/commit/f2bc2ed017cec4278439fc7fec063cb1a8a9451a))
+
 ## [1.13.2](https://github.com/dryvist/.github/compare/v1.13.1...v1.13.2) (2026-10-11)
 
 
