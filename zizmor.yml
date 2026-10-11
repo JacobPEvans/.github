@@ -15,7 +15,7 @@
 # dryvist/.github's `_nix-validate.yml`, dryvist/ai-workflows) are pinned
 # by commit SHA, with the release tag as a trailing comment
 # (`uses: dryvist/...@<sha> # vX.Y.Z`). The policy value for `dryvist/*`
-# is `ref-pin`; see the enforcement note on that entry.
+# is `hash-pin`: a tag or branch reference fails the audit.
 rules:
   # `secrets: inherit` from thin callers into first-party (dryvist/*)
   # reusable workflows is the org's standard delegation pattern: the callee
@@ -49,13 +49,12 @@ rules:
         # toolchain (2026-06); trusted to pin by version tag like actions/*.
         astral-sh/*: ref-pin
         DeterminateSystems/*: ref-pin
-        # Enforcement phase: dryvist/* moves from ref-pin to hash-pin, so every
-        # dryvist/* reference must name a 40-hex commit SHA.
-        dryvist/*: ref-pin
-        # JacobPEvans / JacobPEvans-personal are first-party, like dryvist/*:
-        # their reusable workflows are allowed the same ref-pin policy.
-        JacobPEvans/*: ref-pin
-        JacobPEvans-personal/*: ref-pin
+        # Every dryvist/* reference must name a 40-hex commit SHA.
+        dryvist/*: hash-pin
+        # JacobPEvans / JacobPEvans-personal are first-party, like dryvist/*
+        # (JacobPEvans redirects to the same repositories): the same hash-pin policy.
+        JacobPEvans/*: hash-pin
+        JacobPEvans-personal/*: hash-pin
         # google/* (osv-scanner-action) — same trusted-publisher family as googleapis/*.
         google/*: ref-pin
         googleapis/*: ref-pin

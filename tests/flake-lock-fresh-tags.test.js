@@ -43,6 +43,7 @@ before(() => {
   commits.s1 = git(work, 'rev-parse', 'HEAD');
   git(work, 'checkout', '-q', 'main');
   git(work, 'branch', 'v1', commits.s1);
+  git(work, 'tag', 'v1.0.0', commits.c1);
 
   remote = path.join(root, 'remote');
   fs.mkdirSync(path.join(remote, 'dryvist'), { recursive: true });
@@ -80,6 +81,7 @@ function run(lock, policy) {
     STALE_NAMES_FILE: names,
     ...(policy ? { FLAKE_REF_POLICY: policy } : {}),
   };
+  if (!policy) delete env.FLAKE_REF_POLICY;
   delete env.GIT_TOKEN;
   const r = spawnSync('bash', [script, lockPath], { env, encoding: 'utf8' });
   return { ...r, names: fs.readFileSync(names, 'utf8').split('\n').filter(Boolean) };
@@ -105,16 +107,29 @@ test('in fail mode a dryvist input that names a branch or no ref fails and is no
   for (const ref of ['main', undefined]) {
     const r = run(lockWith('r', ref, commits.c2), 'fail');
     assert.equal(r.status, 1, String(ref));
-    assert.match(r.stdout, /dryvist input in \(dryvist\/r\) names (ref main|no ref); name a floating major tag \(vN\) instead/);
+    assert.match(r.stdout, /dryvist input in \(dryvist\/r\) names (ref main|no ref); name a floating major tag \(vN\) or an exact release tag instead/);
     assert.deepEqual(r.names, []);
   }
 });
 
+test('in fail mode an exact release tag is a pin and passes', () => {
+  const r = run(lockWith('r', 'v1.0.0', commits.c1), 'fail');
+  assert.equal(r.status, 0, r.stdout + r.stderr);
+  assert.doesNotMatch(r.stdout, /::error::/);
+  assert.deepEqual(r.names, []);
+});
+
+test('with no policy set a dryvist input that names a branch fails', () => {
+  const r = run(lockWith('r', 'main', commits.c2));
+  assert.equal(r.status, 1, r.stdout + r.stderr);
+  assert.match(r.stdout, /::error::dryvist input in \(dryvist\/r\) names ref main/);
+});
+
 test('in warn mode a dryvist input naming a branch is a warning and keeps the branch-head check', () => {
-  const fresh = run(lockWith('r', 'main', commits.c2));
+  const fresh = run(lockWith('r', 'main', commits.c2), 'warn');
   assert.equal(fresh.status, 0, fresh.stdout + fresh.stderr);
   assert.match(fresh.stdout, /::warning::dryvist input in \(dryvist\/r\) names ref main/);
-  const stale = run(lockWith('r', 'main', commits.c1));
+  const stale = run(lockWith('r', 'main', commits.c1), 'warn');
   assert.equal(stale.status, 1, stale.stdout + stale.stderr);
   assert.deepEqual(stale.names, ['in']);
 });
