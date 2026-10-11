@@ -208,7 +208,7 @@ jobs:
 
   # 3. Trade this job's OIDC token for a scoped OpenBao token, bound to this
   # repository and ref (the docs-publisher pattern already in production —
-  # see dryvist/docs docs-starlight publish-public-docs.yml). The role name
+  # see the docs publisher workflow). The role name
   # equals `inputs.target`; each target's own AppRole-free JWT role and its
   # narrow policy are provisioned in ansible-proxmox-apps, not here. The
   # minted token is used only within this job — no other job reads it.
