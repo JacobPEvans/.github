@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.12.0](https://github.com/dryvist/.github/compare/v1.11.4...v1.12.0) (2026-10-11)
+
+
+### Features
+
+* **renovate:** ignore the agent sandbox App's commits when deciding to rebase ([#350](https://github.com/dryvist/.github/issues/350)) ([bd555fd](https://github.com/dryvist/.github/commit/bd555fd87a63178fee343ffca72a590ad343a502))
+
 ## [1.11.4](https://github.com/dryvist/.github/compare/v1.11.3...v1.11.4) (2026-10-11)
 
 
