@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.14.1](https://github.com/dryvist/.github/compare/v1.14.0...v1.14.1) (2026-10-11)
+
+
+### Bug Fixes
+
+* **sweep:** treat the first-party workflows group as a first-party bump ([#376](https://github.com/dryvist/.github/issues/376)) ([26dcb51](https://github.com/dryvist/.github/commit/26dcb51084d33fd4f665723a62f236357098b109))
+
 ## [1.14.0](https://github.com/dryvist/.github/compare/v1.13.2...v1.14.0) (2026-10-11)
 
 
