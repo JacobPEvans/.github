@@ -249,12 +249,13 @@ jobs:
             title=$(jq -r '.title // ""' <<<"$pr")
             author=$(jq -r '.author.login // ""' <<<"$pr")
             # A first-party bump: a Renovate PR whose title updates a dryvist/
-            # package or a github.com/dryvist/ git source. A title is
-            # attacker-controlled, so it counts only on a PR that Renovate
-            # itself opened.
+            # package or a github.com/dryvist/ git source, or the
+            # "first-party workflows" group (renovate-grouping.json), which
+            # matches only dryvist packages. A title is attacker-controlled,
+            # so it counts only on a PR that Renovate itself opened.
             first_party=false
             if [ "$author" = "app/renovate" ] \
-              && [[ "$title" =~ ^[a-z]+(\([a-z0-9-]+\))?:\ update\ (dependency\ )?(dryvist/|https://github\.com/dryvist/) ]]; then
+              && [[ "$title" =~ ^[a-z]+(\([a-z0-9-]+\))?:\ update\ ((dependency\ )?(dryvist/|https://github\.com/dryvist/)|first-party\ workflows(\ |$)) ]]; then
               first_party=true
             fi
             # renovate-presets.json no longer labels first-party minors or
