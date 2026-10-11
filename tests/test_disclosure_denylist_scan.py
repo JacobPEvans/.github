@@ -117,6 +117,60 @@ class DisclosureDenylistScanTest(unittest.TestCase):
         self.assertIn("PR title:1", result.stdout)
         self.assertNotIn("ANOTHER-TERM", result.stdout)
 
+    def test_term_inside_a_larger_word_does_not_hit(self):
+        """The false-positive fix: a denylisted term is only a hit as a whole token.
+
+        Without `grep -w` these three lines each matched, which is what made the
+        gate fire on ordinary prose that merely contains the term as a substring.
+        """
+        (self.repo / "notes.txt").write_text(
+            "prefixSECRET-TERM\n"
+            "SECRET-TERMsuffix\n"
+            "wrappedSECRET-TERMinside\n"
+        )
+        run_git(self.repo, "add", "-A")
+        run_git(self.repo, "commit", "-q", "-m", "substring only")
+
+        result = self._run()
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_standalone_term_still_hits(self):
+        """Effectiveness is preserved: the same term as its own token still fails.
+
+        Paired with the test above — the fix must narrow matching without
+        blinding the gate, so this asserts recall at each separator a real leak
+        would use.
+        """
+        for line in ("SECRET-TERM", "host SECRET-TERM here",
+                     "(SECRET-TERM)", "SECRET-TERM.example", "a/SECRET-TERM/b"):
+            with self.subTest(line=line):
+                (self.repo / "notes.txt").write_text(line + "\n")
+                run_git(self.repo, "add", "-A")
+                run_git(self.repo, "commit", "-q", "-m", "leak")
+
+                result = self._run()
+                self.assertEqual(result.returncode, 1, f"missed: {line!r}")
+                self.assertIn("notes.txt:1", result.stdout)
+                self.assertNotIn("SECRET-TERM", result.stdout)
+                self.assertNotIn("SECRET-TERM", result.stderr)
+
+    def test_underscore_bounds_a_term(self):
+        """`grep -w` counts `_` as a word character, so it is normalized away.
+
+        Without the normalization this line escapes the gate, because `_` glues
+        the term to the neighbouring token and `-w` then sees one long word.
+        """
+        (self.repo / "notes.txt").write_text("prefix_SECRET-TERM_suffix\n")
+        run_git(self.repo, "add", "-A")
+        run_git(self.repo, "commit", "-q", "-m", "underscore adjacent")
+
+        result = self._run()
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertIn("notes.txt:1", result.stdout)
+        self.assertNotIn("SECRET-TERM", result.stdout)
+
+
+
     def test_missing_denylist_is_instrument_error(self):
         result = subprocess.run(
             ["bash", str(SCRIPT), str(self.tmp / "nope.txt"), self.base_sha],
