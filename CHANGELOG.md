@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.11.4](https://github.com/dryvist/.github/compare/v1.11.3...v1.11.4) (2026-10-11)
+
+
+### Bug Fixes
+
+* **cancel-on-close:** treat gh's missing-run message as cancelled ([#344](https://github.com/dryvist/.github/issues/344)) ([2a76f76](https://github.com/dryvist/.github/commit/2a76f76cb01d285f670383900ae85ae99a8ae280))
+* **disclosure-gate:** scan only the lines a pull request adds ([#346](https://github.com/dryvist/.github/issues/346)) ([e78d763](https://github.com/dryvist/.github/commit/e78d7633b4f5cc85704e8f6fd9fa44cf5c39c3c9))
+
 ## [1.11.3](https://github.com/dryvist/.github/compare/v1.11.2...v1.11.3) (2026-10-11)
 
 
