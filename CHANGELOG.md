@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.11.3](https://github.com/dryvist/.github/compare/v1.11.2...v1.11.3) (2026-10-11)
+
+
+### Bug Fixes
+
+* **ansible-ci:** skip Molecule on Markdown-only changes and empty scenario selections ([#340](https://github.com/dryvist/.github/issues/340)) ([f4a5588](https://github.com/dryvist/.github/commit/f4a558823fba2491b9d812285b1cab3ce8cc7b1e))
+* **canary:** skip the caller stacks on Markdown-only pull requests ([#342](https://github.com/dryvist/.github/issues/342)) ([2a3bedb](https://github.com/dryvist/.github/commit/2a3bedbbe7db1b7f806c1f9eda3b3f00e68e8f3a))
+
 ## [1.11.2](https://github.com/dryvist/.github/compare/v1.11.1...v1.11.2) (2026-10-10)
 
 
