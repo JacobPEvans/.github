@@ -25,7 +25,8 @@
   "prHourlyLimit": 0,
   "rebaseWhen": "conflicted",
   "gitIgnoredAuthors": [
-    "279454174+dryvist-github-actions[bot]@users.noreply.github.com"
+    "279454174+dryvist-github-actions[bot]@users.noreply.github.com",
+    "329540381+jacobs-agent-smith[bot]@users.noreply.github.com"
   ],
   "ignoreDeprecated": true,
   "osvVulnerabilityAlerts": true,
