@@ -72,7 +72,9 @@ jobs:
       # flake.lock updater: it normally merges its own PRs within the same
       # minute, but when that self-merge fails nothing else was watching, so
       # those PRs sat open indefinitely while this sweep could not see them.
-      BOT_AUTHORS: "app/renovate app/dryvist-github-actions"
+      # app/jacobpevans-release-please opens release PRs; on a repo whose
+      # `automerge` property is "simple" they merge like any other bot PR.
+      BOT_AUTHORS: "app/renovate app/dryvist-github-actions app/jacobpevans-release-please"
       # Cap on the discovery search. Hitting it is reported, never silently
       # truncated.
       SEARCH_LIMIT: "200"
@@ -249,6 +251,16 @@ jobs:
               continue
             fi
 
+            # A repo whose `automerge` custom property is "manual" needs a
+            # person's approval on bot PRs (org-automerge-manual ruleset).
+            manual=$(gh api "repos/${ORG}/${repo}/properties/values" \
+              --jq 'any(.[]; .property_name == "automerge" and .value == "manual")' 2>/dev/null || echo false)
+            if [ "$manual" = "true" ]; then
+              skipped=$(( skipped + 1 ))
+              rows="${rows}| \`${repo}#${num}\` | skipped | automerge-manual |"$'\n'
+              continue
+            fi
+
             # Anchor the soak on the HEAD COMMIT, never on the PR's createdAt.
             # Renovate updates a PR in place: same PR, new commit carrying a
             # newer digest or lock state, createdAt unchanged. Since this sweep
@@ -290,6 +302,11 @@ jobs:
               && [[ "$title" =~ ^[a-z]+(\([a-z0-9-]+\))?:\ update\ (dryvist/|https://github\.com/dryvist/) ]]; then
               pr_min_age=$(( FIRST_PARTY_MIN_AGE_HOURS * 3600 ))
               pr_min_hours=$FIRST_PARTY_MIN_AGE_HOURS
+            fi
+            # A release PR carries no new dependency, so it has nothing to soak.
+            if [ "$author" = "app/jacobpevans-release-please" ]; then
+              pr_min_age=0
+              pr_min_hours=0
             fi
             [ -z "$reason" ] && [ "$age" -lt "$pr_min_age" ] \
               && reason="age:$(( age / 3600 ))h<${pr_min_hours}h"
