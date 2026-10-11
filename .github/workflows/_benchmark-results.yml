@@ -13,7 +13,8 @@ on:
         description: mlx-benchmarks ref containing the published-result schema and validator.
         type: string
         required: false
-        default: main
+        # renovate: datasource=github-tags depName=dryvist/mlx-benchmarks
+        default: 0db275164810a5593401b47e492cf87f12456b16  # v0.9.2
 
 permissions:
   contents: read
