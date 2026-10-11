@@ -148,10 +148,11 @@ already read; do not paste the result into any public artifact.
 
 Renovate PRs are merged by `.github/workflows/bot-pr-automerge-sweep.yml`, an
 hourly deterministic backstop that re-derives eligibility from the GitHub API
-(bot author, no `update:major` label, mergeable, no failing or pending check,
-head commit older than the 3-day soak) and squash-merges into the PR's own base
-branch. Renovate still tries to merge its own PRs first; the sweep exists
-because it usually does not succeed, and the gap was being filled by hand.
+(bot author, no `update:major` or `bump:minor` label, mergeable, checks green,
+head commit past the soak: 48 h, or none for a first-party bump) and
+squash-merges into the PR's own base branch. Renovate still tries to merge its
+own PRs first; the sweep exists because it usually does not succeed, and the
+gap was being filled by hand.
 
 **Do not merge a bot PR yourself, and do not review one to unblock it.** A bot
 PR the sweep will not merge is a defect in `renovate-presets.json` or in the

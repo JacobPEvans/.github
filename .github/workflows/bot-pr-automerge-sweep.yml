@@ -177,6 +177,14 @@ jobs:
           # PRs. 48h keeps a real independent soak while letting a batch clear
           # inside the same week it opened.
           MIN_AGE_HOURS: "48"
+          # Minimum head-commit age for a FIRST-PARTY bump: a Renovate PR whose
+          # title updates a dryvist/ package or a github.com/dryvist/ git source.
+          # renovate-presets.json merges own-org dependencies with a zero-day
+          # minimumReleaseAge, and the producer's own release gate already
+          # exercised that version, so an independent soak adds delay only.
+          # Third-party bumps keep MIN_AGE_HOURS. Majors and minors stay held
+          # by label whatever this value is.
+          FIRST_PARTY_MIN_AGE_HOURS: "0"
           # A bot PR still open past this is a policy defect, not a backlog
           # item. The job fails so the failure notification surfaces it.
           STALL_DAYS: "7"
@@ -221,7 +229,7 @@ jobs:
             pr='{}'
             for attempt in 1 2 3 4; do
               pr=$(gh pr view "$num" --repo "${ORG}/${repo}" \
-                --json number,labels,mergeable,mergeStateStatus,headRefName,headRefOid \
+                --json number,title,author,labels,mergeable,mergeStateStatus,headRefName,headRefOid \
                 2>/dev/null || echo '{}')
               [ "$(jq -r '.mergeable // "UNKNOWN"' <<<"$pr")" != "UNKNOWN" ] && break
               sleep $(( attempt * 3 ))
@@ -231,6 +239,8 @@ jobs:
             state=$(jq -r '.mergeStateStatus // "UNKNOWN"' <<<"$pr")
             mergeable=$(jq -r '.mergeable // "UNKNOWN"' <<<"$pr")
             branch=$(jq -r '.headRefName // "?"' <<<"$pr")
+            title=$(jq -r '.title // ""' <<<"$pr")
+            author=$(jq -r '.author.login // ""' <<<"$pr")
             held=$(jq -r 'any(.labels[]?; .name == "update:major" or .name == "bump:minor" or .name == "bump:major" or .name == "needs-review")' <<<"$pr")
 
             if [ -z "$sha" ]; then
@@ -269,8 +279,20 @@ jobs:
               CLEAN|UNSTABLE) ;;
               *) [ -z "$reason" ] && reason="state:${state}" ;;
             esac
-            [ -z "$reason" ] && [ "$age" -lt "$min_age" ] \
-              && reason="age:$(( age / 3600 ))h<${MIN_AGE_HOURS}h"
+            # A first-party bump (see FIRST_PARTY_MIN_AGE_HOURS) ages on its own
+            # threshold; every other bump keeps MIN_AGE_HOURS. A title is
+            # attacker-controlled, so it counts only on a PR that Renovate
+            # itself opened: any other author, whatever the title says, keeps
+            # the full soak.
+            pr_min_age=$min_age
+            pr_min_hours=$MIN_AGE_HOURS
+            if [ "$author" = "app/renovate" ] \
+              && [[ "$title" =~ ^[a-z]+(\([a-z0-9-]+\))?:\ update\ (dryvist/|https://github\.com/dryvist/) ]]; then
+              pr_min_age=$(( FIRST_PARTY_MIN_AGE_HOURS * 3600 ))
+              pr_min_hours=$FIRST_PARTY_MIN_AGE_HOURS
+            fi
+            [ -z "$reason" ] && [ "$age" -lt "$pr_min_age" ] \
+              && reason="age:$(( age / 3600 ))h<${pr_min_hours}h"
 
             # UNSTABLE is accepted only when the sole non-green signal is
             # Renovate's own renovate/stability-days status. That status
