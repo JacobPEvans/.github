@@ -32,7 +32,9 @@ for dir in $PYTHON_DIRS; do
     uv export --format requirements-txt --output-file requirements.txt --locked --no-emit-project
     # --disable-pip audits the hash-pinned export as written instead of
     # installing it into a venv, so the runner's Python and platform need
-    # no wheel for each package (macOS-only wheels such as mlx).
-    uvx pip-audit --progress-spinner=off --desc --disable-pip "${ignore_args[@]}" -r requirements.txt
+    # no wheel for each package (macOS-only wheels such as mlx). --no-deps
+    # is required for a project with no dependencies, whose empty export
+    # carries no hashes; the lock already lists every transitive package.
+    uvx pip-audit --progress-spinner=off --desc --disable-pip --no-deps "${ignore_args[@]}" -r requirements.txt
   )
 done
