@@ -102,7 +102,7 @@ In the consumer's `flake.nix`:
 
 ```nix
 {
-  inputs.nix-devenv.url = "github:dryvist/nix-devenv";
+  inputs.nix-devenv.url = "github:dryvist/nix-devenv?ref=vN";
   inputs.flake-parts.url = "github:hercules-ci/flake-parts";
 
   outputs = inputs@{ flake-parts, nix-devenv, ... }:

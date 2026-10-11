@@ -152,7 +152,7 @@ hourly deterministic backstop that re-derives eligibility from the GitHub API
 head commit past the soak: 48 h, or none for a first-party bump) and
 squash-merges into the PR's own base branch. Renovate still tries to merge its
 own PRs first; the sweep exists because it usually does not succeed, and the
-gap was being filled by hand.
+gap was being filled by hand. First-party minor and major bumps and release PRs wait for a person.
 
 **Do not merge a bot PR yourself, and do not review one to unblock it.** A bot
 PR the sweep will not merge is a defect in `renovate-presets.json` or in the

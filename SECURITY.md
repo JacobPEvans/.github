@@ -15,38 +15,43 @@ to this [.github repository](https://github.com/dryvist/.github/security/advisor
 
 Automated dependency updates use Renovate via this repo's master presets
 ([`renovate-presets.json`](renovate-presets.json) + [`renovate-grouping.json`](renovate-grouping.json)).
-Minor/patch updates auto-merge publisher-agnostically; trust tiers gate only
-majors and PR-creation cadence. Canonical, fuller documentation:
+Third-party minor/patch updates auto-merge publisher-agnostically; trust tiers gate only
+majors and PR-creation cadence. `dryvist/**` patch updates auto-merge; `dryvist/**` minor
+and major updates wait for a person. Canonical, fuller documentation:
 [docs.jacobpevans.com/infrastructure/cicd/dependency-automation](https://docs.jacobpevans.com/infrastructure/cicd/dependency-automation).
 
 | Tier | Scope | PR-creation cadence | Majors |
 | --- | --- | --- | --- |
-| **First-party** | `dryvist/**`, `JacobPEvans/**`, `JacobPEvans-personal/**` | at any time | auto-merge immediately, incl. major |
+| **First-party** | `dryvist/**` | at any time | wait for a person (minor too; patch auto-merges) |
+| **Own-org personal** | `JacobPEvans/**`, `JacobPEvans-personal/**` | at any time | auto-merge immediately, incl. major |
 | **Trusted** | curated ~50-org allowlist | twice-weekly (Mon/Thu) | never auto-merge; 3-day review PR (`dep:review`) |
 | **Untrusted** | all other external deps | weekly (Mon) | never auto-merge; held 30 days for review |
-| **Security / CVE** | any vulnerability alert | immediate (0-day PR) | minor/patch auto-merges fast; a security major still opens for review |
+| **Security / CVE** | any vulnerability alert | immediate (0-day PR) | third-party minor/patch and `dryvist/**` patch auto-merge fast; majors open for review |
 
-**Minor/patch updates auto-merge publisher-agnostically** — any package, any ecosystem,
-any publisher — after a 3-day stabilization window and green CI. Trust tiers do not
-gate minor/patch; they gate only majors and PR-creation cadence.
+**Third-party minor/patch updates auto-merge publisher-agnostically** — any package, any
+ecosystem, any publisher — after a 3-day stabilization window and green CI. Trust tiers
+do not gate third-party minor/patch; they gate only majors and PR-creation cadence.
 
-- **First-party** — our own published packages. release-please opens a release PR and
+- **First-party** — our own published `dryvist/**` packages. release-please opens a release PR and
   a person merges it. Consumers receive a first-party release as a bump PR: patch
   releases auto-merge after green CI; minor and major releases wait for a person.
+- **Own-org personal** — `JacobPEvans/**` and `JacobPEvans-personal/**` packages auto-merge
+  immediately at any update type, including major.
 - **Trusted** — the curated org allowlist in `renovate-presets.json` (actions, google,
   github, hashicorp, astral-sh, NixOS, …). Trust here shortens the major-default
   30-day hold to a 3-day review PR (`dep:review` label); it has no effect on
-  minor/patch, which auto-merges the same way for every tier.
+  third-party minor/patch, which auto-merges the same way for every third-party tier.
 - **Untrusted** — everything else. Minor/patch still auto-merges through the same
   publisher-agnostic rule; the only differences are a weekly (vs twice-weekly)
   PR-creation cadence and the full 30-day hold before a major opens for review.
-- **Majors never auto-merge except first-party** — a compatible-looking version is not
-  a compatible API. First-party majors auto-merge immediately; trusted-org majors open
-  a 3-day review PR; every other major is held 30 days.
+- **Majors never auto-merge, except own-org personal packages** — a compatible-looking
+  version is not a compatible API. `dryvist/**` majors wait for a person; trusted-org majors
+  open a 3-day review PR; every other major is held 30 days.
 - **Security / CVE** — `vulnerabilityAlerts` surfaces a 0-day PR immediately, bypassing
   the normal schedule. The auto-merge decision then falls to the same packageRules as
-  any other update: a security minor/patch inherits the broad rule's fast auto-merge,
-  while a security major still opens for review like any other major.
+  any other update: a third-party security minor/patch inherits the broad rule's fast
+  auto-merge, a `dryvist/**` security patch auto-merges after green CI, while a security
+  major, or a `dryvist/**` security minor, still opens for review like any other.
 - **Supply-chain safety** for the broad auto-merge set is the deterministic
   `dependency-review` job (`actions/dependency-review-action`) inside the required
   Merge Gate on public repos. The `dryvist/ai-workflows` dependency reviewer is
