@@ -30,6 +30,9 @@ for dir in $PYTHON_DIRS; do
     # to fail with "editable requirement cannot be installed when requiring
     # hashes".
     uv export --format requirements-txt --output-file requirements.txt --locked --no-emit-project
-    uvx pip-audit --progress-spinner=off --desc "${ignore_args[@]}" -r requirements.txt
+    # --disable-pip audits the hash-pinned export as written instead of
+    # installing it into a venv, so the runner's Python and platform need
+    # no wheel for each package (macOS-only wheels such as mlx).
+    uvx pip-audit --progress-spinner=off --desc --disable-pip "${ignore_args[@]}" -r requirements.txt
   )
 done
