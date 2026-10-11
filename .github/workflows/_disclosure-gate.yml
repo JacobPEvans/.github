@@ -2,7 +2,7 @@
 #
 # Two independent checks that keep sensitive values out of a public repo:
 #
-#   - "gitleaks (redacted)" — same pattern as JacobPEvans/docs' secret-scan.yml:
+#   - "gitleaks (redacted)" — same pattern as dryvist/docs' secret-scan.yml:
 #     gitleaks-action with the org GITLEAKS_PRIVATE_CONFIG materialized to a
 #     runner-local file at run time. PR comments, the SARIF artifact and the
 #     job summary are all disabled, and the action runs gitleaks with
