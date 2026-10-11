@@ -190,6 +190,11 @@ jobs:
           # A bot PR still open past this is a policy defect, not a backlog
           # item. The job fails so the failure notification surfaces it.
           STALL_DAYS: "7"
+          # On "manual" repos, the local triage agent's verdict: the label it
+          # adds to a low-risk bot PR, and the ID of the GitHub App it acts as.
+          # Unset means no manual-repo bot PR merges.
+          TRIAGE_LABEL: "auto-merge-deps"
+          TRIAGE_APP_ID: ${{ vars.BOT_TRIAGE_APP_ID }}
         run: |
           set -euo pipefail
 
@@ -264,14 +269,30 @@ jobs:
               continue
             fi
 
-            # A repo whose `automerge` custom property is "manual" needs a
-            # person's approval on bot PRs (org-automerge-manual ruleset).
+            # A repo whose `automerge` custom property is "manual" merges a bot
+            # PR only when the local triage agent judged it low risk: the
+            # TRIAGE_LABEL was added by the TRIAGE_APP_ID App, after the head commit.
+            # The label alone proves nothing, since anyone with triage access
+            # can add it; the event history names who added it and when.
             manual=$(gh api "repos/${ORG}/${repo}/properties/values" \
               --jq 'any(.[]; .property_name == "automerge" and .value == "manual")' 2>/dev/null || echo false)
             if [ "$manual" = "true" ]; then
-              skipped=$(( skipped + 1 ))
-              rows="${rows}| \`${repo}#${num}\` | skipped | automerge-manual |"$'\n'
-              continue
+              head_date=$(gh api "repos/${ORG}/${repo}/commits/${sha}" \
+                --jq '.commit.committer.date' 2>/dev/null || echo "")
+              triaged=""
+              if [[ "$TRIAGE_APP_ID" =~ ^[0-9]+$ ]]; then
+                triaged=$(gh api "repos/${ORG}/${repo}/issues/${num}/events" --paginate \
+                  --jq ".[] | select(.event == \"labeled\" and .label.name == \"${TRIAGE_LABEL}\"
+                                and .performed_via_github_app.id == ${TRIAGE_APP_ID}) | .created_at" 2>/dev/null \
+                  | sort | tail -1)
+              fi
+              has_label=$(jq -r --arg l "$TRIAGE_LABEL" 'any(.labels[]?; .name == $l)' <<<"$pr")
+              if [ "$has_label" != "true" ] || [ -z "$triaged" ] || [ -z "$head_date" ] \
+                || [ "$(date -u -d "$triaged" +%s)" -lt "$(date -u -d "$head_date" +%s)" ]; then
+                skipped=$(( skipped + 1 ))
+                rows="${rows}| \`${repo}#${num}\` | skipped | automerge-manual (no triage label) |"$'\n'
+                continue
+              fi
             fi
 
             # Anchor the soak on the HEAD COMMIT, never on the PR's createdAt.
