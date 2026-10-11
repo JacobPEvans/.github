@@ -100,6 +100,22 @@
         "evaluate"
       ],
       "groupName": "HuggingFace"
+    },
+    {
+      "description": "First-party reusable workflows: one PR per repository for dryvist/.github and dryvist/ai-workflows github-actions updates. Majors are excluded and open individually. Auto-merge and labels come from the dryvist/** rules in renovate-presets.json; Renovate auto-merges a grouped branch only when every update in it auto-merges and unions their labels, so a group holding a minor bump stays open with bump:minor.",
+      "matchManagers": [
+        "github-actions"
+      ],
+      "matchPackageNames": [
+        "dryvist/.github",
+        "dryvist/ai-workflows"
+      ],
+      "matchUpdateTypes": [
+        "minor",
+        "patch",
+        "digest"
+      ],
+      "groupName": "first-party workflows"
     }
   ]
 }
