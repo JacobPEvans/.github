@@ -249,7 +249,7 @@ jobs:
             # itself opened.
             first_party=false
             if [ "$author" = "app/renovate" ] \
-              && [[ "$title" =~ ^[a-z]+(\([a-z0-9-]+\))?:\ update\ (dryvist/|https://github\.com/dryvist/) ]]; then
+              && [[ "$title" =~ ^[a-z]+(\([a-z0-9-]+\))?:\ update\ (dependency\ )?(dryvist/|https://github\.com/dryvist/) ]]; then
               first_party=true
             fi
             # renovate-presets.json no longer labels first-party minors or
