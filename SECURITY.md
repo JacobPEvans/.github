@@ -69,6 +69,8 @@ below).
 Patch updates to dryvist references merge automatically after CI passes.
 Minor and major updates, and release-please PRs, are merged by a person.
 Floating major tags (`vN`) move on release, after the Canary check passes.
+On a pull request that changes only Markdown outside `.github/` and
+`tests/canary/`, the Canary check passes with a notice and runs no stacks.
 They serve the Nix, Ansible and OpenTofu git refs only.
 
 Trust tiers govern *review cadence for majors* (above), never the pin style:
