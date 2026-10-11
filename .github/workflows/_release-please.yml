@@ -9,8 +9,9 @@
 # Auth: the org-level release App — app-id from the
 # `GH_ACTION_RELEASE_PLEASE_APP_ID` org variable, private key from the
 # `GH_ACTION_RELEASE_PLEASE_PRIVATE_KEY` org secret. The App must be installed
-# on the org with Contents + Pull requests write. The App token (vs the default
-# GITHUB_TOKEN) lets the release PR trigger `pull_request` CI gates.
+# on the org with Contents, Pull requests and Workflows write. The App token
+# (vs the default GITHUB_TOKEN) lets the release PR trigger `pull_request` CI
+# gates.
 #
 # Behavior:
 #   - Opens or updates the release PR on main and leaves it open. The workflow
@@ -129,6 +130,7 @@ jobs:
           # App's full installed permissions.
           permission-contents: write
           permission-pull-requests: write
+          permission-workflows: write
 
       - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5
         id: release
@@ -170,6 +172,7 @@ jobs:
           private-key: ${{ secrets.GH_ACTION_RELEASE_PLEASE_PRIVATE_KEY }}
           permission-contents: write
           permission-pull-requests: write
+          permission-workflows: write
 
       - name: Sparse-checkout shared scripts from this repo
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
