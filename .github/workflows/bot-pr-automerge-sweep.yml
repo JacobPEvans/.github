@@ -243,7 +243,20 @@ jobs:
             branch=$(jq -r '.headRefName // "?"' <<<"$pr")
             title=$(jq -r '.title // ""' <<<"$pr")
             author=$(jq -r '.author.login // ""' <<<"$pr")
-            held=$(jq -r 'any(.labels[]?; .name == "update:major" or .name == "bump:minor" or .name == "bump:major" or .name == "needs-review")' <<<"$pr")
+            # A first-party bump: a Renovate PR whose title updates a dryvist/
+            # package or a github.com/dryvist/ git source. A title is
+            # attacker-controlled, so it counts only on a PR that Renovate
+            # itself opened.
+            first_party=false
+            if [ "$author" = "app/renovate" ] \
+              && [[ "$title" =~ ^[a-z]+(\([a-z0-9-]+\))?:\ update\ (dryvist/|https://github\.com/dryvist/) ]]; then
+              first_party=true
+            fi
+            # renovate-presets.json no longer labels first-party minors or
+            # majors, so a hold label on one is left over and is not read.
+            held=$(jq -r --argjson fp "$first_party" 'any(.labels[]?;
+              (($fp | not) and (.name == "update:major" or .name == "bump:minor" or .name == "bump:major"))
+              or .name == "needs-review")' <<<"$pr")
 
             if [ -z "$sha" ]; then
               skipped=$(( skipped + 1 ))
@@ -292,14 +305,10 @@ jobs:
               *) [ -z "$reason" ] && reason="state:${state}" ;;
             esac
             # A first-party bump (see FIRST_PARTY_MIN_AGE_HOURS) ages on its own
-            # threshold; every other bump keeps MIN_AGE_HOURS. A title is
-            # attacker-controlled, so it counts only on a PR that Renovate
-            # itself opened: any other author, whatever the title says, keeps
-            # the full soak.
+            # threshold; every other bump keeps MIN_AGE_HOURS.
             pr_min_age=$min_age
             pr_min_hours=$MIN_AGE_HOURS
-            if [ "$author" = "app/renovate" ] \
-              && [[ "$title" =~ ^[a-z]+(\([a-z0-9-]+\))?:\ update\ (dryvist/|https://github\.com/dryvist/) ]]; then
+            if [ "$first_party" = "true" ]; then
               pr_min_age=$(( FIRST_PARTY_MIN_AGE_HOURS * 3600 ))
               pr_min_hours=$FIRST_PARTY_MIN_AGE_HOURS
             fi
@@ -372,13 +381,14 @@ jobs:
             fi
 
             # The App token is used HERE and nowhere else. --squash matches
-            # renovate-presets.json automergeStrategy. No --base flag: gh
-            # merges into the PR's own base, which is `develop` on git-flow
-            # repos and `main` on trunk repos. No --delete-branch either:
-            # delete_branch_on_merge is already set on these repos, and losing
-            # the race with it would be reported here as a merge failure that
-            # did not happen.
-            if GH_TOKEN="$MERGE_TOKEN" gh pr merge "$num" --repo "${ORG}/${repo}" --squash; then
+            # renovate-presets.json automergeStrategy; a base that allows only
+            # merge commits (a git-flow `main`) rejects it, so --merge follows.
+            # No --base flag: gh merges into the PR's own base. No
+            # --delete-branch either: delete_branch_on_merge is already set on
+            # these repos, and losing the race with it would be reported here
+            # as a merge failure that did not happen.
+            if GH_TOKEN="$MERGE_TOKEN" gh pr merge "$num" --repo "${ORG}/${repo}" --squash \
+              || GH_TOKEN="$MERGE_TOKEN" gh pr merge "$num" --repo "${ORG}/${repo}" --merge; then
               merged=$(( merged + 1 ))
               echo "merged  ${repo}#${num}  ${branch}"
               rows="${rows}| \`${repo}#${num}\` | merged | ${branch} |"$'\n'
