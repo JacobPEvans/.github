@@ -4,7 +4,7 @@
     "dryvist/.github master Renovate preset \u2014 the single source of truth for Renovate policy across ALL dryvist AND JacobPEvans repos. This is the MASTER: it extends no other repository\u2019s config. JacobPEvans/.github extends THIS (github>dryvist/.github:renovate-presets), never the reverse. Consumers extend it via local>dryvist/.github (the default preset, which extends this) or directly via github>dryvist/.github:renovate-presets.",
     "Architecture: this file holds global policy (auto-merge, trusted orgs, stability features, custom managers). Ecosystem grouping rules live in renovate-grouping.json and are pulled in via extends below. Inline description fields on each rule are the canonical documentation \u2014 keep them current.",
     "WARNING: platformAutomerge MUST stay false. GitHub\u2019s auto-merge queue has a known bug where PRs pass all checks but GitHub never executes the merge \u2014 PRs stall for days with no error. With false, Renovate merges directly via API with built-in retry logic. Do NOT set this to true.",
-    "Tiered freshness model (canonical: SECURITY.md \u2192 Dependency Trust, and docs.jacobpevans.com/infrastructure/cicd/dependency-automation). MINOR/PATCH updates auto-merge PUBLISHER-AGNOSTICALLY \u2014 any package, any ecosystem (dryvist/** auto-merges patch, minor and major) \u2014 after a 3-day release-age stabilization + green CI (the Merge Gate, plus the deterministic dependency-review supply-chain scan on public repos). Lock-file maintenance cannot use Renovate's minimumReleaseAge because a package manager selects every changed version. Instead, Renovate creates the branch only in one of two fixed source windows and considers automerge only in a later fixed window at least 72 elapsed hours away; the branch is never refreshed outside its source window, so the policy is a real current-head soak without custom automation. The four-hour windows preserve the existing Monday 05:00 and Thursday 13:00 starts while matching Renovate's hosted scheduler guidance, preventing a once-per-four-hours scheduler from missing either run. Trust tiers gate ONLY majors and PR-creation cadence, never minor/patch. PR-creation cadence: every non-daily tier (top-level default, the broad minor/patch rule, the trusted-org major rule, custom-regex managers, lockFileMaintenance) runs on exactly two weekly windows \u2014 Monday early morning and Thursday afternoon America/New_York; first-party (own-org) overrides to 'at any time' for immediate propagation, and repos with a genuinely daily cadence (e.g. nix-darwin's flake-input groups) keep that cadence locally rather than adopting the two-window default. MAJORS never auto-merge (a compatible-looking version is not a compatible API): JacobPEvans majors auto-merge immediately, dryvist majors auto-merge after green CI (except on automerge-manual repos), trusted-org majors open a review PR on the same two-window cadence, every other major is held 30 days for review. Security/CVE fixes bypass the schedule via the top-level vulnerabilityAlerts block (0-day PR); a security major, like any major, opens for review rather than auto-merging."
+    "Tiered freshness model (canonical: SECURITY.md \u2192 Dependency Trust, and docs.jacobpevans.com/infrastructure/cicd/dependency-automation). MINOR/PATCH updates auto-merge PUBLISHER-AGNOSTICALLY \u2014 any package, any ecosystem (dryvist/** auto-merges patch, minor and major) \u2014 after a 3-day release-age stabilization + green CI (the Merge Gate, plus the deterministic dependency-review supply-chain scan on public repos). Lock-file maintenance cannot use Renovate's minimumReleaseAge because a package manager selects every changed version. Instead, Renovate creates the branch only in one of two fixed source windows and considers automerge only in a later fixed window at least 72 elapsed hours away; the branch is never refreshed outside its source window, so the policy is a real current-head soak without custom automation. The four-hour windows preserve the existing Monday 05:00 and Thursday 13:00 starts while matching Renovate's hosted scheduler guidance, preventing a once-per-four-hours scheduler from missing either run. Trust tiers gate ONLY majors and PR-creation cadence, never minor/patch. PR-creation cadence: every non-daily tier (top-level default, the broad minor/patch rule, the trusted-org major rule, custom-regex managers, lockFileMaintenance) runs on exactly two weekly windows \u2014 Monday early morning and Thursday afternoon America/New_York; first-party (own-org) updates run on the 1st and 15th of each month, and repos with a genuinely daily cadence (e.g. nix-darwin's flake-input groups) keep that cadence locally rather than adopting the two-window default. MAJORS never auto-merge (a compatible-looking version is not a compatible API): JacobPEvans majors auto-merge immediately, dryvist majors auto-merge after green CI (except on automerge-manual repos), trusted-org majors open a review PR on the same two-window cadence, every other major is held 30 days for review. Security/CVE fixes bypass the schedule via the top-level vulnerabilityAlerts block (0-day PR); a security major, like any major, opens for review rather than auto-merging."
   ],
   "extends": [
     "local>dryvist/.github:renovate-grouping"
@@ -309,7 +309,7 @@
       ]
     },
     {
-      "description": "Auto-merge own-org dependencies (JacobPEvans / JacobPEvans-personal) \u2014 immediate, all ecosystems, all update types including major. Placed AFTER the major-default rule so we restore immediate auto-merge for our own majors that the major-default rule would otherwise hold for 30 days. Also overrides the top-level two-window `schedule` with `at any time` so first-party changes propagate on merge, not on the Fri/Mon window \u2014 release-please cuts + auto-merges the release, and consumers pick it up here at 0-day. JacobPEvans-personal is the renamed legacy personal account (dryvist/JacobPEvans account split); JacobPEvans/** still resolves via redirect but the current owner is listed explicitly. The `https://github.com/<owner>/**` forms cover a git-refs customManager dependency (e.g. the requirements.yml annotation manager below): its packageName is the full clone URL it was annotated with, never the bare `owner/repo` form the other patterns match, so both forms are needed to treat a first-party git-ref pin as own-org.",
+      "description": "Auto-merge own-org dependencies (JacobPEvans / JacobPEvans-personal) \u2014 on the 1st and 15th of each month, all ecosystems, all update types including major. Placed AFTER the major-default rule so we restore auto-merge without a release-age hold for our own majors that the major-default rule would otherwise hold for 30 days. Also overrides the top-level two-window `schedule` with a twice-monthly window (1st and 15th, 05:00 America/New_York), so first-party releases reach every consumer in two batches a month; a repo that needs a release sooner bumps it in its own PR. JacobPEvans-personal is the renamed legacy personal account (dryvist/JacobPEvans account split); JacobPEvans/** still resolves via redirect but the current owner is listed explicitly. The `https://github.com/<owner>/**` forms cover a git-refs customManager dependency (e.g. the requirements.yml annotation manager below): its packageName is the full clone URL it was annotated with, never the bare `owner/repo` form the other patterns match, so both forms are needed to treat a first-party git-ref pin as own-org.",
       "matchPackageNames": [
         "JacobPEvans/**",
         "JacobPEvans-personal/**",
@@ -319,7 +319,7 @@
       "automerge": true,
       "minimumReleaseAge": "0 days",
       "schedule": [
-        "at any time"
+        "* 5 1,15 * *"
       ]
     },
     {
@@ -351,7 +351,7 @@
       "pinDigests": true
     },
     {
-      "description": "dryvist/** patch updates, any package manager: auto-merge after green CI, no release-age hold, scheduled at any time.",
+      "description": "dryvist/** patch updates, any package manager: auto-merge after green CI, no release-age hold, scheduled on the 1st and 15th of each month.",
       "matchPackageNames": [
         "dryvist/**",
         "https://github.com/dryvist/**"
@@ -362,11 +362,11 @@
       "automerge": true,
       "minimumReleaseAge": "0 days",
       "schedule": [
-        "at any time"
+        "* 5 1,15 * *"
       ]
     },
     {
-      "description": "dryvist/** minor updates, any package manager: auto-merge after green CI, no release-age hold, scheduled at any time. Repos whose automerge property is manual are excluded by the last rule in this list.",
+      "description": "dryvist/** minor updates, any package manager: auto-merge after green CI, no release-age hold, scheduled on the 1st and 15th of each month. Repos whose automerge property is manual are excluded by the last rule in this list.",
       "matchPackageNames": [
         "dryvist/**",
         "https://github.com/dryvist/**"
@@ -377,7 +377,7 @@
       "automerge": true,
       "minimumReleaseAge": "0 days",
       "schedule": [
-        "at any time"
+        "* 5 1,15 * *"
       ]
     },
     {
@@ -394,11 +394,11 @@
       "automerge": false,
       "minimumReleaseAge": "0 days",
       "schedule": [
-        "at any time"
+        "* 5 1,15 * *"
       ]
     },
     {
-      "description": "dryvist/** major updates, any package manager: auto-merge after green CI, scheduled at any time. Repos whose automerge property is manual are excluded by the last rule in this list.",
+      "description": "dryvist/** major updates, any package manager: auto-merge after green CI, scheduled on the 1st and 15th of each month. Repos whose automerge property is manual are excluded by the last rule in this list.",
       "matchPackageNames": [
         "dryvist/**",
         "https://github.com/dryvist/**"
@@ -409,7 +409,7 @@
       "automerge": true,
       "minimumReleaseAge": "0 days",
       "schedule": [
-        "at any time"
+        "* 5 1,15 * *"
       ]
     },
     {
@@ -503,7 +503,7 @@
       "extractVersion": "^(?<version>.*)$"
     },
     {
-      "description": "Fri ~15:00 / Mon ~05:00 America/New_York schedule for all custom regex managers, except first-party (own-org) packageNames — those keep the own-org rule's `at any time` schedule (Renovate is last-match-wins per attribute, and this rule sits after the own-org rule in the array, so without the exclusion it would win back the two-window schedule for every first-party git-refs dep the annotation managers above track).",
+      "description": "Fri ~15:00 / Mon ~05:00 America/New_York schedule for all custom regex managers, except first-party (own-org) packageNames — those keep the own-org rules' twice-monthly schedule (Renovate is last-match-wins per attribute, and this rule sits after the own-org rule in the array, so without the exclusion it would win back the two-window schedule for every first-party git-refs dep the annotation managers above track).",
       "matchManagers": [
         "custom.regex"
       ],
