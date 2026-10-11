@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.13.0](https://github.com/dryvist/.github/compare/v1.12.1...v1.13.0) (2026-10-11)
+
+
+### Features
+
+* **renovate:** auto-merge first-party bumps except on automerge-manual repos ([#364](https://github.com/dryvist/.github/issues/364)) ([0d71241](https://github.com/dryvist/.github/commit/0d71241a4b834a7124dca61d8e43e38d79f790eb))
+* **renovate:** group first-party workflow updates into one PR per repo ([#359](https://github.com/dryvist/.github/issues/359)) ([7cac0e2](https://github.com/dryvist/.github/commit/7cac0e20211989e61a1dc91ec2612ed22e1945d0))
+
+
+### Bug Fixes
+
+* **ai-review:** pass the Claude bot App key to pr-agent ([#358](https://github.com/dryvist/.github/issues/358)) ([d4dc1fc](https://github.com/dryvist/.github/commit/d4dc1fc6548088f2e00a7ed38d33614104ed33e6))
+* **workflows:** check out the validator from dryvist/mlx-benchmarks ([#363](https://github.com/dryvist/.github/issues/363)) ([4b474e1](https://github.com/dryvist/.github/commit/4b474e13510e3c1bbbb59b05c2cc381fc25698c6))
+
 ## [1.12.1](https://github.com/dryvist/.github/compare/v1.12.0...v1.12.1) (2026-10-11)
 
 
