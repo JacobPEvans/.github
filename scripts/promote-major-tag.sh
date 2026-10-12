@@ -3,7 +3,8 @@
 #
 # Moves the floating major tag (v1 for v1.x.y) to <sha>, the commit of the
 # highest vX.Y.Z tag pointing at it, once the Canary check on <sha> succeeded.
-# Prerelease tags never match and never move the floating tag.
+# A tag may carry SemVer build metadata (vX.Y.Z+rev.1). Prerelease tags never
+# match and never move the floating tag.
 #
 # Called by promote-major-tag.yml (release published, workflow_dispatch, and
 # workflow_call from a dryvist repo's release caller) and by the `promote` job
@@ -30,7 +31,7 @@ case "${2:-}" in
   --no-canary) no_canary=true ;;
 esac
 
-tag_re='^v[0-9]+\.[0-9]+\.[0-9]+$'
+tag_re='^v[0-9]+\.[0-9]+\.[0-9]+(\+[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?$'
 tag="$(git tag --points-at "$sha" | grep -E "$tag_re" | sort -V | tail -n 1 || true)"
 if [[ -z "$tag" ]]; then
   echo "::notice::$sha has no vX.Y.Z tag; nothing to promote."

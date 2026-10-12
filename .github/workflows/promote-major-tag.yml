@@ -27,8 +27,9 @@
 #       with:
 #         tag: ${{ github.event.release.tag_name }}
 #
-# Only stable tags (vMAJOR.MINOR.PATCH) move the floating tag. Only one promotion
-# runs at a time. The floating tag never moves backwards.
+# Only stable tags (vMAJOR.MINOR.PATCH, optionally with +build metadata) move the
+# floating tag. Only one promotion runs at a time. The floating tag never moves
+# backwards.
 
 name: Promote Major Tag
 

@@ -168,3 +168,65 @@ test('promote-major-release skips a component-prefixed tag with --no-canary', ()
   assert.match(r.stdout, /::notice::'name-v1\.1\.0' is not a vMAJOR\.MINOR\.PATCH release tag/);
   assert.equal(remoteTag(f.origin, 'v1'), f.a);
 });
+
+// A new commit on top of the fixture carrying `name`, pushed with its tag.
+function tagged(f, name) {
+  git(f.work, 'commit', '-q', '--allow-empty', '-m', name);
+  const sha = git(f.work, 'rev-parse', 'HEAD');
+  git(f.work, 'tag', name, sha);
+  git(f.work, 'push', '-q', 'origin', 'HEAD', '--tags');
+  return sha;
+}
+
+test('moves the floating tag for a stable tag with build metadata', () => {
+  const f = fixture();
+  const sha = tagged(f, 'v1.1.0+rev.1');
+  const r = promote(f, sha, { flags: ['--no-canary'] });
+  assert.equal(r.status, 0, r.stderr);
+  assert.equal(remoteTag(f.origin, 'v1'), sha);
+});
+
+for (const name of ['v1.2.0+rev.1', 'v1.2.0+cli.0.4.53']) {
+  test(`promote-major-release accepts ${name}`, () => {
+    const f = fixture();
+    const sha = tagged(f, name);
+    const r = release(f, name, '--no-canary');
+    assert.equal(r.status, 0, r.stderr);
+    assert.equal(remoteTag(f.origin, 'v1'), sha);
+  });
+}
+
+test('never moves the floating tag for a prerelease tag with build metadata', () => {
+  const f = fixture();
+  const sha = tagged(f, 'v1.2.0-rc.1+build');
+  const r = promote(f, sha, { flags: ['--no-canary'] });
+  assert.equal(r.status, 0, r.stderr);
+  assert.match(r.stdout, /::notice::.* has no vX\.Y\.Z tag/);
+  assert.equal(remoteTag(f.origin, 'v1'), f.a);
+  const rel = release(f, 'v1.2.0-rc.1+build', '--no-canary');
+  assert.equal(rel.status, 0, rel.stderr);
+  assert.match(rel.stdout, /::notice::.* is not a vMAJOR\.MINOR\.PATCH release tag/);
+  assert.equal(remoteTag(f.origin, 'v1'), f.a);
+});
+
+for (const name of ['v1.1.0+', 'v1.1.0+a..b', 'v1.1.0+a_b', 'v1.1.0+a.']) {
+  test(`promote-major-release rejects malformed build metadata ${name}`, () => {
+    const f = fixture();
+    const r = release(f, name, '--no-canary');
+    assert.equal(r.status, 0, r.stderr);
+    assert.match(r.stdout, /::notice::.* is not a vMAJOR\.MINOR\.PATCH release tag/);
+    assert.equal(remoteTag(f.origin, 'v1'), f.a);
+    assert.equal(release(f, name).status, 1);
+  });
+}
+
+test('still refuses to move the floating tag backwards for a metadata tag', () => {
+  const f = fixture();
+  promote(f, f.b, { check: 'completed success' });
+  git(f.work, 'tag', 'v1.0.0+rev.1', f.a);
+  git(f.work, 'push', '-q', 'origin', '--tags');
+  const r = promote(f, f.a, { check: 'completed success' });
+  assert.equal(r.status, 1);
+  assert.match(r.stdout, /Refusing to move it backwards/);
+  assert.equal(remoteTag(f.origin, 'v1'), f.b);
+});
