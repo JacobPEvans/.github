@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.15.0](https://github.com/dryvist/.github/compare/v1.14.1...v1.15.0) (2026-10-12)
+
+
+### Features
+
+* **promote-major-tag:** promote stable tags that carry SemVer build metadata ([#381](https://github.com/dryvist/.github/issues/381)) ([739c592](https://github.com/dryvist/.github/commit/739c592bbd6e080d199f45959c21edd7abf1939c))
+
 ## [1.14.1](https://github.com/dryvist/.github/compare/v1.14.0...v1.14.1) (2026-10-11)
 
 
