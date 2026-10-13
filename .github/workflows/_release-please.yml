@@ -17,6 +17,9 @@
 #     the release PR against develop without tagging. A main push only creates
 #     the tag and GitHub Release after every merged release PR commit is present
 #     on main. main is never merged back into develop (there is no back-merge).
+#   - Every release PR is set to auto-merge as soon as it is opened or updated;
+#     it merges when its required checks pass. The bot PR sweep merges any
+#     release PR this step missed.
 #
 # Config modes (selected by inputs):
 #   - Manifest mode (default): the caller's repo holds release-please-config.json
@@ -63,9 +66,8 @@ on:
         default: ubuntu-24.04
       auto-merge:
         description: >-
-          Deprecated and ignored. The release PR is never merged by this workflow;
-          a person merges it. The input stays declared so callers that still pass it
-          keep running.
+          Deprecated and ignored. Every release PR is set to auto-merge. The input
+          stays declared so callers that still pass it keep running.
         type: boolean
         default: false
       release-type:
@@ -175,3 +177,15 @@ jobs:
           include-component-in-tag: ${{ inputs.include-component-in-tag }}
           skip-github-release: ${{ steps.flow.outputs.flow == 'gitflow' && (github.ref_name == 'develop' || (github.ref_name == 'main' && steps.tag-guard.outputs.safe != 'true')) }}
           skip-github-pull-request: ${{ steps.flow.outputs.flow == 'gitflow' && github.ref_name == 'main' }}
+
+      - name: Enable auto-merge on the release PR
+        if: ${{ steps.release.outputs.prs_created == 'true' }}
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_PRS: ${{ steps.release.outputs.prs }}
+        run: |
+          set -euo pipefail
+          jq -r '.[].number' <<<"$RELEASE_PRS" | while read -r number; do
+            gh pr merge "$number" --auto --squash || gh pr merge "$number" --auto --merge
+          done

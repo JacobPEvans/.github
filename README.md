@@ -111,9 +111,9 @@ jobs:
       GH_ACTION_RELEASE_PLEASE_PRIVATE_KEY: ${{ secrets.GH_ACTION_RELEASE_PLEASE_PRIVATE_KEY }}
 ```
 
-The reusable workflow leaves the release PR open for a person to merge. On
-trunk repos it targets main and creates the tag and GitHub Release in the same
-run. On git-flow repos it targets develop without creating a tag; after
+The reusable workflow sets every release PR to auto-merge, and it merges when
+its required checks pass. On trunk repos it targets main and creates the tag
+and GitHub Release in the same run. On git-flow repos it targets develop without creating a tag; after
 promotion to main, the workflow creates the tag and GitHub Release.
 
 Org-level prereqs (one-time, owner-handled) for the dryvist release App:
