@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.16.0](https://github.com/dryvist/.github/compare/v1.15.0...v1.16.0) (2026-10-13)
+
+
+### Features
+
+* **release-freeze:** fail develop PRs while a promotion PR is in progress ([c60319d](https://github.com/dryvist/.github/commit/c60319d3833619e0cb3c71a07f894110adc51781))
+* **release-please:** git-flow repos release from develop and never back-merge ([95e066a](https://github.com/dryvist/.github/commit/95e066a9c71ebbd23af2f051c7dce1e6dcf0ca9b))
+* **release-please:** release from develop on git-flow repos; add release-freeze status ([#383](https://github.com/dryvist/.github/issues/383)) ([5f2e374](https://github.com/dryvist/.github/commit/5f2e3744facddfa1e2818e2d6eda7ae160cc7801))
+
 ## [1.15.0](https://github.com/dryvist/.github/compare/v1.14.1...v1.15.0) (2026-10-12)
 
 
