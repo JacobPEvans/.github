@@ -89,6 +89,8 @@ jobs:
     uses: dryvist/ai-workflows/.github/workflows/pr-agent.yml@286459bf39f4c269e10d6b28e8c29ba225faed5e # v0.49.0
     with:
       review: true
+      # Open-source repositories request review-oss.
+      oss_model: review-oss
       # improve stays off: over 84 org-wide runs (2026-09-18/19) it took a
       # median 62 s of model time per pull request — more than the review
       # itself — and produced "No code suggestions" three times out of four.
