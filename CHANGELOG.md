@@ -5,6 +5,7 @@
 
 ### Features
 
+* **bot-sweep:** merge small documentation projection PRs and release PRs ([#386](https://github.com/dryvist/.github/issues/386)) ([f5d3bdf](https://github.com/dryvist/.github/commit/f5d3bdf507095dc7434b814b05e71b0338d4b3ee))
 * **release-please:** auto-merge every release PR ([#385](https://github.com/dryvist/.github/issues/385)) ([714b5fc](https://github.com/dryvist/.github/commit/714b5fc43b3a5fcfa15310272f264276c238f042))
 
 ## [1.16.0](https://github.com/dryvist/.github/compare/v1.15.0...v1.16.0) (2026-10-13)
