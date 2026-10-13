@@ -1,31 +1,28 @@
----
 # Reusable: Release Please (org-native).
 #
 # Canonical release-please workflow for the org, hosted once here so every repo
 # runs identical logic. A calling repo adds a thin
-# `.github/workflows/release-please.yml` that `uses:` this file and passes the
-# org-level release App private key.
+# .github/workflows/release-please.yml and passes the org-level release App key.
 #
 # Auth: the org-level release App — app-id from the
-# `GH_ACTION_RELEASE_PLEASE_APP_ID` org variable, private key from the
-# `GH_ACTION_RELEASE_PLEASE_PRIVATE_KEY` org secret. The App must be installed
-# on the org with Contents, Pull requests and Workflows write. The App token
-# (vs the default GITHUB_TOKEN) lets the release PR trigger `pull_request` CI
-# gates.
+# GH_ACTION_RELEASE_PLEASE_APP_ID org variable, private key from the
+# GH_ACTION_RELEASE_PLEASE_PRIVATE_KEY org secret. The App must be installed
+# with Contents, Pull requests and Workflows write. Its token lets the release
+# PR trigger pull_request CI gates.
 #
 # Behavior:
-#   - Opens or updates the release PR on main and leaves it open. The workflow
-#     does not approve or merge the release PR, and never queues it to merge; a
-#     human merges it. Every version bump (patch, minor, or major) takes the same
-#     path. Bumps are computed by release-please from conventional commits.
+#   - Trunk repos (default branch main): open or update a release PR against
+#     main and create the tag and GitHub Release in the same run.
+#   - Git-flow repos (default branch develop): a develop push opens or updates
+#     the release PR against develop without tagging. A main push only creates
+#     the tag and GitHub Release after every merged release PR commit is present
+#     on main. main is never merged back into develop (there is no back-merge).
 #
 # Config modes (selected by inputs):
-#   - Manifest mode (default): the caller's repo holds `release-please-config.json`
-#     + `.release-please-manifest.json`; the action reads them via the GitHub API.
-#   - Non-manifest mode: the caller passes `config-file: ''`, `manifest-file: ''`
-#     and a `release-type` (e.g. `simple`). The repo then needs NO release-please
-#     config files — behavior comes from these inputs. Version state is read from
-#     the repo's existing tags/releases.
+#   - Manifest mode (default): the caller's repo holds release-please-config.json
+#     + .release-please-manifest.json; the action reads them via the GitHub API.
+#   - Non-manifest mode: the caller passes config-file: '' and manifest-file: ''
+#     with a release-type (e.g. simple). Version state is read from existing tags.
 #
 # Asset-carrying repos (opt-in per repo, default off): a GitHub release is
 # immutable once published, so assets cannot be attached to it afterwards. Such a
@@ -34,13 +31,16 @@
 # so release-please creates the release as a draft and the tag immediately
 # (without force-tag-creation the tag is created lazily at publish, and the next
 # release run cannot find the previous release). The caller then adds an asset
-# job that uploads to the draft (`gh release upload <tag_name>`) and a publish job
-# that runs `gh release edit <tag_name> --draft=false` after it. The action has no
-# draft input, so this stays config-driven. Repos with no assets leave `draft`
-# unset and are unaffected. Recovery after a failed asset job: "Re-run failed
-# jobs" (not "Re-run all"), which keeps the release outputs from the first run.
+# job that uploads to the draft (gh release upload <tag_name>) and a publish job
+# that runs gh release edit <tag_name> --draft=false after it. The action has no
+# draft input, so this stays config-driven. Repos with no assets leave draft
+# unset and are unaffected. Recovery after a failed asset job: Re-run failed
+# jobs (not Re-run all), which keeps the release outputs from the first run.
 #
-# Caller shape (manifest mode — current default):
+# Caller shape (manifest mode):
+#   on:
+#     push:
+#       branches: [main, develop]
 #   jobs:
 #     release-please:
 #       permissions:
@@ -48,7 +48,7 @@
 #         pull-requests: write
 #       uses: dryvist/.github/.github/workflows/_release-please.yml@<40-hex commit SHA> # vX.Y.Z
 #       secrets:
-#         GH_ACTION_RELEASE_PLEASE_PRIVATE_KEY: ${{ secrets.GH_ACTION_RELEASE_PLEASE_PRIVATE_KEY }}
+#         GH_ACTION_RELEASE_PLEASE_PRIVATE_KEY: secrets.GH_ACTION_RELEASE_PLEASE_PRIVATE_KEY
 name: _release-please
 
 on:
@@ -70,7 +70,7 @@ on:
         default: false
       release-type:
         description: >-
-          release-please release type (e.g. `simple`). Set this AND blank out
+          release-please release type (e.g. simple). Set this AND blank out
           config-file/manifest-file to run config-free (non-manifest) mode.
         type: string
         default: ''
@@ -85,8 +85,7 @@ on:
         type: string
         default: .release-please-manifest.json
       include-component-in-tag:
-        description: >-
-          Whether to prefix tags/branches with the component name. Default false.
+        description: Whether to prefix tags/branches with the component name.
         type: boolean
         default: false
     secrets:
@@ -95,9 +94,8 @@ on:
     outputs:
       release_created:
         description: >-
-          'true' when this run cut a release (tag + GitHub release), '' or
-          'false' otherwise. Lets a caller gate a follow-on job — e.g. fanning
-          out a downstream revalidation dispatch only on an actual release.
+          true when this run cut a release (tag + GitHub Release), false otherwise.
+          Lets a caller gate a follow-on job on an actual release.
         value: ${{ jobs.release-please.outputs.release_created }}
       tag_name:
         description: >-
@@ -119,53 +117,22 @@ jobs:
       contents: write
       pull-requests: write
     steps:
+      - name: Detect repository flow
+        id: flow
+        env:
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          if [[ "$DEFAULT_BRANCH" == "develop" ]]; then
+            echo "flow=gitflow" >> "$GITHUB_OUTPUT"
+            echo "target_branch=develop" >> "$GITHUB_OUTPUT"
+          else
+            echo "flow=trunk" >> "$GITHUB_OUTPUT"
+            echo "target_branch=main" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Generate GitHub App token
         id: app-token
-        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3
-        with:
-          app-id: ${{ vars.GH_ACTION_RELEASE_PLEASE_APP_ID }}
-          private-key: ${{ secrets.GH_ACTION_RELEASE_PLEASE_PRIVATE_KEY }}
-          # Scope the minted token down to exactly what release-please needs
-          # (release commits/tags + release PRs) instead of inheriting the
-          # App's full installed permissions.
-          permission-contents: write
-          permission-pull-requests: write
-          permission-workflows: write
-
-      - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5
-        id: release
-        with:
-          token: ${{ steps.app-token.outputs.token }}
-          # Cut releases from main on every repo. Without this, the action
-          # defaults to the repo's DEFAULT branch — which on git-flow repos is
-          # `develop`, so release-please ran the whole release lifecycle on
-          # develop and failed to create the tag/release. main is the release
-          # branch in both models, so pinning it is a no-op for trunk repos
-          # (default already main) and the fix for git-flow repos.
-          target-branch: main
-          release-type: ${{ inputs.release-type }}
-          config-file: ${{ inputs.config-file }}
-          manifest-file: ${{ inputs.manifest-file }}
-          include-component-in-tag: ${{ inputs.include-component-in-tag }}
-
-  # Back-merge the release commit main -> develop on git-flow repos, so develop's
-  # manifest and CHANGELOG track released versions instead of drifting behind
-  # main after every release. Runs only when a release was actually cut
-  # (release_created) — a run that merely opened/updated the release PR has
-  # nothing on main to back-merge. No-op on trunk repos (handled in the script).
-  back-merge:
-    needs: release-please
-    if: ${{ needs.release-please.outputs.release_created == 'true' }}
-    runs-on: ${{ inputs.runner_label }}
-    timeout-minutes: 10
-    # pull-requests: write is required — the back-merge opens a PR and queues it to
-    # merge (develop's ruleset rejects a direct merge), not a direct merge.
-    permissions:
-      contents: write
-      pull-requests: write
-    steps:
-      - name: Generate GitHub App token
-        id: app-token
+        if: ${{ steps.flow.outputs.flow == 'trunk' || github.ref_name == 'main' || github.ref_name == 'develop' }}
         uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3
         with:
           app-id: ${{ vars.GH_ACTION_RELEASE_PLEASE_APP_ID }}
@@ -174,17 +141,37 @@ jobs:
           permission-pull-requests: write
           permission-workflows: write
 
-      - name: Sparse-checkout shared scripts from this repo
+      - name: Sparse-checkout release tag guard
+        if: ${{ steps.flow.outputs.flow == 'gitflow' && github.ref_name == 'main' }}
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           repository: dryvist/.github
           ref: ${{ job.workflow_sha }}
           path: .gh-shared
-          sparse-checkout: scripts/release-backmerge.sh
+          sparse-checkout: scripts/release-tag-guard.sh
           sparse-checkout-cone-mode: false
 
-      - name: Back-merge main into develop
+      - name: Guard release tags on main
+        id: tag-guard
+        if: ${{ steps.flow.outputs.flow == 'gitflow' && github.ref_name == 'main' }}
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           GH_REPO: ${{ github.repository }}
-        run: bash .gh-shared/scripts/release-backmerge.sh
+        run: |
+          set -euo pipefail
+          bash .gh-shared/scripts/release-tag-guard.sh | tee "$RUNNER_TEMP/release-tag-guard.log"
+          tail -n 1 "$RUNNER_TEMP/release-tag-guard.log" >> "$GITHUB_OUTPUT"
+
+      - name: Run release-please
+        id: release
+        if: ${{ steps.flow.outputs.flow == 'trunk' || github.ref_name == 'main' || github.ref_name == 'develop' }}
+        uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+          target-branch: ${{ steps.flow.outputs.target_branch }}
+          release-type: ${{ inputs.release-type }}
+          config-file: ${{ inputs.config-file }}
+          manifest-file: ${{ inputs.manifest-file }}
+          include-component-in-tag: ${{ inputs.include-component-in-tag }}
+          skip-github-release: ${{ steps.flow.outputs.flow == 'gitflow' && (github.ref_name == 'develop' || (github.ref_name == 'main' && steps.tag-guard.outputs.safe != 'true')) }}
+          skip-github-pull-request: ${{ steps.flow.outputs.flow == 'gitflow' && github.ref_name == 'main' }}
