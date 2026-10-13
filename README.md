@@ -99,7 +99,7 @@ plus a thin caller workflow that delegates to the org-native reusable workflow:
 name: Release Please
 on:
   push:
-    branches: [main]
+    branches: [main, develop]
 permissions: {}
 jobs:
   release-please:
@@ -111,8 +111,10 @@ jobs:
       GH_ACTION_RELEASE_PLEASE_PRIVATE_KEY: ${{ secrets.GH_ACTION_RELEASE_PLEASE_PRIVATE_KEY }}
 ```
 
-The reusable workflow opens or updates the release PR and leaves it open. A
-person merges it, for every bump type (patch, minor, or major).
+The reusable workflow leaves the release PR open for a person to merge. On
+trunk repos it targets main and creates the tag and GitHub Release in the same
+run. On git-flow repos it targets develop without creating a tag; after
+promotion to main, the workflow creates the tag and GitHub Release.
 
 Org-level prereqs (one-time, owner-handled) for the dryvist release App:
 
