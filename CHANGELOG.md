@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.17.0](https://github.com/dryvist/.github/compare/v1.16.0...v1.17.0) (2026-10-13)
+
+
+### Features
+
+* **release-please:** auto-merge every release PR ([#385](https://github.com/dryvist/.github/issues/385)) ([714b5fc](https://github.com/dryvist/.github/commit/714b5fc43b3a5fcfa15310272f264276c238f042))
+
 ## [1.16.0](https://github.com/dryvist/.github/compare/v1.15.0...v1.16.0) (2026-10-13)
 
 
