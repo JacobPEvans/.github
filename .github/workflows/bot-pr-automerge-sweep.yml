@@ -66,19 +66,33 @@ jobs:
     timeout-minutes: 20
     environment: automation
     env:
-      # Space-separated. Every author here produces MECHANICAL dependency PRs
+      # Space-separated. Every author here produces PRs
       # whose eligibility is fully decidable from API fields — never an author
       # whose PRs carry human intent. app/dryvist-github-actions is the
       # flake.lock updater: it normally merges its own PRs within the same
       # minute, but when that self-merge fails nothing else was watching, so
       # those PRs sat open indefinitely while this sweep could not see them.
-      # app/jacobpevans-release-please opens release PRs; on a repo whose
-      # `automerge` property is "simple" they merge like any other bot PR.
-      BOT_AUTHORS: "app/renovate app/dryvist-github-actions app/jacobpevans-release-please"
+      # app/jacobpevans-release-please opens release PRs on every repo flow
+      # (main on trunk repos, develop on git-flow repos); each merges like any
+      # other bot PR once its checks are green, and skips the triage-label gate
+      # on "manual" repos. app/openbao-service-broker opens documentation
+      # projection PRs and is gated by scripts/bot-sweep-policy.sh.
+      BOT_AUTHORS: "app/renovate app/dryvist-github-actions app/jacobpevans-release-please app/openbao-service-broker"
+      SMALL_DIFF_MAX_FILES: "5"
+      SMALL_DIFF_MAX_LINES: "100"
+      SMALL_DIFF_PROJECTION_AUTHOR: "app/openbao-service-broker"
+      SMALL_DIFF_PROJECTION_REPO: "dryvist/docs"
       # Cap on the discovery search. Hitting it is reported, never silently
       # truncated.
       SEARCH_LIMIT: "200"
     steps:
+      - name: Check out the sweep policy script
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          sparse-checkout: scripts/bot-sweep-policy.sh
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
       - name: Discover open bot PRs
         id: discover
         env:
@@ -236,7 +250,7 @@ jobs:
             pr='{}'
             for attempt in 1 2 3 4; do
               pr=$(gh pr view "$num" --repo "${ORG}/${repo}" \
-                --json number,title,author,labels,mergeable,mergeStateStatus,headRefName,headRefOid \
+                --json number,title,author,labels,mergeable,mergeStateStatus,headRefName,headRefOid,baseRefName,changedFiles,additions,deletions,files \
                 2>/dev/null || echo '{}')
               [ "$(jq -r '.mergeable // "UNKNOWN"' <<<"$pr")" != "UNKNOWN" ] && break
               sleep $(( attempt * 3 ))
@@ -277,7 +291,7 @@ jobs:
             # can add it; the event history names who added it and when.
             manual=$(gh api "repos/${ORG}/${repo}/properties/values" \
               --jq 'any(.[]; .property_name == "automerge" and .value == "manual")' 2>/dev/null || echo false)
-            if [ "$manual" = "true" ]; then
+            if [ "$manual" = "true" ] && [ "$author" != "app/jacobpevans-release-please" ]; then
               head_date=$(gh api "repos/${ORG}/${repo}/commits/${sha}" \
                 --jq '.commit.committer.date' 2>/dev/null || echo "")
               triaged=""
@@ -296,6 +310,8 @@ jobs:
               fi
             fi
 
+            policy=$(REPO="${ORG}/${repo}" bash scripts/bot-sweep-policy.sh <<<"$pr")
+
             # Anchor the soak on the HEAD COMMIT, never on the PR's createdAt.
             # Renovate updates a PR in place: same PR, new commit carrying a
             # newer digest or lock state, createdAt unchanged. Since this sweep
@@ -313,6 +329,7 @@ jobs:
 
             age=$(( now - $(date -u -d "$committed" +%s) ))
             reason=""
+            [[ "$policy" == skip:* ]] && reason=${policy#skip:}
 
             # Majors and minors never auto-merge, and neither does a flake bump that
             # moved nixpkgs or landed off a release. The labels are read, never parsed

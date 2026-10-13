@@ -149,7 +149,7 @@ Renovate and release PRs are merged by `.github/workflows/bot-pr-automerge-sweep
 hourly deterministic backstop that re-derives eligibility from the GitHub API
 (bot author, no `update:major` or `bump:minor` label, mergeable, checks green,
 head commit past the soak: 48 h, or none for a first-party bump) and
-squash-merges into the PR's own base branch. Release PRs skip the soak. A repo whose
+squash-merges into the PR's own base branch. Release PRs skip the soak and the triage label. A repo whose
 `automerge` property is `manual` (every `ansible-*` repo and `nix-ai`) gets a
 sweep merge only after the local triage agent adds `auto-merge-deps`.
 

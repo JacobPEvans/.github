@@ -149,7 +149,8 @@ uses: dryvist/.github/.github/workflows/_ci-gate.yml@<40-hex commit SHA> # vX.Y.
 ```
 
 - Renovate updates the SHA and the version comment together, in one PR per consumer.
-- Patch updates merge automatically after CI passes. Minor and major updates, and release PRs, are merged by a person.
+- Patch updates merge automatically after CI passes. Minor and major updates are merged by a person. Release PRs and small
+  documentation-projection PRs merge themselves.
 - Nix, Ansible and OpenTofu git references use the floating major tag (`?ref=vN`). The lock file records the exact revision.
 - Third-party actions in these workflows are pinned to full commit SHAs.
 
