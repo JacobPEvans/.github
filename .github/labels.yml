@@ -140,6 +140,13 @@
   description: "Skip AI review - Opt out of all automated AI reviews"
 
 # =============================================================================
+# RELEASE COORDINATION LABEL
+# =============================================================================
+- name: "release:in-progress"
+  color: "0D9488"
+  description: "Promotion PR in flight; develop is frozen"
+
+# =============================================================================
 # HUMAN REVIEW LABEL - The human counterpart to ai:* review state
 # Applied by an AI flow to a main-targeted PR to request a human before merge.
 # Neon lime stands out from the crowded amber/red ramps on purpose.
