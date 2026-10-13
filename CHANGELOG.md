@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.17.1](https://github.com/dryvist/.github/compare/v1.17.0...v1.17.1) (2026-10-13)
+
+
+### Bug Fixes
+
+* **ai-review:** request review-oss for open-source repositories ([#390](https://github.com/dryvist/.github/issues/390)) ([563b4c5](https://github.com/dryvist/.github/commit/563b4c572753c59650217088a63e84c7e9dceca8))
+
 ## [1.17.0](https://github.com/dryvist/.github/compare/v1.16.0...v1.17.0) (2026-10-13)
 
 
