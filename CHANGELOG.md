@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.18.0](https://github.com/dryvist/.github/compare/v1.17.1...v1.18.0) (2026-10-14)
+
+
+### Features
+
+* **ansible-ci:** emit a tiny-diff output for small develop PRs ([#392](https://github.com/dryvist/.github/issues/392)) ([6e0b928](https://github.com/dryvist/.github/commit/6e0b92828e491e070cc3ff0f0b2004db0d32b376))
+
 ## [1.17.1](https://github.com/dryvist/.github/compare/v1.17.0...v1.17.1) (2026-10-13)
 
 
