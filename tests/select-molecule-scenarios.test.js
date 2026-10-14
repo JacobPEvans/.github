@@ -47,6 +47,22 @@ test('selects all mapped scenarios when every relevant path is covered', () => {
   );
 });
 
+test('tiny-diff filters are never treated as Molecule scenarios', () => {
+  const changedFiles = ['roles/a/tasks/main.yml'];
+  const selected = selectMoleculeScenarios({
+    changedFiles,
+    matchedFilters: ['changed', 'a', 'tiny_files', 'tiny_excluded'],
+    filterOutputs: {
+      changed_files: JSON.stringify(changedFiles),
+      a_files: JSON.stringify(changedFiles),
+      tiny_files_files: JSON.stringify(changedFiles),
+      tiny_excluded_files: JSON.stringify(changedFiles),
+    },
+    warn: () => {},
+  });
+  assert.equal(selected, '["a"]');
+});
+
 test('selects the mapped scenario for a caller workflow change', () => {
   const changedFile = '.github/workflows/ci-gate.yml';
 

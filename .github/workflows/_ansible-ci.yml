@@ -151,6 +151,11 @@ on:
       molecule:
         description: Whether molecule-relevant files changed and a Molecule scenario exists (the standardized filter).
         value: ${{ jobs.changes.outputs.molecule }}
+      tiny:
+        description: >-
+          Whether this is a small pull request into develop with only safe task or
+          handler changes.
+        value: ${{ jobs.changes.outputs.tiny }}
       renovate_config:
         description: Whether the caller's Renovate config changed.
         value: ${{ jobs.changes.outputs.renovate_config }}
@@ -193,6 +198,7 @@ jobs:
       # only after a push to main; focused PRs and branch pushes use mapped
       # scenarios or [] when caller contracts cover the change.
       molecule_scenarios: ${{ steps.scenario_scope.outputs.scenarios }}
+      tiny: ${{ steps.tiny.outputs.tiny }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       # A repo without a Molecule scenario has nothing for the molecule job to
@@ -311,8 +317,56 @@ jobs:
               - '.config/molecule/**'
               - 'requirements-ci.txt'
               - 'ansible.cfg'
+            # Counts only add/modify changes inside the tiny-diff allowlist.
+            tiny_files:
+              - added|modified: 'roles/*/tasks/**'
+              - added|modified: 'roles/*/handlers/**'
+            tiny_excluded:
+              - '.github/**'
+              - 'inventory/**'
+              - 'group_vars/**'
+              - 'host_vars/**'
+              - 'playbooks/**'
+              - 'tests/**'
+              - 'molecule/**'
+              - 'requirements*'
+              - 'ansible.cfg'
+              - 'roles/openbao/**'
+              - 'roles/openbao_secrets/**'
+              - 'roles/*/vars/**'
+              - '**/*secret*'
+              - '**/*credential*'
+              - '**/*token*'
+              - '**/vault/**'
+              - '*.sops.*'
+              - '.sops.yaml'
+              - 'llm-models.d/**'
             ${{ inputs.molecule_scenario_filters }}
             ${{ inputs.molecule_contract_filters }}
+      # Comparing this filtered count with the PR payload rejects any changed
+      # file outside the allowlist, including deletes and renames.
+      - name: Detect tiny develop pull request
+        id: tiny
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_REF: ${{ github.base_ref }}
+          CHANGED_FILES: ${{ github.event.pull_request.changed_files }}
+          ADDITIONS: ${{ github.event.pull_request.additions }}
+          DELETIONS: ${{ github.event.pull_request.deletions }}
+          ALLOWED_FILES: ${{ steps.classify.outputs.tiny_files_count }}
+          EXCLUDED_FILES: ${{ steps.classify.outputs.tiny_excluded_count }}
+        run: |
+          tiny=false
+          if [[ "$EVENT_NAME" == "pull_request" && "$BASE_REF" == "develop" &&
+                "$CHANGED_FILES" =~ ^[0-9]+$ && "$ADDITIONS" =~ ^[0-9]+$ &&
+                "$DELETIONS" =~ ^[0-9]+$ && "$ALLOWED_FILES" =~ ^[0-9]+$ &&
+                "$EXCLUDED_FILES" =~ ^[0-9]+$ ]]; then
+            if (( 10#$CHANGED_FILES <= 2 && 10#$ADDITIONS + 10#$DELETIONS <= 10 &&
+                  10#$ALLOWED_FILES == 10#$CHANGED_FILES && 10#$EXCLUDED_FILES == 0 )); then
+              tiny=true
+            fi
+          fi
+          printf 'tiny=%s\n' "$tiny" >> "$GITHUB_OUTPUT"
       - name: Note that mapping is not required when Molecule is off
         if: >-
           ${{ (github.event_name == 'pull_request' ||
@@ -450,6 +504,7 @@ jobs:
     needs: changes
     if: >-
       ${{ inputs.molecule &&
+      needs.changes.outputs.tiny != 'true' &&
       needs.changes.outputs.molecule == 'true' &&
       needs.changes.outputs.molecule_scenarios != '[]' }}
     # Molecule gets its own label so it can run on the self-hosted fleet while

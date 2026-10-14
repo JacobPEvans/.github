@@ -19,7 +19,7 @@ function isCiInfraPath(file) {
 // Returns a JSON array of scenario names, '[]' for no scenario, or '' for the full profile. An unmapped path
 // never fails: it calls warn() once with its path and selects the full profile.
 function selectMoleculeScenarios({ changedFiles, matchedFilters, filterOutputs, warn = () => {} }) {
-  const reserved = new Set(['changed', 'contract_only', 'full_matrix']);
+  const reserved = new Set(['changed', 'contract_only', 'full_matrix', 'tiny_files', 'tiny_excluded']);
   const scenarios = matchedFilters.filter((name) => !reserved.has(name));
   const coveredFiles = new Set();
 

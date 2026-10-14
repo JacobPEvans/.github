@@ -1,12 +1,109 @@
 'use strict';
 
 const assert = require('node:assert/strict');
-const { readFileSync } = require('node:fs');
+const { execFileSync } = require('node:child_process');
+const { mkdtempSync, readFileSync } = require('node:fs');
+const { join } = require('node:path');
+const { tmpdir } = require('node:os');
 const test = require('node:test');
 
 const ansibleCi = readFileSync('.github/workflows/_ansible-ci.yml', 'utf8');
 const renovateValidator = readFileSync('.github/workflows/renovate-config-validate.yml', 'utf8');
 const renovatePreset = JSON.parse(readFileSync('renovate-presets.json', 'utf8'));
+
+function tinyRunScript() {
+  const step = ansibleCi.slice(ansibleCi.indexOf('- name: Detect tiny develop pull request'));
+  const run = step.match(/\n        run: \|\n((?: {10}[^\n]*(?:\n|$))*)/);
+  assert.ok(run, 'tiny output step has an inline run script');
+  return run[1]
+    .split('\n')
+    .filter(Boolean)
+    .map((line) => line.slice(10))
+    .join('\n');
+}
+
+function runTiny(overrides = {}) {
+  const directory = mkdtempSync(join(tmpdir(), 'ansible-ci-tiny-'));
+  const output = join(directory, 'github-output');
+  execFileSync('bash', ['-e', '-c', tinyRunScript()], {
+    env: {
+      PATH: process.env.PATH,
+      GITHUB_OUTPUT: output,
+      EVENT_NAME: 'pull_request',
+      BASE_REF: 'develop',
+      CHANGED_FILES: '2',
+      ADDITIONS: '2',
+      DELETIONS: '0',
+      ALLOWED_FILES: '2',
+      EXCLUDED_FILES: '0',
+      ...overrides,
+    },
+  });
+  return readFileSync(output, 'utf8').trim();
+}
+
+test('tiny output is wired from Detect Changes to workflow_call and skips only Molecule', () => {
+  assert.match(ansibleCi, /tiny:\n\s+description: >-\n(?:.*\n)*?\s+value: \$\{\{ jobs\.changes\.outputs\.tiny \}\}/);
+  assert.match(ansibleCi, /tiny: \$\{\{ steps\.tiny\.outputs\.tiny \}\}/);
+  assert.match(ansibleCi, /- name: Detect tiny develop pull request\n\s+id: tiny/);
+  assert.match(ansibleCi, /printf 'tiny=%s\\n' "\$tiny" >> "\$GITHUB_OUTPUT"/);
+  assert.match(
+    ansibleCi,
+    /needs\.changes\.outputs\.tiny != 'true' &&\n\s+needs\.changes\.outputs\.molecule == 'true'/,
+  );
+});
+
+test('tiny is false for pushes and pull requests into main', () => {
+  assert.equal(runTiny({ EVENT_NAME: 'push' }), 'tiny=false');
+  assert.equal(runTiny({ BASE_REF: 'main' }), 'tiny=false');
+});
+
+test('tiny is false for deleted or renamed paths', () => {
+  assert.match(ansibleCi, /tiny_files:\n\s+- added\|modified: 'roles\/\*\/tasks\/\*\*'/);
+  assert.match(ansibleCi, /- added\|modified: 'roles\/\*\/handlers\/\*\*'/);
+  assert.equal(runTiny({ CHANGED_FILES: '1', ALLOWED_FILES: '0' }), 'tiny=false');
+});
+
+test('tiny is false when any never-tiny path changed', () => {
+  const excluded = [
+    '.github/**',
+    'inventory/**',
+    'group_vars/**',
+    'host_vars/**',
+    'playbooks/**',
+    'tests/**',
+    'molecule/**',
+    'requirements*',
+    'ansible.cfg',
+    'roles/openbao/**',
+    'roles/openbao_secrets/**',
+    'roles/*/vars/**',
+    '**/*secret*',
+    '**/*credential*',
+    '**/*token*',
+    '**/vault/**',
+    '*.sops.*',
+    '.sops.yaml',
+    'llm-models.d/**',
+  ];
+  for (const pattern of excluded) assert.ok(ansibleCi.includes(`              - '${pattern}'`), pattern);
+  assert.equal(runTiny({ CHANGED_FILES: '1', ADDITIONS: '1', ALLOWED_FILES: '1', EXCLUDED_FILES: '1' }), 'tiny=false');
+});
+
+test('tiny is false for three files or more than ten changed lines', () => {
+  assert.equal(runTiny({ CHANGED_FILES: '3', ADDITIONS: '3', ALLOWED_FILES: '3' }), 'tiny=false');
+  assert.equal(runTiny({ CHANGED_FILES: '1', ADDITIONS: '11', ALLOWED_FILES: '1' }), 'tiny=false');
+});
+
+test('two task files with two changed lines produce tiny=true', () => {
+  assert.match(ansibleCi, /id: classify\n[\s\S]*?list-files: json\n[\s\S]*?tiny_files:/);
+  assert.equal(runTiny(), 'tiny=true');
+});
+
+test('missing or non-numeric tiny counts fail closed', () => {
+  assert.equal(runTiny({ CHANGED_FILES: '' }), 'tiny=false');
+  assert.equal(runTiny({ ALLOWED_FILES: 'unknown' }), 'tiny=false');
+});
 
 test('shared Ansible CI runs strict Renovate validation for renovate.json changes', () => {
   assert.match(ansibleCi, /renovate_config:\n\s+- 'renovate\.json'/);
@@ -83,10 +180,7 @@ test('mapped Molecule paths still go through the scenario selector', () => {
 });
 
 test('lint roles path keeps the repo ansible.cfg roles_path between repo roles/ and Galaxy roles', () => {
-  const { execFileSync } = require('node:child_process');
-  const { mkdtempSync, writeFileSync } = require('node:fs');
-  const { join } = require('node:path');
-  const { tmpdir } = require('node:os');
+  const { writeFileSync } = require('node:fs');
   const step = ansibleCi.match(/- name: Set Ansible roles path\n\s+run: (.*)\n/);
   assert.ok(step, 'Set Ansible roles path step exists');
   const resolve = (cfg) => {
