@@ -7,7 +7,8 @@
 # update from the base branch, so the earlier input's bump is regenerated rather
 # than lost, and the PR is amended in place instead of a second one being opened.
 #
-# MODES. `input` relocks that one root input (`nix flake update <input>`). Else
+# MODES. `input` relocks one root input or nested input path
+# (`nix flake update <input>`). Else
 # `targeted` relocks the owned inputs behind their branch head. Else the whole
 # lock is relocked except first-party (dryvist) inputs, which move only by their
 # own release. Each changed first-party input is classified patch, minor or major
@@ -46,7 +47,8 @@
 # paths with no substitute, forcing a source rebuild.
 #
 # NOTE ON UNTRUSTED INPUT: the only caller-supplied value is `input`, and it is
-# used only after it matches a root input name of flake.lock. `client_payload.*`
+# used only after it matches a root input name or a direct nested path in
+# flake.lock. `client_payload.*`
 # is attacker-settable on repository_dispatch, so no other payload field reaches
 # a run step or the PR body. The moved-inputs table below says what changed.
 name: _update-flake-lock
@@ -89,9 +91,9 @@ on:
         default: false
       input:
         description: >-
-          One root input of the lock to relock, alone. Callers pass it from a
+          One root input or nested input path of the lock to relock, alone. Callers pass it from a
           repository_dispatch client_payload.input or a workflow_dispatch input.
-          It must name a root input of flake.lock; any other value fails the run.
+          Nested paths must resolve through direct input edges in flake.lock; invalid nested paths fail.
           Empty selects the targeted or whole-lock mode.
         type: string
         required: false
@@ -264,9 +266,30 @@ jobs:
                 || '' }}
         run: |
           if [ -n "$INPUT" ]; then
-            # One named root input. The name must match a root input of this lock,
-            # so no other value reaches nix. Any other name falls through to the
-            # targeted or whole-lock mode below.
+            if [[ $INPUT == */* ]]; then
+              # Nested paths are accepted only when every segment follows a
+              # direct input edge from the root of this lock.
+              if [[ $INPUT =~ ^[A-Za-z0-9_][A-Za-z0-9_-]*(\.[A-Za-z0-9_][A-Za-z0-9_-]*)*(/[A-Za-z0-9_][A-Za-z0-9_-]*(\.[A-Za-z0-9_][A-Za-z0-9_-]*)*)+$ ]] &&
+                 jq -e --arg path "$INPUT" '
+                   . as $lock
+                   | ($path | split("/")) as $parts
+                   | reduce $parts[] as $part
+                       ({node: $lock.root, valid: true};
+                        if .valid then
+                          .node as $node
+                          | (($lock.nodes[$node].inputs // {})[$part]) as $next
+                          | if ($next | type) == "string" then .node = $next
+                            else .valid = false end
+                        else . end)
+                   | .valid and ($lock.nodes[.node]? != null)
+                 ' flake.lock > /dev/null; then
+                nix flake update "$INPUT"
+                exit 0
+              fi
+              echo "::error::input path is not a direct path in flake.lock"
+              exit 1
+            fi
+            # A root input name must match the root input map of this lock.
             if [[ $INPUT =~ ^[A-Za-z0-9_.-]+$ ]] &&
                jq -e --arg n "$INPUT" '.nodes[.root].inputs | has($n)' flake.lock > /dev/null; then
               nix flake update "$INPUT"
