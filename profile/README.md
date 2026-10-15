@@ -7,7 +7,7 @@
 </p>
 
 <p align="center">
-  <em>The implementation layer for a fully automated, AI-assisted infrastructure portfolio.</em>
+  <em>Infrastructure as code-medy: we Nix the toil and let configs do the talking.</em>
 </p>
 
 <p align="center">
@@ -21,22 +21,14 @@
 
 ## What this org is
 
-`dryvist` is where the **infrastructure** lives. Humans set direction, AI
-agents implement, automation runs the boring parts, and a human gives the
-final sign-off. Every repo here is a piece of that pipeline — declared once,
-reproduced everywhere, observable end-to-end.
+`dryvist` is the infrastructure org: humans set direction, AI agents implement,
+automation runs routines, and a human signs off; configurations are declared
+once, reproduced everywhere, and observable end to end.
 
-The org is the implementation. The **map for all of it** lives at
-**[docs.jacobpevans.com](https://docs.jacobpevans.com)** — that's where the
-architecture, data flows, design decisions, and "how the pieces fit"
-explanations live. The repos here ship the moving parts; the docs site tells
-you what each part is for.
-
-Everything intended for the public is here. A small set of homelab-private
-repos (IP inventories, encrypted secrets, internal schemas) lives in the org
-too but is not visible to anyone outside — and won't appear in the categories
-below. The public surface is what you see at
-[github.com/orgs/dryvist/repositories](https://github.com/orgs/dryvist/repositories).
+[docs.jacobpevans.com](https://docs.jacobpevans.com) explains the architecture,
+flows, decisions, and connections; the [public repo list](https://github.com/orgs/dryvist/repositories)
+shows what is open to explore. Private repos exist and keep their details to
+themselves.
 
 ---
 
@@ -84,13 +76,9 @@ flowchart LR
   linkStyle default stroke:#E06B4A,stroke-width:3px
 ```
 
-The shape of work here: a human files an Issue, AI agents draft the
-implementation against `dryvist` repos, CI lints and tests, the deploy
-machinery converges the target system, telemetry flows back, AI models review
-the resulting PR, and a human gives the final thumbs-up. The full pipeline
-philosophy — including why multiple models, where the loop opens and closes,
-and what stays human-only — is documented at
-[docs.jacobpevans.com](https://docs.jacobpevans.com).
+An Issue cues the agents; CI checks the changes, automation converges the
+configuration, and telemetry reports back before AI reviews the PR and a
+human signs off. The loop keeps its receipts.
 
 ---
 
@@ -111,144 +99,95 @@ and what stays human-only — is documented at
   <img src="https://img.shields.io/badge/Proxmox-E57000?style=for-the-badge&logo=proxmox&logoColor=white" alt="Proxmox" />
 </p>
 
-The work splits into six broad categories. Each one links to the section of
-the docs site that explains how it fits together, why it's structured the
-way it is, and how to actually use it.
-
 ### [Nix ecosystem](https://docs.jacobpevans.com/nix/overview)
 
-Reproducible everything, from a developer's laptop up to bare-metal servers.
-The bet: if your dev shell, your editor config, your AI tooling, and your
-production hosts are all declared in Nix, `nix build` becomes the universal
-"set up the world" button. Repos in this category cover:
+Reproducible Nix configurations cover developer laptops through bare metal.
 
-- Declarative dev shells per language and per workload — `nix develop` and
-  walk into a fully configured workspace.
-- Cross-platform home-manager configs that keep dotfiles, shells, and CLIs
-  identical on macOS and Linux.
-- AI coding tooling (Claude Code, Gemini, Copilot, local MLX, MCP servers)
-  as composable home-manager modules — install your assistants the same
-  way you install neovim.
-- Full system configs for macOS (`nix-darwin`) and NixOS, including
-  AI-workload server profiles with ROCm/CUDA.
-- Netboot-based bare-metal bootstrap so a fresh machine joins the fleet
-  unattended.
+- Use `nix develop` to open a workspace with the right tools for each language and workload.
+- Home Manager keeps dotfiles, shells, and command-line tools identical across macOS and Linux.
+- Composable Home Manager modules install Claude Code, Gemini, Copilot, local MLX, and MCP servers; AI assistants get the same declarative treatment as neovim.
+- The `nix-darwin` and NixOS configurations include AI server profiles for ROCm and CUDA workloads.
+- Netboot bootstraps bare metal unattended, and we Nix the toil.
 
-### [Infrastructure as code](https://docs.jacobpevans.com/infrastructure/overview)
+### [Infrastructure as code-medy](https://docs.jacobpevans.com/infrastructure/overview)
 
-OpenTofu for everything provisionable — virtual machines, networks, cloud
-accounts, even GitHub itself. Terrakube runs the workspaces inside the homelab.
-Modules are written to be reused: golden-image builders and the governance
-layer that keeps the whole org consistent.
+OpenTofu provisions VMs, networks, cloud accounts, and GitHub, while Terrakube
+runs homelab workspaces. Reusable modules build golden images and manage org
+governance.
 
-- Proxmox VMs, LXC containers, networking, firewall rules — declarative,
-  with safe concurrent state.
-- Terrakube workspace definitions with native remote state and state locking.
-- Self-hosted GitHub Actions runners on spot capacity for fast, cheap CI.
-- Org-wide GitHub configuration (rulesets, required workflows, repo
-  settings) managed in code, not in the UI.
+- Proxmox VMs, LXC containers, networks, and firewalls use declarative configuration with safe concurrent state.
+- Terrakube workspaces use native remote state and locking.
+- Self-hosted GitHub Actions spot runners keep CI fast and inexpensive.
+- Code manages GitHub rulesets, required workflows, and repository settings.
 
 ### [Configuration management](https://docs.jacobpevans.com/infrastructure/overview)
 
-Ansible roles that take a provisioned host and turn it into a running
-service. Pairs directly with the IaC layer above: Terraform delivers the
-box, Ansible delivers the workload.
+Terraform provisions the infrastructure, and Ansible converges it into
+services; the result is playbooks, not play-by-ear.
 
-- Proxmox host hardening, performance tuning, ZFS / swap, monitoring
-  baselines.
-- Application roles for observability platforms, syslog load balancers,
-  and other long-running services.
+- Proxmox roles harden hosts, tune performance, configure ZFS and swap, and set monitoring baselines.
+- Application roles run observability platforms, syslog load balancers, and other long-running services.
 
 ### [AI development tooling](https://docs.jacobpevans.com/ai-development/overview)
 
-The control plane that ties the rest of the portfolio together. Vendor-
-agnostic instructions, reusable workflows, plugins, and scheduled routines
-that turn AI assistants into reliable collaborators across every repo.
+Vendor-agnostic instructions, workflows, plugins, and scheduled routines
+coordinate assistants across the portfolio.
 
-- A vendor-agnostic AI assistant instruction framework that works the same
-  across Claude, Gemini, Copilot, and local models — write the rule once,
-  every tool obeys.
-- Reusable AI agent workflows for 24/7 portfolio maintenance: issue triage,
-  cleanup sweeps, multi-repo orchestration.
-- A growing set of Claude Code plugins, agents, skills, hooks, and slash
-  commands for the day-to-day developer workflow.
-- Scheduled routines that run on a cron — daily portfolio briefings, PR
-  triage, repo health scoring, automated polish.
+- One framework lets Claude, Gemini, Copilot, and local models follow the same rules.
+- Reusable workflows handle portfolio maintenance around the clock, including issue triage, cleanup sweeps, and multi-repo orchestration.
+- Claude Code plugins, agents, skills, hooks, and slash commands support everyday development.
+- Cron delivers daily portfolio briefings, PR triage, repository health scores, and automated polish.
 
 ### [Observability](https://docs.jacobpevans.com/observability/overview)
 
-The telemetry fabric under the rest of the portfolio. If something runs,
-something is watching it; if an AI touched code, there's a trace.
+Telemetry monitors services and traces AI code, while logs have their own
+supporting cast.
 
-- Cribl Edge collectors deployed at sources (laptops, Kubernetes nodes,
-  homelab hosts) for in-stream shaping before egress.
-- Cribl Stream workers that fan out to backends and cut ingest volume
-  before it costs you anything.
-- OpenTelemetry pipelines for application traces, metrics, and logs.
-- Splunk-side configuration for indexes, HEC inputs, apps, and dashboards.
-- Benchmark harnesses for local LLM inference on Apple Silicon.
+- Cribl Edge collectors shape data in-stream before egress from laptops, Kubernetes nodes, and homelab hosts.
+- Cribl Stream workers fan data out to backends and reduce billed ingest volume.
+- OpenTelemetry carries application traces, metrics, and logs, while Splunk provides indexes, HEC inputs, apps, and dashboards.
+- Benchmark harnesses measure local LLM inference on Apple Silicon.
 
 ### [Templates &amp; dev tooling](https://docs.jacobpevans.com/ai-development/overview)
 
-The starter scaffolds and small utilities that make spinning up the next
-thing fast — so the categories above can grow without rewriting boilerplate.
+Templates and small utilities provide starter scaffolds for new projects.
 
-- Project templates with linting, formatting, type-checking, pre-commit
-  hooks, and 100% coverage gates wired up from minute zero.
-- Per-project starters for Terrakube-managed OpenTofu workspaces.
-- Cribl pack scaffolding for new edge / stream pack repos.
-- Small workflow utilities — local-AI-powered issue drafting, scheduled
-  maintenance helpers — that smooth the rough edges between humans, AI
-  agents, and GitHub itself.
+- Project templates configure linting, formatting, type checks, pre-commit hooks, and 100% coverage gates from the start.
+- Terrakube-managed OpenTofu workspace starters and Cribl Edge/Stream pack scaffolds cover new project setup.
+- Workflow utilities draft issues with local AI and schedule maintenance across people, agents, and GitHub.
 
 ---
 
 ## How it fits together
 
-The portfolio is layered. Each layer assumes the one below it is already in
-place; each layer is observable to the one above it.
+The portfolio has five layers, and shared telemetry makes each one observable.
 
-1. **Reproducibility layer (Nix).** Every machine — laptop, dev VM, server —
-   starts from a Nix flake. `nix build` is the only way in.
-2. **Provisioning layer (Terrakube / OpenTofu).** Once a Nix-built host
-   exists, Terrakube workspaces carve up cloud and homelab capacity around it:
-   VMs, LXC containers, cloud resources, and GitHub org governance.
-3. **Configuration layer (Ansible).** Provisioned hosts get turned into
-   services by idempotent roles that converge on a declared state.
-4. **Observability fabric (Cribl + OpenTelemetry + Splunk).** Every layer
-   above emits telemetry into a shared pipeline that shapes, indexes, and
-   alerts. Includes traces from the AI tools themselves.
-5. **AI control plane.** Multi-model assistants, reusable workflows, and
-   scheduled routines operate across every layer above — drafting changes,
-   reviewing PRs, triaging issues, running maintenance — and report back
-   through the same observability fabric.
+1. **Reproducibility (Nix).** Every machine starts from a Nix flake, and `nix build` is the only entry.
+2. **Provisioning (Terrakube / OpenTofu).** Once a Nix-built host exists,
+   workspaces allocate cloud and homelab VMs, LXC containers, cloud resources,
+   and GitHub governance.
+3. **Configuration (Ansible).** Idempotent roles converge provisioned hosts to their declared services.
+4. **Observability (Cribl + OpenTelemetry + Splunk).** Shared pipelines shape, index, and alert on telemetry from every layer, including AI traces.
+5. **AI control plane.** Multi-model assistants, workflows, and routines draft
+   changes, review PRs, triage issues, maintain layers, and report through the
+   same fabric.
 
-The narrative version of all of this, with diagrams and decision rationale,
-is at
-[docs.jacobpevans.com/architecture/how-it-fits-together](https://docs.jacobpevans.com).
+Read the [architecture guide](https://docs.jacobpevans.com/architecture/how-it-fits-together).
 
 ---
 
 ## AI-native by default
 
-Every repo in this org is built with the assumption that AI agents will be
-reading, editing, and reviewing the code alongside humans. That means:
+Humans and AI agents read, edit, and review every repo together:
 
-- **A canonical instruction layer** — every repo carries (or inherits) an
-  `AGENTS.md` so any assistant — Claude, Gemini, Copilot, a local model — gets
-  the same context, same rules, same conventions. No "tribal knowledge"
-  lives only in the human's head.
-- **Multi-model PR review** — every change is reviewed by more than one AI
-  model before a human approves. Different models catch different classes of
-  bug.
-- **Scheduled routines** — long-running maintenance, triage, and health
-  checks run on cron without needing a human to start them.
-- **Telemetry on the AI itself** — when an assistant touches code, OTEL
-  traces and session logs flow into the same observability pipeline as
-  everything else.
+- **Shared instructions:** Every repo carries or inherits `AGENTS.md`, so
+  Claude, Gemini, Copilot, and local models receive shared context, rules, and
+  conventions.
+- **Multi-model PR review:** Multiple models review every change before human approval, and the mix helps catch different bugs.
+- **Scheduled routines:** Cron runs maintenance, triage, and health checks on a schedule.
+- **AI telemetry:** OpenTelemetry traces and session logs record assistant activity in the shared pipeline.
 
-Why it matters and how to opt into the same pattern in your own repos:
-[docs.jacobpevans.com/ai-development/overview](https://docs.jacobpevans.com).
+The [AI development overview](https://docs.jacobpevans.com/ai-development/overview) explains the repo pattern.
 
 ---
 
@@ -260,54 +199,45 @@ Why it matters and how to opt into the same pattern in your own repos:
   </a>
 </p>
 
-The repos here are the moving parts. **[docs.jacobpevans.com](https://docs.jacobpevans.com)**
-is the assembly diagram — architecture, data flows, decisions, and how every
-piece connects. If you're trying to understand *why* a repo exists, *how* it
-talks to the others, or *where to start* on a particular problem, the answer
-is on the docs site first; the code is downstream from that.
-
-The site is organized by capability, not by repo. Reading "Infrastructure" or
-"AI Development" or "Observability" there will surface a coherent story
-across half a dozen repos at once — which is much faster than crawling
-GitHub.
+**[docs.jacobpevans.com](https://docs.jacobpevans.com)** is the single, capability-organized front door.
 
 ---
 
 ## Org-wide standards
 
-Canonical configs and inheritance hub:
-[`dryvist/.github`](https://github.com/dryvist/.github). Everything below
-is enforced uniformly across every repo in the org.
+The shared configuration hub is [`dryvist/.github`](https://github.com/dryvist/.github).
 
 | Concern | Standard |
 | --- | --- |
-| License | [Apache-2.0](https://www.apache.org/licenses/LICENSE-2.0) unless a repo states otherwise |
-| Commits | [Conventional Commits](https://www.conventionalcommits.org) (`feat:` / `fix:` / `chore:` / …) — drives automated releases |
-| Releases | Automated via [release-please](https://github.com/googleapis/release-please) — patch on `fix:`, minor on `feat:`, majors are human-initiated |
-| Code review | Every PR reviewed by multiple AI models before a human signs off |
+| License | [Apache-2.0](https://www.apache.org/licenses/LICENSE-2.0), unless a repo states otherwise |
+| Commits | [Conventional Commits](https://www.conventionalcommits.org) (`feat:` / `fix:` / `chore:`) drive automated releases |
+| Releases | [release-please](https://github.com/googleapis/release-please): `fix:` patch, `feat:` minor, major releases human-initiated |
+| Code review | Every PR gets multi-model AI review before human sign-off |
 | Code lint / format | [Biome](https://biomejs.dev) for JS/TS/JSON/CSS; canonical config in [`dryvist/.github`](https://github.com/dryvist/.github) |
 | Markdown lint | [markdownlint-cli2](https://github.com/DavidAnson/markdownlint-cli2) with org-wide rules |
-| Workflow security | [zizmor](https://github.com/woodruffw/zizmor) — org-wide policy at [`dryvist/.github`](https://github.com/dryvist/.github) |
-| Dependency updates | [Renovate](https://docs.renovatebot.com) — extends shared presets |
-| AI assistant policy | Versioned `AGENTS.md` in every repo; org policy at [`dryvist/.github`](https://github.com/dryvist/.github) |
-| CI runners | Self-hosted on AWS spot capacity (fast, cheap), with GitHub-hosted fallback for short macOS jobs |
-| Security reporting | [`SECURITY.md`](https://github.com/dryvist/.github/blob/main/SECURITY.md) — auto-applied to every repo's Security tab |
+| Workflow security | [zizmor](https://github.com/woodruffw/zizmor); org-wide policy in [`dryvist/.github`](https://github.com/dryvist/.github) |
+| Dependency updates | [Renovate](https://docs.renovatebot.com) extends shared presets |
+| AI assistant policy | Versioned `AGENTS.md` in every repo; org policy in [`dryvist/.github`](https://github.com/dryvist/.github) |
+| CI runners | Self-hosted on AWS spot capacity; GitHub-hosted fallback for short macOS jobs |
+| Security reporting | [`SECURITY.md`](https://github.com/dryvist/.github/blob/main/SECURITY.md) auto-applied to every repo's Security tab |
 
 ---
 
-## Where this fits in a larger picture
+## The family
 
-`dryvist` is the **org-wide** layer. A small adjacent set of repos —
-GitHub profile assets, deeply personal one-offs — lives on
-[`JacobPEvans-personal`](https://github.com/JacobPEvans-personal). Together
-the two accounts host the public footprint of one human's automation
-practice; the docs site at
-[docs.jacobpevans.com](https://docs.jacobpevans.com) is the single front
-door to both.
+- [JacobPEvans HQ](https://github.com/JacobPEvans) — This is the front door, so commit on in.
+- [Cribl](https://github.com/jpe-cribl) — Nobody gets Cribl'd on our watch.
+- [Jacob's Splunk Dump](https://github.com/jpe-splunk) — It's a well-organized dump.
+- [Ansible Collections](https://github.com/jpe-ansible) — It's playbooks, not play-by-ear.
+- [Jacob's OpenBao Secrets Plugins](https://github.com/jpe-openbao-plugin-secrets) — Keeping secrets is our Bao-nus.
+- [VCT Cribl](https://github.com/vct-cribl) — Find some Edge-ucation for your logs.
+- [VCT Splunk](https://github.com/vct-splunk) — We Splunk it like it's hot.
+- [JacobPEvans-personal](https://github.com/JacobPEvans-personal) — Its profile assets stay picture-perfect.
 
-If you're not sure which account owns a given repo, both
-[`JacobPEvans/<repo>`](https://github.com/JacobPEvans) and the original URL
-in any older link will redirect to the current owner.
+The org-wide repos sit alongside profile assets and personal one-offs on
+[JacobPEvans-personal](https://github.com/JacobPEvans-personal); together, the
+two accounts host the public footprint. Older repo links redirect to their
+current owners.
 
 ---
 
