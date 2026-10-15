@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.19.0](https://github.com/dryvist/.github/compare/v1.18.0...v1.19.0) (2026-10-15)
+
+
+### Features
+
+* **flake-lock:** support nested input paths ([0a4b2bc](https://github.com/dryvist/.github/commit/0a4b2bc19c1fae30466acb40e5f0a051dfc9dce5))
+
 ## [1.18.0](https://github.com/dryvist/.github/compare/v1.17.1...v1.18.0) (2026-10-14)
 
 
