@@ -1,9 +1,9 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "description": [
-    "dryvist/.github self-config: this repo renovates itself by consuming its own shareable default preset (default.json), exactly like every other dryvist repo. This file is deliberately thin — the shared entry point is default.json, and all policy (auto-merge, trusted orgs, grouping, custom managers) lives in renovate-presets.json + renovate-grouping.json. Put shared changes in those files, never here."
+    "This repository consumes its own shared Renovate preset."
   ],
   "extends": [
-    "local>dryvist/.github"
+    "local>JacobPEvans/.github"
   ]
 }
