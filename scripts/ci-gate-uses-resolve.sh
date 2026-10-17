@@ -118,13 +118,13 @@ while IFS= read -r file; do
   done < <(grep -nE 'github:(dryvist|JacobPEvans)/|git[+][a-z]+://(git@)?github[.]com/(dryvist|JacobPEvans)/' "$file" || true)
 done < <(find_named flake.nix)
 
-# `use flake` of a remote flake whose address names the dryvist org, or the legacy
-# JacobPEvans owner that redirects to it.
+# Flag `use flake` references whose remote address names either supported GitHub
+# organization.
 envrc_remote='^[[:space:]]*use[[:space:]]+flake[[:space:]]+["'\'']?[a-zA-Z+]+[:@][^[:space:]]*(dryvist|JacobPEvans)/'
 while IFS= read -r file; do
   file=${file#./}
   while IFS= read -r hit; do
-    policy "$file" "${hit%%:*}" "use flake loads a remote dryvist flake"
+    policy "$file" "${hit%%:*}" "use flake loads a remote dryvist or JacobPEvans flake"
   done < <(grep -nE "$envrc_remote" "$file" || true)
 done < <(find_named .envrc)
 
