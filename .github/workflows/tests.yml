@@ -8,7 +8,6 @@ on:
     paths:
       - '.github/scripts/**'
       - 'scripts/ci-gate-aggregate.mts'
-      - 'scripts/flake-lock-fresh.sh'
       - 'tests/**'
       - '.github/workflows/_ci-gate.yml'
       - '.github/workflows/_ansible-ci.yml'
@@ -25,7 +24,7 @@ jobs:
   node:
     name: node --test
     runs-on: ubuntu-24.04
-    timeout-minutes: 5
+    timeout-minutes: ${{ github.event_name == 'pull_request' && 5 || 30 }}
     permissions:
       contents: read
     steps:
@@ -38,7 +37,7 @@ jobs:
   python:
     name: python -m unittest
     runs-on: ubuntu-24.04
-    timeout-minutes: 5
+    timeout-minutes: ${{ github.event_name == 'pull_request' && 5 || 30 }}
     permissions:
       contents: read
     steps:

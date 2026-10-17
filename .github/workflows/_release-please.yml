@@ -49,7 +49,7 @@
 #       permissions:
 #         contents: write
 #         pull-requests: write
-#       uses: dryvist/.github/.github/workflows/_release-please.yml@<40-hex commit SHA> # vX.Y.Z
+#       uses: JacobPEvans/.github/.github/workflows/_release-please.yml@v1
 #       secrets:
 #         GH_ACTION_RELEASE_PLEASE_PRIVATE_KEY: secrets.GH_ACTION_RELEASE_PLEASE_PRIVATE_KEY
 name: _release-please
@@ -111,7 +111,7 @@ permissions: {}
 jobs:
   release-please:
     runs-on: ${{ inputs.runner_label }}
-    timeout-minutes: 10
+    timeout-minutes: ${{ github.event_name == 'pull_request' && 5 || 30 }}
     outputs:
       release_created: ${{ steps.release.outputs.releases_created }}
       tag_name: ${{ steps.release.outputs.tag_name }}
@@ -147,7 +147,7 @@ jobs:
         if: ${{ steps.flow.outputs.flow == 'gitflow' && github.ref_name == 'main' }}
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          repository: dryvist/.github
+          repository: JacobPEvans/.github
           ref: ${{ job.workflow_sha }}
           path: .gh-shared
           sparse-checkout: scripts/release-tag-guard.sh

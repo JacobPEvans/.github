@@ -29,7 +29,7 @@ jobs:
   zizmor:
     name: Workflow Security (zizmor)
     runs-on: ${{ inputs.runner_label }}
-    timeout-minutes: 15
+    timeout-minutes: ${{ github.event_name == 'pull_request' && 5 || 30 }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
@@ -43,7 +43,7 @@ jobs:
       - name: Fetch central zizmor policy
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          repository: dryvist/.github
+          repository: JacobPEvans/.github
           ref: ${{ job.workflow_sha }}
           path: .central-config
           sparse-checkout: zizmor.yml

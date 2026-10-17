@@ -13,7 +13,7 @@ dryvist repo. Two consumption paths share these artifacts.
 
 Both paths reference the same canonical config files in `configs/` for
 tools that demand a config file on disk (ansible-lint, yamllint, tflint).
-Markdown lint config lives at the dryvist/.github root
+Markdown lint config lives at the JacobPEvans/.github root
 (`../.markdownlint-cli2.yaml`) for backwards compatibility with existing
 markdownlint workflow consumers.
 
@@ -69,19 +69,19 @@ hooks need:
 
 ```bash
 # Pick base / terraform / ansible / python
-gh api repos/dryvist/.github/contents/precommit/templates/terraform.yaml \
+gh api repos/JacobPEvans/.github/contents/precommit/templates/terraform.yaml \
   -H "Accept: application/vnd.github.raw" > .pre-commit-config.yaml
 
 # Materialize tflint canonical (terraform profile only)
-gh api repos/dryvist/.github/contents/precommit/configs/tflint.hcl \
+gh api repos/JacobPEvans/.github/contents/precommit/configs/tflint.hcl \
   -H "Accept: application/vnd.github.raw" > .tflint.hcl
 
 # Markdown lint config lives at the .github root
-gh api repos/dryvist/.github/contents/.markdownlint-cli2.yaml \
+gh api repos/JacobPEvans/.github/contents/.markdownlint-cli2.yaml \
   -H "Accept: application/vnd.github.raw" > .markdownlint-cli2.yaml
 
 # Zizmor policy for workflow security
-gh api repos/dryvist/.github/contents/zizmor.yml \
+gh api repos/JacobPEvans/.github/contents/zizmor.yml \
   -H "Accept: application/vnd.github.raw" > zizmor.yml
 
 pre-commit install
@@ -131,7 +131,7 @@ After running the Installation step above, hooks run automatically on
 pre-commit run --all-files
 ```
 
-Renovate's custom manager in dryvist/.github keeps `rev:` pins in the
+Renovate's custom manager in JacobPEvans/.github keeps `rev:` pins in the
 copied `.pre-commit-config.yaml` fresh going forward. Sync of the
 config files themselves (`.tflint.hcl`, etc.) is still manual today —
 extending the Renovate custom manager to cover them is tracked
@@ -190,4 +190,4 @@ dry-run` against a representative repo is the manual check).
 
 ## License
 
-[Apache-2.0](../LICENSE) — inherited from the dryvist/.github root.
+[Apache-2.0](../LICENSE) — inherited from the JacobPEvans/.github root.

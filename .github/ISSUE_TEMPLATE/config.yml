@@ -1,7 +1,7 @@
 blank_issues_enabled: false
 contact_links:
   - name: Security vulnerability
-    url: https://github.com/dryvist/.github/security/advisories/new
+    url: https://github.com/JacobPEvans/.github/security/advisories/new
     about: >-
       Do not file incident, outage, or security narrative as a public
       issue. For a genuine security vulnerability, use private

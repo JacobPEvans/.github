@@ -26,7 +26,7 @@
 #   jobs:
 #     ci:
 #       permissions: { contents: read, pull-requests: read }
-#       uses: dryvist/.github/.github/workflows/_ansible-ci.yml@<40-hex commit SHA> # vX.Y.Z
+#       uses: JacobPEvans/.github/.github/workflows/_ansible-ci.yml@v1
 #       with: { emit_gate: true }
 # Scope policy (canonical): pull requests and non-main pushes use only the
 # Molecule scenarios mapped to their changed paths. An unmapped path never
@@ -176,7 +176,7 @@ jobs:
   changes:
     name: Detect Changes
     runs-on: ${{ (!github.event.pull_request || github.event.pull_request.head.repo.full_name == github.repository) && inputs.runner_label || 'ubuntu-24.04' }}
-    timeout-minutes: 5
+    timeout-minutes: ${{ github.event_name == 'pull_request' && 5 || 30 }}
     outputs:
       ansible: >-
         ${{ (steps.filter.outputs.ansible == 'true'
@@ -399,7 +399,7 @@ jobs:
           (inputs.molecule_scenario_filters != '' ||
           inputs.molecule_contract_filters != '') }}
         with:
-          repository: dryvist/.github
+          repository: JacobPEvans/.github
           ref: ${{ job.workflow_sha }}
           path: .gh-shared
           sparse-checkout: .github/scripts/select-molecule-scenarios.js
@@ -439,7 +439,7 @@ jobs:
     needs: changes
     if: ${{ needs.changes.outputs.ansible == 'true' }}
     runs-on: ${{ (!github.event.pull_request || github.event.pull_request.head.repo.full_name == github.repository) && inputs.runner_label || 'ubuntu-24.04' }}
-    timeout-minutes: 15
+    timeout-minutes: ${{ github.event_name == 'pull_request' && 5 || 30 }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       # The Galaxy steps below call ansible-galaxy, which a self-hosted runner
@@ -515,7 +515,7 @@ jobs:
       (!github.event.pull_request ||
       github.event.pull_request.head.repo.full_name == github.repository)) &&
       inputs.molecule_runner_label || 'ubuntu-24.04' }}
-    timeout-minutes: 45
+    timeout-minutes: ${{ github.event_name == 'pull_request' && 5 || 45 }}
     strategy:
       fail-fast: false
       matrix:
@@ -621,7 +621,7 @@ jobs:
     needs: [changes, ansible-lint, molecule, token-limits, renovate-annotations, renovate_config]
     if: ${{ always() && !cancelled() }}
     runs-on: ${{ (!github.event.pull_request || github.event.pull_request.head.repo.full_name == github.repository) && inputs.runner_label || 'ubuntu-24.04' }}
-    timeout-minutes: 5
+    timeout-minutes: ${{ github.event_name == 'pull_request' && 5 || 30 }}
     steps:
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
         with:
@@ -629,7 +629,7 @@ jobs:
       - name: Checkout result aggregator
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          repository: dryvist/.github
+          repository: JacobPEvans/.github
           ref: ${{ job.workflow_sha }}
           path: .gh-shared
           sparse-checkout: scripts/ci-gate-aggregate.mts

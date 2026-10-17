@@ -12,7 +12,7 @@
 # `hash-pin` default.
 #
 # `dryvist/*` is the org itself: first-party reusable workflows (e.g.
-# dryvist/.github's `_nix-validate.yml`, dryvist/ai-workflows) are pinned
+# JacobPEvans/.github's `_nix-validate.yml`, JacobPEvans/.github-ai) are pinned
 # by commit SHA, with the release tag as a trailing comment
 # (`uses: dryvist/...@<sha> # vX.Y.Z`). The policy value for `dryvist/*`
 # is `hash-pin`: a tag or branch reference fails the audit.

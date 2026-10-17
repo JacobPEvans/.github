@@ -33,7 +33,7 @@ EXEMPT=" $(yq_list '.exempt // [] | .[]' "$FILE_SIZE_DEFAULTS_CONFIG") "
 
 if [[ -f ".file-size.yml" ]]; then
   if yq -e '.defaults' .file-size.yml >/dev/null 2>&1; then
-    echo "::warning file=.file-size.yml::.file-size.yml must not override org defaults (remove the defaults: block; see configs/file-size-defaults.yml in dryvist/.github)"
+    echo "::warning file=.file-size.yml::.file-size.yml must not override org defaults (remove the defaults: block; see configs/file-size-defaults.yml in JacobPEvans/.github)"
   fi
 
   EXT_LIMIT=$(yq '.extended.limit // 0' .file-size.yml)

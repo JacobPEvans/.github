@@ -36,7 +36,7 @@ jobs:
   check:
     name: Check
     runs-on: ${{ inputs.runner_label }}
-    timeout-minutes: 5
+    timeout-minutes: ${{ github.event_name == 'pull_request' && 5 || 30 }}
     permissions:
       contents: read
     steps:
@@ -46,7 +46,7 @@ jobs:
       - name: Sparse-checkout the shared annotation checker from this repo
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          repository: dryvist/.github
+          repository: JacobPEvans/.github
           ref: ${{ job.workflow_sha }}
           path: .gh-shared
           sparse-checkout: scripts/check-renovate-annotations.sh
