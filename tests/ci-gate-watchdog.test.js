@@ -153,3 +153,10 @@ test('all siblings completed exits 0 without cancelling', (t) => {
   assert.match(run.stdout, /All sibling jobs completed/);
   assert.equal(cancelled, '');
 });
+
+test('the watchdog stops watching inside its own pull_request timeout', () => {
+  const workflow = readFileSync(path.join(__dirname, '../.github/workflows/_ci-gate.yml'), 'utf8');
+  const job = workflow.slice(workflow.indexOf('\n  watchdog:'), workflow.indexOf('\n  uses-resolve:'));
+  assert.match(job, /timeout-minutes: \$\{\{ github\.event_name == 'pull_request' && 5 \|\| 60 \}\}/);
+  assert.match(job, /WATCH_MAX_MINUTES: \$\{\{ github\.event_name == 'pull_request' && 4 \|\| 55 \}\}/);
+});
