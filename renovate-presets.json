@@ -286,25 +286,11 @@
       "minimumReleaseAge": "7 days"
     },
     {
-      "description": "Pin third-party GitHub Actions refs to SHA digests.",
+      "description": "Pin GitHub Actions refs to SHA digests.",
       "matchManagers": [
         "github-actions"
       ],
       "pinDigests": true
-    },
-    {
-      "description": "Keep first-party GitHub Actions and reusable workflows on floating major tags.",
-      "matchManagers": [
-        "github-actions"
-      ],
-      "matchPackageNames": [
-        "JacobPEvans/**",
-        "JacobPEvans-*/**",
-        "dryvist/**",
-        "jpe-*/**"
-      ],
-      "pinDigests": false,
-      "allowedVersions": "/^v\\d+$/"
     },
     {
       "description": "Auto-merge trusted-org majors after seven days and green checks; dep:review triggers the dependency review.",

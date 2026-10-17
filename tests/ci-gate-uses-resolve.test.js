@@ -134,7 +134,7 @@ test('pin policy: a remote dryvist flake in .envrc is a warning in warn mode', (
   const run = runInCaller(clean, { '.envrc': 'use flake github:dryvist/nix-tool\n' }, { PIN_POLICY_MODE: 'warn' });
 
   assert.equal(run.status, 0, run.stdout + run.stderr);
-  assert.match(run.stdout, /^::warning file=\.envrc,line=1::use flake loads a remote dryvist flake/m);
+  assert.match(run.stdout, /^::warning file=\.envrc,line=1::use flake loads a remote dryvist or JacobPEvans flake/m);
 });
 
 test('pin policy: a remote dryvist flake in .envrc is an error and exits 1 in fail mode', () => {
@@ -143,7 +143,7 @@ test('pin policy: a remote dryvist flake in .envrc is an error and exits 1 in fa
   });
 
   assert.equal(run.status, 1, run.stdout + run.stderr);
-  assert.match(run.stdout, /^::error file=\.envrc,line=1::use flake loads a remote dryvist flake/m);
+  assert.match(run.stdout, /^::error file=\.envrc,line=1::use flake loads a remote dryvist or JacobPEvans flake/m);
 });
 
 test('pin policy: a local .envrc flake passes in fail mode', () => {
