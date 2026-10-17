@@ -14,7 +14,7 @@ function tierScript() {
   const start = workflow.indexOf('- name: Select test tier from the event and diff');
   const next = workflow.indexOf('\n      - name:', start + 1);
   const step = workflow.slice(start, next);
-  const run = step.match(/\n        run: \|\n((?: {10}[^\n]*(?:\n|$))*)/);
+  const run = step.match(/\n        run: \|\n([\s\S]*)$/);
   assert.ok(run, 'tier step has an inline run script');
   return run[1]
     .split('\n')
@@ -37,7 +37,10 @@ function chooseTier({ event, base = '', defaultBranch = 'main', nonDoc = 'false'
         NON_DOC: nonDoc,
       },
     });
-    return readFileSync(output, 'utf8').trim();
+    return readFileSync(output, 'utf8')
+      .trim()
+      .split('\n')
+      .find((line) => line.startsWith('test_tier='));
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }

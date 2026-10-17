@@ -146,6 +146,10 @@
   color: "0D9488"
   description: "Promotion PR in flight; develop is frozen"
 
+- name: "fast-path"
+  color: "0e8a16"
+  description: "Opt-in: skip heavy suites when the diff is under 15 lines and 5 files."
+
 # =============================================================================
 # HUMAN REVIEW LABEL - The human counterpart to ai:* review state
 # Applied by an AI flow to a main-targeted PR to request a human before merge.
