@@ -8,6 +8,10 @@
 # branch, which merge by merge commit through their own flow) and PRs labelled
 # human:review.
 #
+# Auto-merge waits only for checks an active rule requires, so it is armed only
+# when the base branch's active rules require a "Merge Gate" status check.
+# Without one, the job warns and arms nothing.
+#
 # The merge is armed with the release App's token, not github.token, so the
 # resulting push still triggers the base branch's workflows. Without the App
 # variable and secret the job warns and succeeds, so a missing org setting never
@@ -30,19 +34,28 @@ jobs:
       && !contains(github.event.pull_request.labels.*.name, 'human:review') }}
     runs-on: ubuntu-24.04
     timeout-minutes: 2
-    permissions: {}
+    permissions:
+      contents: read
     steps:
-      - name: Check for the release App
+      # As a required workflow this runs in the consumer repo; fetch the check from this workflow's own commit.
+      - name: Check out the readiness check
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          repository: JacobPEvans/.github
+          ref: ${{ job.workflow_sha }}
+          path: .pr-automerge
+          persist-credentials: false
+          sparse-checkout: scripts/pr-automerge-ready.sh
+          sparse-checkout-cone-mode: false
+      - name: Check for a required merge gate and the release App
         id: app
         env:
           APP_ID: ${{ vars.GH_ACTION_RELEASE_PLEASE_APP_ID }}
           HAS_KEY: ${{ secrets.GH_ACTION_RELEASE_PLEASE_PRIVATE_KEY != '' }}
-        run: |
-          if [[ -n "$APP_ID" && "$HAS_KEY" == "true" ]]; then
-            echo "ready=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "::warning::GH_ACTION_RELEASE_PLEASE_APP_ID or GH_ACTION_RELEASE_PLEASE_PRIVATE_KEY is not set; auto-merge not enabled."
-          fi
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          BASE: ${{ github.event.pull_request.base.ref }}
+        run: bash .pr-automerge/scripts/pr-automerge-ready.sh "$REPO" "$BASE" >> "$GITHUB_OUTPUT"
       - name: Mint the App token
         id: app-token
         if: ${{ steps.app.outputs.ready == 'true' }}
