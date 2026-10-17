@@ -29,14 +29,14 @@ jobs:
     name: Agent PR Body
     if: github.event_name == 'pull_request'
     runs-on: ${{ inputs.runner_label }}
-    timeout-minutes: 5
+    timeout-minutes: ${{ github.event_name == 'pull_request' && 5 || 30 }}
     steps:
       # Sparse-checkout the script (a consumer's own checkout never has it) —
       # same pattern as docs-publisher-provenance.yml's policy fetch.
       - name: Fetch the policy script
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          repository: dryvist/.github
+          repository: JacobPEvans/.github
           ref: ${{ job.workflow_sha }}
           sparse-checkout: .github/scripts/agent-pr-body.js
           sparse-checkout-cone-mode: false

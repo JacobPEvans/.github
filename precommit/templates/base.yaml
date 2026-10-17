@@ -7,7 +7,7 @@
 # Non-Nix consumers fetch this file at scaffold time and let Renovate
 # keep `rev:` pins fresh:
 #
-#   gh api repos/dryvist/.github/contents/precommit/templates/base.yaml \
+#   gh api repos/JacobPEvans/.github/contents/precommit/templates/base.yaml \
 #     -H "Accept: application/vnd.github.raw" > .pre-commit-config.yaml
 #
 # Hook set mirrors lib/pre-commit-hooks.nix in dryvist/nix-devenv so that
@@ -35,7 +35,7 @@ repos:
     hooks:
       - id: markdownlint-cli2
         # Picks up .markdownlint-cli2.yaml from the repo root (the
-        # canonical version copied from dryvist/.github).
+        # canonical version copied from JacobPEvans/.github).
         exclude: ^CHANGELOG\.md$
 
   - repo: https://github.com/woodruffw/zizmor-pre-commit
@@ -49,6 +49,6 @@ repos:
           - --min-confidence=medium
           - --config
           # The org-wide zizmor policy lives next to this file in the
-          # dryvist/.github root. Repos must materialize it at the
+          # JacobPEvans/.github root. Repos must materialize it at the
           # same path or override with --config <local-path>.
           - zizmor.yml

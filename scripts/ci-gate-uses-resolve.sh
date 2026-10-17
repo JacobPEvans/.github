@@ -2,7 +2,7 @@
 # Fails when a caller workflow's `uses:` names a reusable workflow or local
 # path that does not exist.
 #   ./.github/workflows/<file>            must exist in the checked-out repo
-#   dryvist/.github or dryvist/ai-workflows, .github/workflows/<file>@<ref>
+#   JacobPEvans/.github or JacobPEvans/.github-ai, .github/workflows/<file>@<ref>
 #                                         must exist at <ref>, read via the API
 # Other `uses:` values are not checked: other dryvist repos may be private,
 # and this run's token cannot read them, so a valid ref would false-fail.

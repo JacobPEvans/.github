@@ -19,7 +19,7 @@ jobs:
   gate:
     permissions:
 ${perms}
-    uses: dryvist/.github/.github/workflows/_ci-gate.yml@v1
+    uses: JacobPEvans/.github/.github/workflows/_ci-gate.yml@v1
 ${withBlock}`;
 }
 

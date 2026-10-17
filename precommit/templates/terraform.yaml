@@ -5,7 +5,7 @@
 #
 # * `terraform_fmt` and `terraform_validate` (with init -backend=false)
 #   are credential-free and safe in pre-commit.
-# * `tflint` reads the canonical config from dryvist/.github at
+# * `tflint` reads the canonical config from JacobPEvans/.github at
 #   precommit/configs/tflint.hcl — materialize that file alongside
 #   .pre-commit-config.yaml or override args.
 # * `terraform_docs` runs in pre-commit AND is mirrored in CI.

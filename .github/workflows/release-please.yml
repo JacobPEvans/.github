@@ -11,7 +11,7 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
-    # Self-referencing local `uses:` — this repo IS dryvist/.github, so it
+    # Self-referencing local `uses:` — this repo IS JacobPEvans/.github, so it
     # calls its own reusable workflow by path.
     uses: ./.github/workflows/_release-please.yml
     secrets:

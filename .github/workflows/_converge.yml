@@ -130,7 +130,7 @@ jobs:
   changes:
     name: Detect Changes
     runs-on: ${{ inputs.runner_label }}
-    timeout-minutes: 5
+    timeout-minutes: ${{ github.event_name == 'pull_request' && 5 || 30 }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4
@@ -144,7 +144,7 @@ jobs:
     name: Validate target
     needs: changes
     runs-on: ${{ inputs.runner_label }}
-    timeout-minutes: 2
+    timeout-minutes: ${{ github.event_name == 'pull_request' && 5 || 30 }}
     steps:
       - name: Reject an unimplemented target
         env:
@@ -167,7 +167,7 @@ jobs:
     name: Open maintenance window
     needs: [changes, validate-target]
     runs-on: ${{ inputs.runner_label }}
-    timeout-minutes: 3
+    timeout-minutes: ${{ github.event_name == 'pull_request' && 5 || 30 }}
     outputs:
       task_id: ${{ steps.open.outputs.task_id }}
     steps:
@@ -221,7 +221,7 @@ jobs:
     needs: window-open
     if: inputs.target != 'terrakube-apply'
     runs-on: ${{ inputs.runner_label }}
-    timeout-minutes: 3
+    timeout-minutes: ${{ github.event_name == 'pull_request' && 5 || 30 }}
     permissions:
       contents: read
       id-token: write
@@ -250,7 +250,7 @@ jobs:
     needs: [window-open, changes]
     if: inputs.target == 'terrakube-apply'
     runs-on: ${{ inputs.runner_label }}
-    timeout-minutes: ${{ inputs.wait_minutes }}
+    timeout-minutes: ${{ github.event_name == 'pull_request' && 5 || inputs.wait_minutes }}
     permissions:
       contents: read
       id-token: write
@@ -262,7 +262,7 @@ jobs:
       - name: Sparse-checkout the gated-apply script from this repo
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          repository: dryvist/.github
+          repository: JacobPEvans/.github
           # Must be `job.workflow_sha`, not `github.job_workflow_sha`: the
           # latter is empty whenever this workflow runs nested two levels
           # deep (a caller invokes this workflow, which invokes another),
@@ -301,7 +301,7 @@ jobs:
     needs: [window-open, trigger]
     if: always() && needs.window-open.result == 'success'
     runs-on: ${{ inputs.runner_label }}
-    timeout-minutes: 3
+    timeout-minutes: ${{ github.event_name == 'pull_request' && 5 || 30 }}
     steps:
       - name: Publish the result to ntfy
         env:

@@ -31,7 +31,7 @@ jobs:
   conventions:
     name: Presence
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: ${{ github.event_name == 'pull_request' && 5 || 30 }}
     env:
       # Repo opt-in to hard enforcement; unset repos stay in WARN mode.
       CONVENTIONS_STRICT: ${{ vars.CONVENTIONS_STRICT || 'false' }}

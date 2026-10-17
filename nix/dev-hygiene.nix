@@ -10,7 +10,7 @@
 #
 # Consumer:
 #   {
-#     inputs.dryvist-github.url = "github:dryvist/.github";
+#     inputs.dryvist-github.url = "github:JacobPEvans/.github";
 #     outputs = inputs@{ flake-parts, ... }:
 #       flake-parts.lib.mkFlake { inherit inputs; } {
 #         imports = [ inputs.dryvist-github.flakeModules.dev-hygiene ];
@@ -21,9 +21,9 @@
 # That's it: no `inputs.treefmt-nix`, no `inputs.git-hooks`, no local
 # treefmt config, no local zizmor.yml in consumers.
 #
-# This file is a function that dryvist/.github's flake.nix calls eagerly with
+# This file is a function that JacobPEvans/.github's flake.nix calls eagerly with
 # its OWN inputs, returning a flake-parts module. `treefmt-nix`/`git-hooks`
-# references therefore resolve against dryvist/.github's pinned inputs, not the
+# references therefore resolve against JacobPEvans/.github's pinned inputs, not the
 # consumer's — so consumers import a pre-bound module with a lean closure.
 {
   treefmt-nix,
@@ -121,7 +121,7 @@
 
         # GitHub Actions workflow security via zizmor. `--config` points at the
         # org-wide trusted-publisher policy shipped alongside this module in
-        # dryvist/.github, so consumers don't ship their own zizmor.yml.
+        # JacobPEvans/.github, so consumers don't ship their own zizmor.yml.
         zizmor = {
           enable = true;
           files = "^\\.github/workflows/.*\\.ya?ml$";

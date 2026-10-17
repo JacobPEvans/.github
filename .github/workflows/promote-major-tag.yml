@@ -23,7 +23,7 @@
 #       permissions:
 #         contents: write
 #         checks: read
-#       uses: dryvist/.github/.github/workflows/promote-major-tag.yml@<40-hex commit SHA> # vX.Y.Z
+#       uses: JacobPEvans/.github/.github/workflows/promote-major-tag.yml@v1
 #       with:
 #         tag: ${{ github.event.release.tag_name }}
 #
@@ -61,7 +61,7 @@ jobs:
   promote:
     name: Move floating major tag
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: ${{ github.event_name == 'pull_request' && 5 || 30 }}
     permissions:
       contents: write
       checks: read
@@ -75,7 +75,7 @@ jobs:
       - name: Check out the promotion script
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          repository: dryvist/.github
+          repository: JacobPEvans/.github
           ref: ${{ job.workflow_sha }}
           path: .gh-shared
           sparse-checkout: |
@@ -92,5 +92,5 @@ jobs:
           # Only this repo has a Canary check. In a called run github.repository is the
           # caller, so any other repo passes --no-canary; the script ignores an empty
           # second argument.
-          NO_CANARY: ${{ github.repository != 'dryvist/.github' && '--no-canary' || '' }}
+          NO_CANARY: ${{ github.repository != 'JacobPEvans/.github' && '--no-canary' || '' }}
         run: .gh-shared/scripts/promote-major-release.sh "${RELEASE_TAG:-$INPUT_TAG}" "$NO_CANARY"

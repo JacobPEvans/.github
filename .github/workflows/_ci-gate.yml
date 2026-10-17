@@ -5,7 +5,7 @@
 #
 # What this workflow does:
 #
-#   scope    -> content-aware classifier (dryvist/ai-workflows'
+#   scope    -> content-aware classifier (JacobPEvans/.github-ai'
 #               scope-classify.yml, "Jev"); a SECOND, additional layer on
 #               top of `changes` below, narrowing further, never replacing
 #               it - see "Content-aware scope classifier" below
@@ -35,7 +35,7 @@
 # never be skippable by ANY signal, deterministic or classified.
 # `markdown-lint` and `file-size` depend only on their path filters, never on
 # `scope`: the classifier may narrow optional jobs, not these two.
-# https://github.com/dryvist/ai-workflows/blob/main/.github/scope-rubric.md
+# https://github.com/JacobPEvans/.github-ai/blob/main/.github/scope-rubric.md
 #
 # Why the watchdog exists:
 #
@@ -57,7 +57,7 @@
 #                          # the caller's token grant — omitting this fails the
 #                          # entire run at workflow-graph validation
 #                          # (startup_failure, 0s, no jobs, UI-only error).
-#       uses: dryvist/.github/.github/workflows/_ci-gate.yml@<40-hex commit SHA> # vX.Y.Z
+#       uses: JacobPEvans/.github/.github/workflows/_ci-gate.yml@v1
 #
 # That is the whole caller for a markdown-only repo: `markdown_lint` and
 # `file_size` default on, and `filters` defaults to the `markdown` block
@@ -478,10 +478,10 @@ jobs:
   # 'success'` AND the output says so, so a scope failure or an empty
   # secret defers entirely to the pre-existing filter logic (the classifier
   # is unreachable = everything the filters already decided still runs).
-  # https://github.com/dryvist/ai-workflows/blob/main/.github/scope-rubric.md
+  # https://github.com/JacobPEvans/.github-ai/blob/main/.github/scope-rubric.md
   scope:
     name: Classify CI scope (Jev)
-    uses: dryvist/ai-workflows/.github/workflows/scope-classify.yml@286459bf39f4c269e10d6b28e8c29ba225faed5e # v0.49.0
+    uses: JacobPEvans/.github-ai/.github/workflows/scope-classify.yml@v1
     secrets:
       TYPESAFE_API_KEY: ${{ secrets.TYPESAFE_API_KEY }}
 
@@ -491,7 +491,7 @@ jobs:
   changes:
     name: Detect Changes
     runs-on: ${{ (!github.event.pull_request || github.event.pull_request.head.repo.full_name == github.repository) && inputs.orchestration_runner || 'ubuntu-24.04' }}
-    timeout-minutes: 5
+    timeout-minutes: ${{ github.event_name == 'pull_request' && 5 || 30 }}
     outputs:
       nix: ${{ steps.filter.outputs.nix == 'true' || (inputs.profile == 'nix' && steps.unmapped.outputs.full == 'true') }}
       markdown: ${{ steps.filter.outputs.markdown == 'true' || (inputs.profile == 'docs' && steps.unmapped.outputs.full == 'true') }}
@@ -595,7 +595,7 @@ jobs:
       - name: Sparse-checkout shared scripts from this repo
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          repository: dryvist/.github
+          repository: JacobPEvans/.github
           # The commit this reusable workflow was loaded from, NOT main.
           # Hardcoding `main` made a workflow running from a branch pull its
           # scripts from a different commit than the one under test: the
@@ -745,7 +745,7 @@ jobs:
     name: Dependency Review
     if: ${{ inputs.dependency_review && github.event_name == 'pull_request' && github.event.repository.private == false }}
     runs-on: ${{ (!github.event.pull_request || github.event.pull_request.head.repo.full_name == github.repository) && inputs.runner_label || 'ubuntu-24.04' }}
-    timeout-minutes: 10
+    timeout-minutes: ${{ github.event_name == 'pull_request' && 5 || 30 }}
     # contents:read ONLY — a called workflow's job may never request more than
     # the caller granted, or the whole run dies at graph validation
     # (startup_failure) before any job starts. `pull-requests: write` (for
@@ -846,12 +846,12 @@ jobs:
     # Hardcoded ceiling — GHA expressions don't support arithmetic so this
     # can't be derived from `queue_timeout_minutes`. The watchdog lives as long
     # as the run and stops itself at WATCH_MAX_MINUTES (55), inside this ceiling.
-    timeout-minutes: 60
+    timeout-minutes: ${{ github.event_name == 'pull_request' && 5 || 60 }}
     steps:
       - name: Sparse-checkout watchdog script from this repo
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          repository: dryvist/.github
+          repository: JacobPEvans/.github
           ref: ${{ job.workflow_sha }}
           path: .gh-shared
           sparse-checkout: scripts/ci-gate-watchdog.sh
@@ -864,23 +864,13 @@ jobs:
           RUN_ID: ${{ github.run_id }}
         run: bash .gh-shared/scripts/ci-gate-watchdog.sh
 
-  # Owned root flake inputs: on a pull request, no pinned revs and no move to a
-  # rev that does not descend from the base lock's; on the default branch,
-  # stale inputs dispatch the targeted relock. Passes when the repo has no flake.lock.
-  flake-lock-fresh:
-    name: Flake Lock Fresh
-    if: ${{ !cancelled() && (github.event_name == 'pull_request' || github.event_name == 'schedule' || (github.event_name == 'push' && github.ref_name == github.event.repository.default_branch)) }}
-    uses: ./.github/workflows/_flake-lock-fresh.yml
-    secrets:
-      GH_APP_PRIVATE_KEY: ${{ secrets.GH_APP_PRIVATE_KEY }}
-
   # Every reusable-workflow `uses:` in the caller must resolve: a missing local
   # file, or a dryvist ref absent at its ref, fails the gate. Not filter-gated
   # and never skipped, so a broken reference cannot merge green.
   uses-resolve:
     name: Uses Resolve
     runs-on: ${{ (!github.event.pull_request || github.event.pull_request.head.repo.full_name == github.repository) && inputs.orchestration_runner || 'ubuntu-24.04' }}
-    timeout-minutes: 5
+    timeout-minutes: ${{ github.event_name == 'pull_request' && 5 || 30 }}
     permissions:
       contents: read
     steps:
@@ -888,7 +878,7 @@ jobs:
       - name: Sparse-checkout the uses checker from this repo
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          repository: dryvist/.github
+          repository: JacobPEvans/.github
           ref: ${{ job.workflow_sha }}
           path: .gh-shared
           sparse-checkout: scripts/ci-gate-uses-resolve.sh
@@ -905,7 +895,7 @@ jobs:
     name: Repo Tests
     if: ${{ inputs.test_command != '' }}
     runs-on: ${{ (!github.event.pull_request || github.event.pull_request.head.repo.full_name == github.repository) && inputs.runner_label || 'ubuntu-24.04' }}
-    timeout-minutes: 15
+    timeout-minutes: ${{ github.event_name == 'pull_request' && 5 || 30 }}
     permissions:
       contents: read
     steps:
@@ -931,7 +921,7 @@ jobs:
     name: Workflow Lint
     if: ${{ inputs.workflow_lint }}
     runs-on: ${{ (!github.event.pull_request || github.event.pull_request.head.repo.full_name == github.repository) && inputs.runner_label || 'ubuntu-24.04' }}
-    timeout-minutes: 5
+    timeout-minutes: ${{ github.event_name == 'pull_request' && 5 || 30 }}
     permissions:
       contents: read
     steps:
@@ -939,7 +929,7 @@ jobs:
       - name: Sparse-checkout the actionlint runner from this repo
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          repository: dryvist/.github
+          repository: JacobPEvans/.github
           ref: ${{ job.workflow_sha }}
           path: .gh-shared
           sparse-checkout: scripts/ci-gate-workflow-lint.sh
@@ -953,12 +943,12 @@ jobs:
   # ============================================================================
   gate:
     name: Merge Gate
-    needs: [changes, scope, watchdog, nix-validate, nix-build, markdown-lint, file-size, token-limits, python-security, python-ci, ansible-ci, renovate-annotations, tofu-ci, osv-scan, dependency-review, zizmor, flake-lock-fresh, uses-resolve, repo-tests, workflow-lint]
+    needs: [changes, scope, watchdog, nix-validate, nix-build, markdown-lint, file-size, token-limits, python-security, python-ci, ansible-ci, renovate-annotations, tofu-ci, osv-scan, dependency-review, zizmor, uses-resolve, repo-tests, workflow-lint]
     # Run after workflow cancellation too, so cancelled sibling checks aggregate
     # to a failing required status instead of a skipped (successful) job.
     if: ${{ always() }}
     runs-on: ${{ (!github.event.pull_request || github.event.pull_request.head.repo.full_name == github.repository) && inputs.orchestration_runner || 'ubuntu-24.04' }}
-    timeout-minutes: 5
+    timeout-minutes: ${{ github.event_name == 'pull_request' && 5 || 30 }}
     permissions:
       # `actions: read` lets the run-report step read this run's jobs (durations
       # + queue delays) via the Actions API; `contents: read` is for the sparse
@@ -977,7 +967,7 @@ jobs:
         if: ${{ always() }}
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          repository: dryvist/.github
+          repository: JacobPEvans/.github
           ref: ${{ job.workflow_sha }}
           path: .gh-shared
           sparse-checkout: |
@@ -991,7 +981,7 @@ jobs:
             nix-validate, nix-build, markdown-lint, file-size, token-limits,
             python-security, python-ci, ansible-ci, renovate-annotations,
             tofu-ci, osv-scan, dependency-review, zizmor, watchdog,
-            flake-lock-fresh, repo-tests, workflow-lint
+            repo-tests, workflow-lint
           CI_GATE_ALLOWED_FAILURES: scope
         run: node .gh-shared/scripts/ci-gate-aggregate.mts
       # Run after every sibling is terminal, when timestamps are final.

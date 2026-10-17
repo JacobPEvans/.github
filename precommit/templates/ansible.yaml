@@ -1,12 +1,12 @@
 # dryvist ansible pre-commit template (non-Nix consumers).
 #
 # Includes the base hook set plus ansible-lint + yamllint. Both consume
-# canonical configs from dryvist/.github at precommit/configs/, which
+# canonical configs from JacobPEvans/.github at precommit/configs/, which
 # the consumer materializes alongside .pre-commit-config.yaml:
 #
-#   gh api repos/dryvist/.github/contents/precommit/configs/ansible-lint.yml \
+#   gh api repos/JacobPEvans/.github/contents/precommit/configs/ansible-lint.yml \
 #     -H "Accept: application/vnd.github.raw" > .ansible-lint
-#   gh api repos/dryvist/.github/contents/precommit/configs/yamllint.yml \
+#   gh api repos/JacobPEvans/.github/contents/precommit/configs/yamllint.yml \
 #     -H "Accept: application/vnd.github.raw" > .yamllint.yml
 #
 # Nix-flake consumers should NOT use this file. They get equivalent

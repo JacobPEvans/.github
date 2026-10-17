@@ -51,7 +51,7 @@ jobs:
       contains(join(github.event.issue.labels.*.name, ','), 'type:') ||
       contains(join(github.event.pull_request.labels.*.name, ','), 'type:')
     runs-on: ${{ inputs.runner_label || 'ubuntu-24.04' }}
-    timeout-minutes: 5
+    timeout-minutes: ${{ github.event_name == 'pull_request' && 5 || 30 }}
     steps:
       - name: Mint app installation token
         id: app-token

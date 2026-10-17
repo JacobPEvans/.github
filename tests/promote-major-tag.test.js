@@ -55,7 +55,7 @@ function promote({ work, bin }, sha, { check = '', flags = [] } = {}) {
       ...process.env,
       PATH: `${bin}:${process.env.PATH}`,
       GH_TOKEN: 'test',
-      GITHUB_REPOSITORY: 'dryvist/.github',
+      GITHUB_REPOSITORY: 'JacobPEvans/.github',
       FAKE_CHECK: check,
     },
   });

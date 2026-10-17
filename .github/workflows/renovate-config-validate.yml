@@ -1,5 +1,5 @@
 # Validates this repo's Renovate config (the org master preset) on every PR
-# that touches it. dryvist/.github is the single source of truth for Renovate
+# that touches it. JacobPEvans/.github is the single source of truth for Renovate
 # policy across every dryvist/JacobPEvans repo, so a broken preset here silently
 # breaks dependency automation for all consumers. `--strict` also fails on
 # deprecation/migration warnings, so config drift (renamed options, removed
@@ -30,7 +30,7 @@ jobs:
   validate:
     name: Validate
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: ${{ github.event_name == 'pull_request' && 5 || 30 }}
     env:
       RENOVATE_VERSION: "44.82.4"
       RENOVATE_CONFIG_FILE: ${{ inputs.config_file }}

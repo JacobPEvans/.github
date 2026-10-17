@@ -3,7 +3,7 @@
 # Canonical baseline focused on NEVER committing secrets, credentials, or
 # AI-assistant local/machine state. Copy into a repo's `.gitignore` at scaffold:
 #
-#   gh api repos/dryvist/.github/contents/configs/gitignore \
+#   gh api repos/JacobPEvans/.github/contents/configs/gitignore \
 #     -H "Accept: application/vnd.github.raw" >> .gitignore
 #
 # Append (>>) rather than overwrite so repo-specific entries are preserved,

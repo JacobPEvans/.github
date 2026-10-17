@@ -15,8 +15,8 @@ on:
         description: >-
           GitHub Actions runner label. Defaults to the GitHub-hosted macOS 26
           arm64 image (`macos-26`, which `macos-latest` resolves to). Pass a
-          self-hosted macOS label to build elsewhere. The RunsOn Linux pattern
-          used by _update-flake-lock.yml does not apply to macOS builds.
+          self-hosted macOS label to build elsewhere. The RunsOn Linux pattern does
+          not apply to macOS builds.
         type: string
         required: false
         default: macos-26
@@ -46,7 +46,7 @@ jobs:
     # The `|| '15'` literal is likewise required: an unset variable interpolates
     # to an empty string, fromJSON('') errors, and fork PRs resolve org
     # variables empty.
-    timeout-minutes: ${{ fromJSON(vars.GH_ACTION_TIMEOUT_NIX || '15') }}
+    timeout-minutes: ${{ github.event_name == 'pull_request' && 5 || fromJSON(vars.GH_ACTION_TIMEOUT_NIX || '15') }}
     permissions:
       contents: read
     steps:

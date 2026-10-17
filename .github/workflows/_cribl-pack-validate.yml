@@ -34,7 +34,7 @@ jobs:
   validate:
     name: Validate
     runs-on: ${{ inputs.runner_label }}
-    timeout-minutes: 15
+    timeout-minutes: ${{ github.event_name == 'pull_request' && 5 || 30 }}
     steps:
       - name: Checkout pack repo
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -43,7 +43,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           repository: ${{ inputs.test_suite_owner || github.repository_owner }}/.github
-          # The workflow's own commit exists only in dryvist/.github; another owner's
+          # The workflow's own commit exists only in JacobPEvans/.github; another owner's
           # test suite is checked out at its default branch.
           ref: ${{ (inputs.test_suite_owner || github.repository_owner) == 'dryvist' && job.workflow_sha || '' }}
           path: .github-shared
