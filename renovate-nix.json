@@ -1,15 +1,23 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "description": [
-    "dryvist/.github nix preset. Nix repos extend `local>dryvist/.github:renovate-nix` to get the full org default policy. As of 2026-08-05 it no longer enables Renovate's native `nix` manager — the preset now exists to DOCUMENT why that manager is off and to keep one stable extends target for nix repos.",
-    "WHY THE MANAGER IS OFF: flake.lock has exactly one writer, the _update-flake-lock.yml reusable workflow in this repo. It runs a bare `nix flake update` onto the single branch `chore/flake-lock` on a weekly schedule, on repository_dispatch from an upstream release, and on demand — so every flake change for a repo lands in ONE pull request. A second writer would break that guarantee, which is the entire point of the design.",
-    "THIS IS NOT A REGRESSION IN COVERAGE. Measured 2026-08-05 across nix-darwin, nix-ai, nix-home and nix-devenv: the nix manager had opened ZERO flake pull requests. Every renovate[bot] PR in those repos came from the github-actions manager. The manager could never advance a channel pin at all (Renovate bumps an input when its REFERENCE changes, and a channel branch's reference never changes), and the digest-tracked inputs it could bump — devenv, git-hooks, treefmt-nix — are now covered by the whole-lock relock.",
-    "The `.nix` version-pin customManager (fetchPypi/fetchurl pins carrying a `# renovate:` annotation) is a SEPARATE mechanism defined in the default preset and is unaffected — it edits version strings inside .nix files, never flake.lock."
+    "Opt-in Renovate preset for Nix repositories.",
+    "Renovate is the only flake.lock writer; the old workflow and dispatch fan-out are being deleted."
   ],
   "extends": [
-    "local>dryvist/.github"
+    "local>JacobPEvans/.github"
   ],
   "nix": {
-    "enabled": false
+    "enabled": true
+  },
+  "lockFileMaintenance": {
+    "enabled": true,
+    "schedule": [
+      "* * * * 0,6"
+    ],
+    "automerge": true,
+    "minimumReleaseAge": null,
+    "updateNotScheduled": false,
+    "groupName": "Nix lock file maintenance"
   }
 }

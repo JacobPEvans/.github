@@ -1,11 +1,11 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "description": [
-    "dryvist/.github shareable Renovate preset — the org-wide entry point every dryvist/JacobPEvans repo inherits via `extends: [\"local>dryvist/.github\"]` (or `github>dryvist/.github`). Renovate resolves a bare repo reference to this `default.json`, so a one-line consumer gets config:recommended plus dryvist's full master policy. This file exists so consumers no longer hit the deprecated `renovate.json`-as-preset fallback.",
-    "dryvist/.github is the MASTER source of truth: it extends no other repository's config. This repo's OWN self-config lives in renovate.json (which consumes this file); all policy (auto-merge, trusted orgs, stability, grouping, custom managers) lives in renovate-presets.json + renovate-grouping.json. Nix repos extend the renovate-nix.json variant to opt in to Renovate's native nix manager."
+    "Enterprise Renovate entry point for consumers using github>JacobPEvans/.github.",
+    "Nix consumers also extend github>JacobPEvans/.github:renovate-nix."
   ],
   "extends": [
     "config:recommended",
-    "local>dryvist/.github:renovate-presets"
+    "local>JacobPEvans/.github:renovate-presets"
   ]
 }

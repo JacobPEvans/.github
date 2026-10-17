@@ -1,12 +1,12 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "description": [
-    "dryvist/.github master Renovate grouping preset — single source of truth for dependency grouping across all dryvist and JacobPEvans repos.",
-    "Batches related dependency updates into single PRs to reduce review burden and prevent deploy-queue saturation. Extended by renovate-presets.json — do not extend this directly from consumers, extend renovate-presets instead. Adding a new ecosystem grouping? Add a packageRule here with a clear description explaining why the packages must move together."
+    "Shared dependency grouping for enterprise Renovate consumers.",
+    "Groups related updates to reduce review noise. Consumers extend renovate-presets instead."
   ],
   "packageRules": [
     {
-      "description": "Fallback grouping for .nix custom-regex version pins: batch each repo's **/*.nix custom.regex pins into one scheduled, auto-merged 'nix version pins' PR (minor/patch) so slow-moving pins don't each take a branch/PR slot and starve (e.g. nix-ai huggingface-hub stalled at 1.15.0 for ~6 weeks, breaking the hf CLI). Placed FIRST so the more specific ecosystem groups below (HuggingFace, OpenTelemetry, ...) still override groupName for their packages, and repo-specific interlock groups (e.g. nix-ai mlx-core, evaluated last in the consuming repo) still win. Scoped to **/*.nix so the Ansible-YAML and Docker-image custom.regex managers are unaffected. Majors excluded so they open individually under the 30-day major-default hold. Auto-merge here mirrors the publisher-agnostic minor/patch rule in renovate-presets.json (any package, any ecosystem, 3-day stabilization + green CI) — it is not a trust carve-out, just keeping grouped members on the same auto-merge behavior as every other minor/patch update. PR-creation cadence for custom.regex members (Fri ~15:00/Mon ~05:00 ET) also comes from renovate-presets.json.",
+      "description": "Group .nix custom-regex version pins into one non-major update per repository.",
       "matchManagers": [
         "custom.regex"
       ],
@@ -21,21 +21,21 @@
       "automerge": true
     },
     {
-      "description": "Group OpenTofu/Terraform providers and modules into a single PR. Prevents deploy-queue saturation when related provider and module bumps arrive together.",
+      "description": "Group OpenTofu and Terraform providers and modules.",
       "matchManagers": [
         "terraform"
       ],
       "groupName": "OpenTofu and Terraform"
     },
     {
-      "description": "Group Ansible Galaxy collection updates. Collections almost always release together (e.g., community.general + ansible.posix) and breakage manifests at the playbook level, so reviewing them as a unit is correct.",
+      "description": "Group Ansible Galaxy collections.",
       "matchManagers": [
         "ansible-galaxy"
       ],
       "groupName": "Ansible collections"
     },
     {
-      "description": "Group OpenTelemetry packages across npm and Python. OTel releases SDKs in lockstep — mixing versions across instrumentation packages causes silent dropped spans.",
+      "description": "Group OpenTelemetry packages.",
       "matchPackageNames": [
         "@opentelemetry/**",
         "opentelemetry-**"
@@ -43,7 +43,7 @@
       "groupName": "OpenTelemetry"
     },
     {
-      "description": "Group TypeScript type definitions (@types/*). Type-only updates are mechanical and almost never break runtime behavior. Auto-merge here is just the publisher-agnostic minor/patch rule in renovate-presets.json (any package, any ecosystem, 3-day stabilization + green CI) applied to the grouped batch — not a trust carve-out for @types/*.",
+      "description": "Group TypeScript type definitions; minor and patch updates follow shared auto-merge policy.",
       "matchPackageNames": [
         "@types/**"
       ],
@@ -55,7 +55,7 @@
       "automerge": true
     },
     {
-      "description": "Group ESLint core and TypeScript-aware ESLint plugins. typescript-eslint releases as a monorepo with matched versions across @typescript-eslint/parser, @typescript-eslint/eslint-plugin, etc. — they must move together.",
+      "description": "Group ESLint and TypeScript packages.",
       "matchPackageNames": [
         "eslint",
         "eslint-**",
@@ -67,7 +67,7 @@
       "groupName": "ESLint & TypeScript"
     },
     {
-      "description": "Group pytest core and pytest-* plugins. Plugin compatibility is tied to pytest minor versions; batching prevents version-skew breakages in CI.",
+      "description": "Group pytest and pytest plugins.",
       "matchDatasources": [
         "pypi"
       ],
@@ -78,7 +78,7 @@
       "groupName": "pytest"
     },
     {
-      "description": "Group AWS SDK packages across npm (@aws-sdk/*, aws-sdk) and Python (boto3, botocore). AWS releases these as a coordinated set — botocore feeds boto3, @aws-sdk submodules share a version.",
+      "description": "Group AWS SDK packages.",
       "matchPackageNames": [
         "aws-sdk",
         "@aws-sdk/**",
@@ -89,7 +89,7 @@
       "groupName": "AWS SDK"
     },
     {
-      "description": "Group HuggingFace ecosystem packages. transformers + tokenizers + datasets + accelerate + huggingface-hub have tightly-coupled version requirements; partial updates routinely break imports.",
+      "description": "Group Hugging Face ecosystem packages.",
       "matchPackageNames": [
         "transformers",
         "tokenizers",
@@ -102,7 +102,7 @@
       "groupName": "HuggingFace"
     },
     {
-      "description": "First-party reusable workflows: one PR per repository for dryvist/.github and dryvist/ai-workflows github-actions updates. Majors are excluded and open individually. Auto-merge and labels come from the dryvist/** rules in renovate-presets.json; Renovate auto-merges a grouped branch only when every update in it auto-merges and unions their labels, so a group holding a minor bump stays open with bump:minor.",
+      "description": "Group selected first-party workflow updates per repository.",
       "matchManagers": [
         "github-actions"
       ],
