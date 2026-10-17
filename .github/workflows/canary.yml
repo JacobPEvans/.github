@@ -10,9 +10,10 @@
 # are reached only through the directory inputs a reusable exposes; the rest
 # run against the repo root.
 #
-# The `promote` job at the end runs on push to main after this run's summary
-# succeeds. It moves the floating major tag when a release tag already names
-# this commit. When the release comes later, promote-major-tag.yml does it.
+# The `promote` job at the end runs on push to main after each stack check and
+# fixture assertion succeeds. It moves the floating major tag when a release
+# tag already names this commit. When the release comes later,
+# promote-major-tag.yml does it.
 # Both paths call scripts/promote-major-tag.sh.
 #
 # The job named `Canary` is the required check (ruleset, admin gate). It fails
@@ -293,12 +294,23 @@ jobs:
           exit "$fail"
 
   # Second arrival for a release: this push-to-main run finished after the
-  # release tag named this commit. `needs` with `success()` means the summary
-  # above already concluded success, so the script skips the check-run lookup.
+  # release tag named this commit. The condition repeats the summary's checks,
+  # so the script can skip the check-run lookup.
   promote:
     name: Move floating major tag
-    needs: [canary-summary]
-    if: ${{ success() && github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    # Depend directly on the canary inputs so the full required-check chain
+    # stays within the shared three-job depth policy.
+    needs: [scope, ansible, nix, tofu, python, docs, ansible-direct, template-callers]
+    if: >-
+      success() && github.event_name == 'push' && github.ref == 'refs/heads/main' &&
+      needs.scope.outputs.run == 'true' &&
+      needs.ansible.result == 'success' && needs.ansible.outputs.ansible == 'true' &&
+      needs.nix.result == 'success' && needs.nix.outputs.nix == 'true' &&
+      needs.tofu.result == 'success' && needs.tofu.outputs.extra == 'true' &&
+      needs.python.result == 'success' && needs.python.outputs.python == 'true' &&
+      needs.docs.result == 'success' && needs.docs.outputs.markdown == 'true' &&
+      needs.ansible-direct.result == 'success' &&
+      needs.template-callers.result == 'success'
     runs-on: ubuntu-24.04
     timeout-minutes: ${{ github.event_name == 'pull_request' && 5 || 30 }}
     permissions:
