@@ -409,6 +409,16 @@
         "git-refs"
       ],
       "minimumReleaseAgeBehaviour": "timestamp-optional"
+    },
+    {
+      "description": "Hold Python below 3.15 in Ansible repositories until ansible-core supports it.",
+      "matchRepositories": [
+        "/(^|/)ansible-/"
+      ],
+      "matchDepNames": [
+        "python"
+      ],
+      "allowedVersions": "<3.15"
     }
   ],
   "updateNotScheduled": false
