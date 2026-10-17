@@ -46,8 +46,9 @@ on:
         type: string
         default: ''
     secrets:
+      # Optional here so the pull request freeze job runs without it; release-please still requires it.
       GH_ACTION_RELEASE_PLEASE_PRIVATE_KEY:
-        required: true
+        required: false
     outputs:
       release_created:
         description: true when release-please created a release
