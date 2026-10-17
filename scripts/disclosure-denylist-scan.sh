@@ -12,7 +12,9 @@
 #   <denylist-file> — one fixed string per line (blank lines / #-comments skipped)
 #   <base-ref>      — git ref to diff against; only lines added since it are scanned
 #
-# Reads PR_TITLE / PR_BODY from the environment (may be unset outside a PR).
+# Reads PR_TITLE / PR_BODY / PR_AUTHOR from the environment (may be unset outside
+# a PR). For a renovate[bot] PR, the body's `### Release Notes` section (up to
+# `### Configuration`) is skipped: it is upstream changelog text copied verbatim.
 #
 # Exit codes:
 #   0 — no hits
@@ -121,7 +123,14 @@ if [[ -n "${PR_TITLE:-}" ]]; then
 fi
 if [[ -n "${PR_BODY:-}" ]]; then
   body_file="$(mktemp)"
-  printf '%s\n' "$PR_BODY" > "$body_file"
+  if [[ "${PR_AUTHOR:-}" == "renovate[bot]" ]]; then
+    # Blank the skipped lines rather than drop them, so hits keep their body line numbers.
+    printf '%s\n' "$PR_BODY" \
+      | awk '/^### Release Notes/ { skip = 1 } /^### Configuration/ { skip = 0 } { print (skip ? "" : $0) }' \
+      > "$body_file"
+  else
+    printf '%s\n' "$PR_BODY" > "$body_file"
+  fi
   scan_file "PR body" "$body_file"
   rm -f "$body_file"
 fi
