@@ -529,7 +529,7 @@ jobs:
       (!github.event.pull_request ||
       github.event.pull_request.head.repo.full_name == github.repository)) &&
       inputs.molecule_runner_label || 'ubuntu-24.04' }}
-    timeout-minutes: ${{ github.event_name == 'pull_request' && 5 || 45 }}
+    timeout-minutes: ${{ github.event_name == 'pull_request' && 10 || 45 }} # pr-policy: timeout-exception Molecule scenarios take up to 9 min on PRs
     strategy:
       fail-fast: false
       matrix:

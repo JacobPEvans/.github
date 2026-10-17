@@ -32,7 +32,7 @@ jobs:
 """
         self.assertEqual([], pr_policy.analyze(Path("valid.yml"), source))
 
-    def test_documented_timeout_exception_allows_ten_minutes_only(self):
+    def test_documented_timeout_exception_allows_twenty_five_minutes_only(self):
         source = """\
 name: exception
 on: pull_request
@@ -41,10 +41,10 @@ jobs:
     timeout-minutes: ${{ github.event_name == 'pull_request' && 10 || 30 }} # pr-policy: timeout-exception shared runner CPU
     steps: []
   bare:
-    timeout-minutes: 10 # pr-policy: timeout-exception
+    timeout-minutes: 25 # pr-policy: timeout-exception
     steps: []
   over:
-    timeout-minutes: 11 # pr-policy: timeout-exception still too slow
+    timeout-minutes: 26 # pr-policy: timeout-exception still too slow
     steps: []
 """
         lines = [line for line, rule, _ in pr_policy.analyze(Path("exception.yml"), source) if rule == "timeout-minutes"]
