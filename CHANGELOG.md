@@ -1,5 +1,28 @@
 # Changelog
 
+## [1.20.0](https://github.com/JacobPEvans/.github/compare/v1.19.0...v1.20.0) (2026-10-17)
+
+
+### Features
+
+* central release, PR policy and event test tiers ([#3](https://github.com/JacobPEvans/.github/issues/3)) ([37c93f5](https://github.com/JacobPEvans/.github/commit/37c93f5aaf767c539d8966e3982168f01c34542d))
+* **ci-gate:** size-gated fast-path label skips heavy suites ([#6](https://github.com/JacobPEvans/.github/issues/6)) ([f230887](https://github.com/JacobPEvans/.github/commit/f23088782d4a3793df179143c0c3fb380dd75043))
+* **ci:** calling owner as first-party, timeout exception, disclosure gate entry ([#4](https://github.com/JacobPEvans/.github/issues/4)) ([245b756](https://github.com/JacobPEvans/.github/commit/245b756fa42c85dd0a79f355508d9b6d795b64ce))
+* **renovate:** auto-merge major updates after their stabilization window ([#11](https://github.com/JacobPEvans/.github/issues/11)) ([e076cc6](https://github.com/JacobPEvans/.github/commit/e076cc65ec97475858e56b5dd70a4c7f28c9203a))
+* **renovate:** weekend-only updates with 7-day stabilization ([#1](https://github.com/JacobPEvans/.github/issues/1)) ([47657b1](https://github.com/JacobPEvans/.github/commit/47657b172fd12e8977306ea62d90be2756c50fdb))
+* **workflows:** enable auto-merge on pull requests at open ([#19](https://github.com/JacobPEvans/.github/issues/19)) ([40873ab](https://github.com/JacobPEvans/.github/commit/40873ab55eb5fb09226658706a10d1da4f4e5081))
+
+
+### Bug Fixes
+
+* **ci-gate:** stop the queue watchdog inside its pull_request timeout ([#7](https://github.com/JacobPEvans/.github/issues/7)) ([86ce233](https://github.com/JacobPEvans/.github/commit/86ce23353cca2cd3dbba7c7acd7237f76364b91d))
+* **ci:** give Nix Validate and Molecule PR ceilings that fit their suites ([#8](https://github.com/JacobPEvans/.github/issues/8)) ([3f2a501](https://github.com/JacobPEvans/.github/commit/3f2a501b93c79c9e1a648156b3a0af3d8e2ca173))
+* **disclosure-gate:** skip the scanned repository's own name ([#10](https://github.com/JacobPEvans/.github/issues/10)) ([602d44d](https://github.com/JacobPEvans/.github/commit/602d44da37723b2f97dd00a51f9dd0fef1050d62))
+* **pr-policy:** check only the lines a pull request adds or changes ([#9](https://github.com/JacobPEvans/.github/issues/9)) ([a7add4b](https://github.com/JacobPEvans/.github/commit/a7add4b3ae95d7c3e033e7bfb3746aa1a6b6b7ca))
+* **release:** trigger the release caller on label and close events ([#5](https://github.com/JacobPEvans/.github/issues/5)) ([970a293](https://github.com/JacobPEvans/.github/commit/970a293f4bfb1e27baf1ae48565695d0237a7fe5))
+* **renovate:** hold Python below 3.15 in Ansible repositories ([#13](https://github.com/JacobPEvans/.github/issues/13)) ([46c0c42](https://github.com/JacobPEvans/.github/commit/46c0c426a712e3d3f4bf643009c55de4cf21a95d))
+* **renovate:** hold Python below 3.15 in homelab-contracts ([#14](https://github.com/JacobPEvans/.github/issues/14)) ([642bd35](https://github.com/JacobPEvans/.github/commit/642bd35665613775ea8fb66ff3432806a9fb413a))
+
 ## [1.19.0](https://github.com/dryvist/.github/compare/v1.18.0...v1.19.0) (2026-10-15)
 
 
