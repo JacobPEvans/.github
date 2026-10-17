@@ -7,7 +7,6 @@ import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 
 const script = fileURLToPath(new URL('../scripts/ci-gate-uses-resolve.sh', import.meta.url));
-const SHA = '3d3c42e5aac5ba805825da76410c181273ba90b1';
 const clean = 'jobs:\n  a:\n    runs-on: ubuntu-24.04\n';
 
 // Builds a throwaway caller repo, runs the checker inside it, and removes it.
@@ -69,43 +68,13 @@ test('a dryvist ref outside the public shared repos is not checked, only noticed
   assert.doesNotMatch(run.stdout, /::error/);
 });
 
-test('pin policy: a dryvist ref pinned to a commit SHA passes in fail mode', () => {
-  const run = runInCaller(`jobs:\n  a:\n    uses: dryvist/tool/action@${SHA}\n`, {}, {
+test('uses: refs are not pin-checked here; pr-policy owns that rule', () => {
+  const run = runInCaller('jobs:\n  a:\n    uses: dryvist/tool/action@main\n', {}, {
     PIN_POLICY_MODE: 'fail',
   });
 
   assert.equal(run.status, 0, run.stdout + run.stderr);
   assert.doesNotMatch(run.stdout, /::(warning|error)/);
-});
-
-test('pin policy: a dryvist ref not pinned to a SHA is a warning and exits 0 in warn mode', () => {
-  const run = runInCaller('jobs:\n  a:\n    uses: dryvist/tool/action@main\n', {}, { PIN_POLICY_MODE: 'warn' });
-
-  assert.equal(run.status, 0, run.stdout + run.stderr);
-  assert.match(
-    run.stdout,
-    /^::warning file=\.github\/workflows\/caller\.yml,line=3::dryvist\/tool\/action@main is not pinned to a 40-character commit SHA/m,
-  );
-  assert.match(run.stdout, /pin policy warn: 1 finding/);
-});
-
-test('pin policy: a dryvist ref not pinned to a SHA is an error and exits 1 in fail mode', () => {
-  const run = runInCaller('jobs:\n  a:\n    uses: dryvist/tool/action@main\n', {}, {
-    PIN_POLICY_MODE: 'fail',
-  });
-
-  assert.equal(run.status, 1, run.stdout + run.stderr);
-  assert.match(
-    run.stdout,
-    /^::error file=\.github\/workflows\/caller\.yml,line=3::dryvist\/tool\/action@main is not pinned to a 40-character commit SHA/m,
-  );
-});
-
-test('pin policy: with no mode set a dryvist ref not pinned to a SHA is an error and exits 1', () => {
-  const run = runInCaller('jobs:\n  a:\n    uses: dryvist/tool/action@main\n');
-
-  assert.equal(run.status, 1, run.stdout + run.stderr);
-  assert.match(run.stdout, /^::error file=\.github\/workflows\/caller\.yml,line=3::/m);
 });
 
 test('pin policy: a flake input without ?ref=v<major> is a warning in warn mode', () => {
@@ -243,55 +212,4 @@ test('pin policy: an unknown PIN_POLICY_MODE is rejected with exit 2', () => {
 
   assert.equal(run.status, 2, run.stdout + run.stderr);
   assert.match(run.stdout, /PIN_POLICY_MODE must be warn or fail/);
-});
-
-test('pin policy: a branch ref in a composite action file fails in fail mode', () => {
-  const run = runInCaller(clean, {
-    '.github/actions/local/action.yml': 'runs:\n  using: composite\n  steps:\n    - uses: dryvist/tool/action@main\n',
-  });
-
-  assert.equal(run.status, 1, run.stdout + run.stderr);
-  assert.match(run.stdout, /::error file=\.github\/actions\/local\/action\.yml,line=4::dryvist\/tool\/action@main is not pinned/);
-});
-
-test('pin policy: the legacy JacobPEvans owner alias is held to the same commit SHA rule', () => {
-  const bad = runInCaller(`jobs:\n  a:\n    uses: JacobPEvans/.github/.github/workflows/_ci-gate.yml@main\n`);
-  assert.equal(bad.status, 1, bad.stdout + bad.stderr);
-  assert.match(bad.stdout, /::error file=\.github\/workflows\/caller\.yml,line=3::JacobPEvans\/\.github\/.* is not pinned/);
-
-  const pinned = runInCaller(`jobs:\n  a:\n    uses: JacobPEvans/tool/action@${SHA} # v1.2.3\n`);
-  assert.equal(pinned.status, 0, pinned.stdout + pinned.stderr);
-
-  const personal = runInCaller(`jobs:\n  a:\n    uses: JacobPEvans-personal/tool/action@main\n`);
-  assert.equal(personal.status, 0, personal.stdout + personal.stderr);
-});
-
-test('pin policy: flow-style and quoted uses entries in a composite action are checked, comments are not', () => {
-  const flow = runInCaller(clean, {
-    '.github/actions/local/action.yml': 'runs:\n  using: composite\n  steps:\n    - {uses: dryvist/tool/action@main}\n',
-  });
-  assert.equal(flow.status, 1, flow.stdout + flow.stderr);
-  assert.match(flow.stdout, /::error file=\.github\/actions\/local\/action\.yml,line=4::dryvist\/tool\/action@main is not pinned/);
-
-  const quoted = runInCaller(clean, {
-    '.github/actions/local/action.yml': 'runs:\n  using: composite\n  steps:\n    - "uses": "dryvist/tool/action@develop"\n',
-  });
-  assert.equal(quoted.status, 1, quoted.stdout + quoted.stderr);
-
-  const pinnedFlow = runInCaller(clean, {
-    '.github/actions/local/action.yml': `runs:\n  using: composite\n  steps:\n    - {uses: dryvist/tool/action@${SHA}, with: {x: 1}}\n`,
-  });
-  assert.equal(pinnedFlow.status, 0, pinnedFlow.stdout + pinnedFlow.stderr);
-
-  const comment = runInCaller(clean, {
-    '.github/actions/local/action.yml': 'runs:\n  using: composite\n  steps:\n    # uses: dryvist/tool/action@main\n    - run: true\n',
-  });
-  assert.equal(comment.status, 0, comment.stdout + comment.stderr);
-});
-
-test('pin policy: the org name is matched without case', () => {
-  const run = runInCaller(`jobs:\n  a:\n    uses: Dryvist/tool/action@main\n`);
-
-  assert.equal(run.status, 1, run.stdout + run.stderr);
-  assert.match(run.stdout, /::error file=\.github\/workflows\/caller\.yml,line=3::Dryvist\/tool\/action@main is not pinned/);
 });
