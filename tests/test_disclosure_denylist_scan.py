@@ -126,6 +126,26 @@ class DisclosureDenylistScanTest(unittest.TestCase):
         self.assertIn("PR title:1", result.stdout)
         self.assertNotIn("ANOTHER-TERM", result.stdout)
 
+    def test_renovate_release_notes_are_skipped_without_changing_line_numbers(self):
+        release_notes = "intro\n### Release Notes\nSECRET-TERM\n### Configuration\nclean\n"
+        skipped = self._run(env_extra={"PR_BODY": release_notes, "PR_AUTHOR": "renovate[bot]"})
+        self.assertEqual(skipped.returncode, 0, skipped.stdout + skipped.stderr)
+
+        outside_release_notes = (
+            "### Release Notes\nSECRET-TERM\n### Configuration\nSECRET-TERM\n"
+        )
+        outside = self._run(
+            env_extra={"PR_BODY": outside_release_notes, "PR_AUTHOR": "renovate[bot]"}
+        )
+        self.assertEqual(outside.returncode, 1)
+        self.assertIn("PR body:4", outside.stdout)
+
+        non_renovate = self._run(
+            env_extra={"PR_BODY": release_notes, "PR_AUTHOR": "dependabot[bot]"}
+        )
+        self.assertEqual(non_renovate.returncode, 1)
+        self.assertIn("PR body:3", non_renovate.stdout)
+
     def test_term_inside_a_larger_word_does_not_hit(self):
         """The false-positive fix: a denylisted term is only a hit as a whole token.
 
