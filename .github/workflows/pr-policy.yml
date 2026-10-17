@@ -1,0 +1,76 @@
+name: PR Policy
+
+on:
+  pull_request:
+
+permissions: {}
+
+jobs:
+  policy:
+    name: Workflow Policy
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    permissions:
+      contents: read
+    steps:
+      - name: Check out the PR head
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      # As a required workflow this runs in the consumer repo, which has no
+      # copy of the checker; fetch it from this workflow's own commit.
+      - name: Check out the checker
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          repository: JacobPEvans/.github
+          ref: ${{ job.workflow_sha }}
+          path: .pr-policy
+          persist-credentials: false
+          sparse-checkout: scripts/pr-policy.py
+          sparse-checkout-cone-mode: false
+      - name: Install the YAML parser
+        run: python3 -m pip install --disable-pip-version-check --no-warn-script-location --target "$RUNNER_TEMP/pr-policy-deps" 'PyYAML>=6.0.2,<7'
+      - name: Check workflow policy
+        env:
+          PYTHONPATH: ${{ runner.temp }}/pr-policy-deps
+        run: python3 .pr-policy/scripts/pr-policy.py "$GITHUB_WORKSPACE"
+
+  pr-title:
+    name: PR Title
+    if: ${{ contains(fromJSON('["opened", "edited", "synchronize", "reopened"]'), github.event.action) }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - name: Check the live commit message rule
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          BASE: ${{ github.event.pull_request.base.ref }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          HEAD: ${{ github.event.pull_request.head.ref }}
+          TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          set -euo pipefail
+
+          if [[ "$BASE" == "$DEFAULT_BRANCH" && "$HEAD" == "develop" ]]; then
+            exit 0
+          fi
+          if [[ "$TITLE" == "Merge "* ]]; then
+            exit 0
+          fi
+
+          encoded_base=$(jq -rn --arg base "$BASE" '$base | @uri')
+          rules=$(gh api "repos/$REPO/rules/branches/$encoded_base")
+          pattern=$(jq -r '[.[] | select(.type == "commit_message_pattern" and .parameters.operator == "regex") | .parameters.pattern] | first // empty' <<< "$rules")
+          if [[ -z "$pattern" ]]; then
+            exit 0
+          fi
+
+          if [[ "$TITLE" =~ $pattern ]]; then
+            exit 0
+          fi
+          printf 'PR title does not match commit_message_pattern: %s\nExample: feat(scope): add the thing\n' "$pattern" >&2
+          exit 1

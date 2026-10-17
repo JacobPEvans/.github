@@ -34,8 +34,6 @@
 name: Promote Major Tag
 
 on:
-  release:
-    types: [published]
   workflow_dispatch:
     inputs:
       tag:

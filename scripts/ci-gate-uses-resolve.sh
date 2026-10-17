@@ -9,8 +9,8 @@
 # Other dryvist refs print a notice instead, and actions are ignored.
 # actionlint does not resolve either form, so this check is the enforcement.
 #
-# Pin policy, checked on every dryvist reference in the checked-out repo:
-#   .github/workflows/*.yml  uses: dryvist/<repo>/...@<ref>  ref is a 40-hex commit SHA
+# Pin policy, checked on every dryvist reference in the checked-out repo
+# (`uses:` refs are checked by pr-policy.yml):
 #   flake.nix                github:dryvist/... input        carries ?ref=v<major>
 #   .envrc                   no `use flake` of a remote dryvist flake
 #   requirements.yml         dryvist git source              version is not main, develop or HEAD
@@ -71,24 +71,17 @@ for wf in ${uses_files[@]+"${uses_files[@]}"}; do
     # The org name is matched without case; the original text is kept for messages.
     lower=$(printf '%s' "$value" | tr '[:upper:]' '[:lower:]')
 
-    # dryvist and its legacy owner alias JacobPEvans (a redirect to the same repositories).
-    if [[ "$lower" == dryvist/*@* || "$lower" == jacobpevans/*@* ]]; then
-      sha=${value##*@}
-      if [[ ! $sha =~ ^[0-9a-f]{40}$ ]]; then
-        policy "$wf" "$lineno" "${value} is not pinned to a 40-character commit SHA"
-      fi
-    fi
-
     case "$lower" in
       ./.github/workflows/*)
         if [[ ! -f "${value#./}" ]]; then
           fail "$wf" "$value" "local file missing"
         fi
         ;;
-      dryvist/*/.github/workflows/*@*)
+      dryvist/*/.github/workflows/*@* | jacobpevans/*/.github/workflows/*@*)
+        owner=${value%%/*}
         rest=${value#*/}
         repo=${rest%%/*}
-        if [[ "$repo" != ".github" && "$repo" != "ai-workflows" ]]; then
+        if [[ "$repo" != ".github" && "$repo" != ".github-ai" && "$repo" != "ai-workflows" ]]; then
           echo "::notice::not checked (${value})"
           continue
         fi
@@ -97,7 +90,7 @@ for wf in ${uses_files[@]+"${uses_files[@]}"}; do
         ref=${value##*@}
         file=${file#.github/workflows/}
         if ! gh api --method HEAD \
-          "repos/dryvist/${repo}/contents/.github/workflows/${file}?ref=${ref}" \
+          "repos/${owner}/${repo}/contents/.github/workflows/${file}?ref=${ref}" \
           >/dev/null 2>&1; then
           fail "$wf" "$value" "not found at ref, or not readable with this token"
         fi

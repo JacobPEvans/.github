@@ -1,13 +1,13 @@
 # Reusable: CI-gated converge
 #
 # Fires on a push to a protected branch (the merge IS the gate; no separate
-# label). Five steps: classify scope, open a Vikunja maintenance window,
+# label). Preflight path filters, open a Vikunja maintenance window,
 # mint a scoped OpenBao token, trigger the target and wait (bounded), then
 # report and close the window.
 #
 # `target: terrakube-apply` exchanges this job's own GitHub OIDC token
 # directly against Terrakube's Federated OIDC Authentication (org Security
-# -> Federated Credentials) — step 3's `mint-token` is skipped for this
+# -> Federated Credentials) — the `mint-token` job is skipped for this
 # target, since Terrakube has no OpenBao integration to mint a credential
 # against. It plans, creates a plan-and-apply job pinned to that plan,
 # approves it only when the plan shows zero destroys, and waits for a
@@ -25,10 +25,8 @@ on:
       filters:
         description: >-
           YAML body for dorny/paths-filter, same convention as _ci-gate.yml's
-          `filters` input. The `changes` job renders it for a later gate to
-          consume; it does not yet gate anything in this file itself — the
-          composite job list is `changes` -> `window-open` -> `mint-token`
-          -> `trigger` -> `report-and-close`, in that order.
+          `filters` input. The `window-open` job validates and applies it
+          before opening the maintenance window.
         type: string
         required: true
       target:
@@ -124,27 +122,15 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  # 1. Classify scope — the same dorny/paths-filter shape _ci-gate.yml uses,
-  # so a caller's existing `filters:` block works here unchanged. Runs on
-  # HEAD~1..HEAD for a push event (paths-filter's own push-event default).
-  changes:
-    name: Detect Changes
+  # Preflight and open the maintenance window in one job. The filter has no
+  # downstream outputs; keeping its validation before the window opens avoids
+  # a deep needs chain without changing the caller input.
+  window-open:
+    name: Open maintenance window
     runs-on: ${{ inputs.runner_label }}
     timeout-minutes: ${{ github.event_name == 'pull_request' && 5 || 30 }}
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-      - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4
-        id: filter
-        with:
-          filters: ${{ inputs.filters }}
-
-  # Reject a target this file has no job body for, instead of the later jobs
-  # silently no-op'ing on an unmatched `if:` and reporting a false success.
-  validate-target:
-    name: Validate target
-    needs: changes
-    runs-on: ${{ inputs.runner_label }}
-    timeout-minutes: ${{ github.event_name == 'pull_request' && 5 || 30 }}
+    outputs:
+      task_id: ${{ steps.open.outputs.task_id }}
     steps:
       - name: Reject an unimplemented target
         env:
@@ -161,16 +147,11 @@ jobs:
               exit 1
               ;;
           esac
-
-  # 2. Open the maintenance window. PUT, not POST — Vikunja's create route.
-  window-open:
-    name: Open maintenance window
-    needs: [changes, validate-target]
-    runs-on: ${{ inputs.runner_label }}
-    timeout-minutes: ${{ github.event_name == 'pull_request' && 5 || 30 }}
-    outputs:
-      task_id: ${{ steps.open.outputs.task_id }}
-    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4
+        id: filter
+        with:
+          filters: ${{ inputs.filters }}
       - name: Open the window
         id: open
         env:
@@ -206,7 +187,7 @@ jobs:
           fi
           echo "task_id=$id" >> "$GITHUB_OUTPUT"
 
-  # 3. Trade this job's OIDC token for a scoped OpenBao token, bound to this
+  # 2. Trade this job's OIDC token for a scoped OpenBao token, bound to this
   # repository and ref (the docs-publisher pattern already in production —
   # see the docs publisher workflow). The role name
   # equals `inputs.target`; each target's own AppRole-free JWT role and its
@@ -237,7 +218,7 @@ jobs:
           jwtGithubAudience: ${{ inputs.openbao_jwt_audience }}
           exportEnv: false
 
-  # 4. Trigger and wait, bounded by `inputs.wait_minutes`. Terrakube verifies
+  # 3. Trigger and wait, bounded by `inputs.wait_minutes`. Terrakube verifies
   # this job's own GitHub OIDC token directly (org Security -> Federated
   # Credentials). mint-token is deliberately NOT in this job's `needs`: a
   # job whose `needs` names a SKIPPED job is itself skipped unless its
@@ -247,7 +228,7 @@ jobs:
   # to guarantee transitively.
   trigger:
     name: Trigger target
-    needs: [window-open, changes]
+    needs: window-open
     if: inputs.target == 'terrakube-apply'
     runs-on: ${{ inputs.runner_label }}
     timeout-minutes: ${{ github.event_name == 'pull_request' && 5 || inputs.wait_minutes }}
@@ -292,7 +273,7 @@ jobs:
           [ -n "${TERRAKUBE_API_ADDR:-}" ] || { echo "::error::TERRAKUBE_API_ADDR secret not set"; exit 1; }
           bash .gh-shared/scripts/terrakube-gated-apply.sh
 
-  # 5. Report and close. Runs on `always()` so a failed trigger still closes
+  # 4. Report and close. Runs on `always()` so a failed trigger still closes
   # the window rather than leaving it open indefinitely. Sets `done` FIRST:
   # a transient failure of the best-effort comment must never leave the
   # window open.

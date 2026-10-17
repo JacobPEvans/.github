@@ -433,15 +433,19 @@ on:
         value: ${{ jobs.changes.outputs.is-flake-lock-change }}
       scope_ci:
         description: >-
-          Content-aware scope classifier's ci output (full | lint-only |
-          none), for a caller that wants to gate a job of its own the same
-          way this file's own jobs are gated. Empty when `scope` failed -
-          treat empty the same as "full" (defer to your own filters), never
-          as "none".
-        value: ${{ jobs.scope.outputs.ci }}
+          Effective CI tier for a caller-owned job: event-selected full or
+          lint-only first, otherwise the content-aware scope classifier's
+          ci output (full | lint-only | none). Empty when `scope` failed in
+          the relevance tier; treat empty as "full", never as "none".
+        value: ${{ jobs.changes.outputs.test_tier == 'full' && 'full' || jobs.changes.outputs.test_tier == 'lint-only' && 'lint-only' || jobs.scope.outputs.ci }}
       scope_molecule:
-        description: Scope classifier's molecule output (full | changed-roles | none)
-        value: ${{ jobs.scope.outputs.molecule }}
+        description: >-
+          Effective Molecule tier: full for the full event tier, none for
+          docs-only default-branch PRs, otherwise the scope classifier output.
+        value: ${{ jobs.changes.outputs.test_tier == 'full' && 'full' || jobs.changes.outputs.test_tier == 'lint-only' && 'none' || jobs.scope.outputs.molecule }}
+      test_tier:
+        description: Event-selected test tier (full | lint-only | relevance)
+        value: ${{ jobs.changes.outputs.test_tier }}
       scope_source:
         description: jev | fallback - whether the scope outputs came from the classifier or a fail-safe default
         value: ${{ jobs.scope.outputs.source }}
@@ -493,12 +497,13 @@ jobs:
     runs-on: ${{ (!github.event.pull_request || github.event.pull_request.head.repo.full_name == github.repository) && inputs.orchestration_runner || 'ubuntu-24.04' }}
     timeout-minutes: ${{ github.event_name == 'pull_request' && 5 || 30 }}
     outputs:
-      nix: ${{ steps.filter.outputs.nix == 'true' || (inputs.profile == 'nix' && steps.unmapped.outputs.full == 'true') }}
-      markdown: ${{ steps.filter.outputs.markdown == 'true' || (inputs.profile == 'docs' && steps.unmapped.outputs.full == 'true') }}
-      python: ${{ steps.filter.outputs.python == 'true' || (inputs.profile == 'python' && steps.unmapped.outputs.full == 'true') }}
-      ansible: ${{ steps.filter.outputs.ansible == 'true' || (inputs.profile == 'ansible' && steps.unmapped.outputs.full == 'true') }}
-      terraform: ${{ steps.filter.outputs.terraform == 'true' || (inputs.profile == 'tofu' && steps.unmapped.outputs.full == 'true') }}
-      extra: ${{ steps.filter.outputs.extra }}
+      nix: ${{ steps.tier.outputs.test_tier == 'full' || (steps.tier.outputs.test_tier != 'lint-only' && (steps.filter.outputs.nix == 'true' || (inputs.profile == 'nix' && steps.unmapped.outputs.full == 'true'))) }}
+      markdown: ${{ steps.tier.outputs.test_tier == 'full' || steps.tier.outputs.test_tier == 'lint-only' || steps.filter.outputs.markdown == 'true' || (inputs.profile == 'docs' && steps.unmapped.outputs.full == 'true') }}
+      python: ${{ steps.tier.outputs.test_tier == 'full' || (steps.tier.outputs.test_tier != 'lint-only' && (steps.filter.outputs.python == 'true' || (inputs.profile == 'python' && steps.unmapped.outputs.full == 'true'))) }}
+      ansible: ${{ steps.tier.outputs.test_tier == 'full' || (steps.tier.outputs.test_tier != 'lint-only' && (steps.filter.outputs.ansible == 'true' || (inputs.profile == 'ansible' && steps.unmapped.outputs.full == 'true'))) }}
+      terraform: ${{ steps.tier.outputs.test_tier == 'full' || (steps.tier.outputs.test_tier != 'lint-only' && (steps.filter.outputs.terraform == 'true' || (inputs.profile == 'tofu' && steps.unmapped.outputs.full == 'true'))) }}
+      extra: ${{ steps.tier.outputs.test_tier == 'full' || (steps.tier.outputs.test_tier != 'lint-only' && steps.filter.outputs.extra == 'true') }}
+      test_tier: ${{ steps.tier.outputs.test_tier }}
       profile-unmapped: ${{ steps.unmapped.outputs.full == 'true' }}
       is-deps-only: ${{ steps.detect-deps.outputs.is-deps-only }}
       is-flake-lock-change: ${{ steps.lockfilter.outputs.flake-lock }}
@@ -591,6 +596,38 @@ jobs:
               - 'flake.lock'
             nix-source:
               - '**.nix'
+            non-doc:
+              - '**'
+              - '!**.md'
+              - '!docs/**'
+              - '!LICENSE'
+              - '!CHANGELOG.md'
+          predicate-quantifier: some-with-excludes
+
+      - name: Select test tier from the event and diff
+        id: tier
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_REF: ${{ github.base_ref }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          NON_DOC: ${{ steps.lockfilter.outputs.non-doc }}
+        run: |
+          case "$EVENT_NAME" in
+            push) test_tier=full ;;
+            pull_request)
+              if [[ "$BASE_REF" == "$DEFAULT_BRANCH" ]]; then
+                if [[ "$NON_DOC" == true ]]; then
+                  test_tier=full
+                else
+                  test_tier=lint-only
+                fi
+              else
+                test_tier=relevance
+              fi
+              ;;
+            *) test_tier=relevance ;;
+          esac
+          echo "test_tier=$test_tier" >> "$GITHUB_OUTPUT"
 
       - name: Sparse-checkout shared scripts from this repo
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -649,17 +686,15 @@ jobs:
   nix-validate:
     name: Nix Validate
     needs: [changes, scope]
-    # Second layer on top of the filter-based condition: only narrows
-    # further when `scope` definitively succeeded and said "none" - a
-    # scope failure (or a caller with no TYPESAFE_API_KEY plumbed through)
-    # defers entirely to the filter, exactly as before this job existed.
-    if: ${{ !cancelled() && (inputs.nix_validate || inputs.profile == 'nix') && needs.changes.outputs.nix == 'true' && (inputs.nix_skip_deps_only == false || needs.changes.outputs.is-deps-only != 'true' || needs.changes.outputs.is-flake-lock-change == 'true' || needs.changes.outputs.is-nix-source-change == 'true') && (needs.changes.outputs.profile-unmapped == 'true' || needs.scope.result != 'success' || needs.scope.outputs.ci != 'none') }}
+    # Relevance-tier PRs keep path, dependency-only and scope gating. Full-tier
+    # events run the enabled suite regardless of those classifiers.
+    if: ${{ !cancelled() && (inputs.nix_validate || inputs.profile == 'nix') && needs.changes.outputs.nix == 'true' && (needs.changes.outputs.test_tier == 'full' || inputs.nix_skip_deps_only == false || needs.changes.outputs.is-deps-only != 'true' || needs.changes.outputs.is-flake-lock-change == 'true' || needs.changes.outputs.is-nix-source-change == 'true') && (needs.changes.outputs.test_tier == 'full' || needs.changes.outputs.profile-unmapped == 'true' || needs.scope.result != 'success' || needs.scope.outputs.ci != 'none') }}
     # Keep nested workflow calls on the same immutable source revision while
     # validating changes to this reusable workflow repository.
     uses: ./.github/workflows/_nix-validate.yml
     with:
-      all_systems: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && inputs.all_systems }}
-      focused_checks: ${{ github.event_name != 'push' || github.ref != 'refs/heads/main' }}
+      all_systems: ${{ github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && inputs.all_systems }}
+      focused_checks: ${{ github.event_name != 'push' || github.ref != format('refs/heads/{0}', github.event.repository.default_branch) }}
       runner_label: ${{ (!github.event.pull_request || github.event.pull_request.head.repo.full_name == github.repository) && (inputs.nix_validate_runner_label || inputs.runner_label) || 'ubuntu-24.04' }}
       timeout_minutes: ${{ inputs.nix_validate_timeout_minutes }}
 
@@ -667,9 +702,9 @@ jobs:
   # the fork-PR guard doesn't apply here.
   #
   # PR-base gate: on pull_request events the full build runs only when the PR
-  # targets `main`. This is the scope policy's end-to-end sweep placed at the
-  # one point it is guaranteed: a trunk repo's every PR targets main
-  # (unaffected), while a git-flow repo's develop PRs take the fast path
+  # targets the default branch. This is the scope policy's end-to-end sweep placed at the
+  # one point it is guaranteed: a trunk repo's every PR targets its default
+  # branch (unaffected), while a git-flow repo's develop PRs take the fast path
   # (`nix-validate`) and the develop->main promotion PR runs the full build.
   # The base-ref check lives in this `if:` rather than an input default
   # because workflow_call input defaults must be static — they cannot read
@@ -677,11 +712,9 @@ jobs:
   nix-build:
     name: Nix Build
     needs: [changes, scope]
-    # Full-suite tier: only narrows when `scope` succeeded AND said
-    # something other than "full" (lint-only or none skip it); a scope
-    # failure defers to the filter/base-ref condition alone, same as
-    # before this job existed.
-    if: ${{ !cancelled() && inputs.nix_build && (github.event_name != 'pull_request' || github.base_ref == 'main') && needs.changes.outputs.nix == 'true' && (inputs.nix_skip_deps_only == false || needs.changes.outputs.is-deps-only != 'true' || needs.changes.outputs.is-flake-lock-change == 'true' || needs.changes.outputs.is-nix-source-change == 'true') && (needs.changes.outputs.profile-unmapped == 'true' || needs.scope.result != 'success' || (needs.scope.outputs.ci != 'lint-only' && needs.scope.outputs.ci != 'none')) }}
+    # Full-tier events bypass dependency-only and scope narrowing; other PRs
+    # retain the existing relevance and default-branch gates.
+    if: ${{ !cancelled() && inputs.nix_build && (github.event_name != 'pull_request' || github.base_ref == github.event.repository.default_branch) && needs.changes.outputs.nix == 'true' && (needs.changes.outputs.test_tier == 'full' || inputs.nix_skip_deps_only == false || needs.changes.outputs.is-deps-only != 'true' || needs.changes.outputs.is-flake-lock-change == 'true' || needs.changes.outputs.is-nix-source-change == 'true') && (needs.changes.outputs.test_tier == 'full' || needs.changes.outputs.profile-unmapped == 'true' || needs.scope.result != 'success' || (needs.scope.outputs.ci != 'lint-only' && needs.scope.outputs.ci != 'none')) }}
     uses: ./.github/workflows/_nix-build.yml
     with:
       build-command: ${{ inputs.nix_build_command }}
@@ -705,7 +738,7 @@ jobs:
   token-limits:
     name: Token Limits
     needs: [changes, scope]
-    if: ${{ !cancelled() && inputs.token_limits && needs.changes.outputs.markdown == 'true' && (needs.scope.result != 'success' || needs.scope.outputs.ci != 'none') }}
+    if: ${{ !cancelled() && inputs.token_limits && needs.changes.outputs.markdown == 'true' && (needs.changes.outputs.test_tier == 'full' || needs.changes.outputs.test_tier == 'lint-only' || needs.scope.result != 'success' || needs.scope.outputs.ci != 'none') }}
     uses: ./.github/workflows/_token-limits.yml
     with:
       runner_label: ${{ (!github.event.pull_request || github.event.pull_request.head.repo.full_name == github.repository) && inputs.runner_label || 'ubuntu-24.04' }}
@@ -713,7 +746,7 @@ jobs:
   python-security:
     name: Python Security
     needs: [changes, scope]
-    if: ${{ !cancelled() && (inputs.python_security || inputs.profile == 'python') && needs.changes.outputs.python == 'true' && (needs.changes.outputs.profile-unmapped == 'true' || needs.scope.result != 'success' || needs.scope.outputs.ci != 'none') }}
+    if: ${{ !cancelled() && (inputs.python_security || inputs.profile == 'python') && needs.changes.outputs.python == 'true' && (needs.changes.outputs.test_tier == 'full' || needs.changes.outputs.profile-unmapped == 'true' || needs.scope.result != 'success' || needs.scope.outputs.ci != 'none') }}
     uses: ./.github/workflows/_python-security.yml
     with:
       python-dirs: ${{ inputs.python_security_dirs }}
@@ -729,7 +762,7 @@ jobs:
     # Full-tier: this runs the full lint/format/type/test matrix, not just
     # a fast validate - only narrows when scope succeeded and said
     # something other than full.
-    if: ${{ !cancelled() && (inputs.python_ci || inputs.profile == 'python') && needs.changes.outputs.python == 'true' && (needs.changes.outputs.profile-unmapped == 'true' || needs.scope.result != 'success' || (needs.scope.outputs.ci != 'lint-only' && needs.scope.outputs.ci != 'none')) }}
+    if: ${{ !cancelled() && (inputs.python_ci || inputs.profile == 'python') && needs.changes.outputs.python == 'true' && (needs.changes.outputs.test_tier == 'full' || needs.changes.outputs.profile-unmapped == 'true' || needs.scope.result != 'success' || (needs.scope.outputs.ci != 'lint-only' && needs.scope.outputs.ci != 'none')) }}
     uses: ./.github/workflows/_python-ci.yml
     with:
       python_versions: ${{ inputs.python_ci_versions }}
@@ -786,7 +819,7 @@ jobs:
   ansible-ci:
     name: Ansible CI
     needs: [changes, scope]
-    if: ${{ !cancelled() && (inputs.ansible_ci || inputs.profile == 'ansible') && needs.changes.outputs.ansible == 'true' && (needs.changes.outputs.profile-unmapped == 'true' || needs.scope.result != 'success' || needs.scope.outputs.ci != 'none') }}
+    if: ${{ !cancelled() && (inputs.ansible_ci || inputs.profile == 'ansible') && needs.changes.outputs.ansible == 'true' && (needs.changes.outputs.test_tier == 'full' || needs.changes.outputs.profile-unmapped == 'true' || needs.scope.result != 'success' || needs.scope.outputs.ci != 'none') }}
     uses: ./.github/workflows/_ansible-ci.yml
     with:
       emit_gate: false
@@ -794,7 +827,8 @@ jobs:
       # scope's `molecule` output is a second layer on `_ansible-ci.yml`'s
       # own molecule toggle - only turns it off when scope definitively
       # said "none"; any other answer, or a scope failure, leaves it on.
-      molecule: ${{ needs.scope.result != 'success' || needs.scope.outputs.molecule != 'none' }}
+      molecule: ${{ needs.changes.outputs.test_tier == 'full' || needs.scope.result != 'success' || needs.scope.outputs.molecule != 'none' }}
+      full_suite: ${{ needs.changes.outputs.test_tier == 'full' }}
       runner_label: ${{ (!github.event.pull_request || github.event.pull_request.head.repo.full_name == github.repository) && inputs.runner_label || 'ubuntu-24.04' }}
 
   # NOT filter-gated (same convention as osv-scan/dependency-review below): a
@@ -815,7 +849,7 @@ jobs:
   tofu-ci:
     name: OpenTofu CI
     needs: [changes, scope]
-    if: ${{ !cancelled() && (inputs.tofu_ci || inputs.profile == 'tofu') && needs.changes.outputs.terraform == 'true' && (needs.changes.outputs.profile-unmapped == 'true' || needs.scope.result != 'success' || needs.scope.outputs.ci != 'none') }}
+    if: ${{ !cancelled() && (inputs.tofu_ci || inputs.profile == 'tofu') && needs.changes.outputs.terraform == 'true' && (needs.changes.outputs.test_tier == 'full' || needs.changes.outputs.profile-unmapped == 'true' || needs.scope.result != 'success' || needs.scope.outputs.ci != 'none') }}
     uses: ./.github/workflows/_tofu-ci.yml
     with:
       working_directories: ${{ inputs.tofu_working_directories }}
@@ -893,7 +927,8 @@ jobs:
   # filter-gated: when set, it runs on every event, like renovate-annotations.
   repo-tests:
     name: Repo Tests
-    if: ${{ inputs.test_command != '' }}
+    needs: changes
+    if: ${{ inputs.test_command != '' && needs.changes.outputs.test_tier != 'lint-only' }}
     runs-on: ${{ (!github.event.pull_request || github.event.pull_request.head.repo.full_name == github.repository) && inputs.runner_label || 'ubuntu-24.04' }}
     timeout-minutes: ${{ github.event_name == 'pull_request' && 5 || 30 }}
     permissions:

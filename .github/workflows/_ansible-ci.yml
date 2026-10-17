@@ -55,6 +55,10 @@ on:
         description: Enable the molecule job (gated on the `molecule` filter).
         type: boolean
         default: true
+      full_suite:
+        description: Ignore path and tiny-diff relevance gates when selected by _ci-gate's event tier.
+        type: boolean
+        default: false
       molecule_scenarios:
         description: JSON array of molecule scenario names to run as a matrix.
         type: string
@@ -159,11 +163,14 @@ on:
       renovate_config:
         description: Whether the caller's Renovate config changed.
         value: ${{ jobs.changes.outputs.renovate_config }}
+      renovate_config_present:
+        description: Whether the caller has a renovate.json to validate.
+        value: ${{ jobs.changes.outputs.renovate_config_present }}
       molecule_scenarios:
         description: >-
           JSON array of scenarios mapped to changed paths, [] when a caller
-          contract or full-matrix rule covers the change, and an empty string
-          for the full suite (a push to main, or an unmapped path). Callers
+          contract covers the change, and an empty string for the full suite
+          (selected by _ci-gate, a push to main, or an unmapped path). Callers
           that own Molecule locally (`molecule: false`) read this output so
           every repo shares ONE change-detection definition.
         value: ${{ jobs.changes.outputs.molecule_scenarios }}
@@ -179,7 +186,8 @@ jobs:
     timeout-minutes: ${{ github.event_name == 'pull_request' && 5 || 30 }}
     outputs:
       ansible: >-
-        ${{ (steps.filter.outputs.ansible == 'true'
+        ${{ inputs.full_suite
+            || (steps.filter.outputs.ansible == 'true'
             && steps.nondocs.outputs.match == 'true')
             || (github.event_name == 'push'
             && github.ref == 'refs/heads/main') }}
@@ -188,12 +196,14 @@ jobs:
       # empty matrix.
       molecule: >-
         ${{ steps.molecule_scenarios.outputs.present == 'true'
-            && ((steps.filter.outputs.molecule == 'true'
+            && (inputs.full_suite
+            || (steps.filter.outputs.molecule == 'true'
             && steps.nondocs.outputs.match == 'true')
             || (github.event_name == 'push'
             && github.ref == 'refs/heads/main'))
             && steps.scenario_scope.outputs.scenarios != '[]' }}
-      renovate_config: ${{ steps.filter.outputs.renovate_config }}
+      renovate_config: ${{ inputs.full_suite || steps.filter.outputs.renovate_config == 'true' }}
+      renovate_config_present: ${{ steps.renovate-config-file.outputs.present }}
       # Normalize ONCE for every consumer: an empty string means all scenarios
       # only after a push to main; focused PRs and branch pushes use mapped
       # scenarios or [] when caller contracts cover the change.
@@ -201,6 +211,10 @@ jobs:
       tiny: ${{ steps.tiny.outputs.tiny }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Detect whether a Renovate config exists
+        id: renovate-config-file
+        if: ${{ hashFiles('renovate.json') != '' }}
+        run: echo "present=true" >> "$GITHUB_OUTPUT"
       # A repo without a Molecule scenario has nothing for the molecule job to
       # run, so that job is skipped there rather than failing on a missing file.
       - name: Detect Molecule scenarios
@@ -422,10 +436,11 @@ jobs:
         env:
           EVENT_NAME: ${{ github.event_name }}
           REF: ${{ github.ref }}
+          FULL_SUITE: ${{ inputs.full_suite }}
           SELECTED_SCENARIOS: ${{ steps.scenario_selection.outputs.scenarios }}
           FULL_PROFILE: ${{ steps.unmapped.outputs.full_profile || steps.scenario_selection.outputs.full_profile }}
         run: |
-          if [[ "$EVENT_NAME" == push && "$REF" == refs/heads/main ]]; then
+          if [[ "$FULL_SUITE" == true || ( "$EVENT_NAME" == push && "$REF" == refs/heads/main ) ]]; then
             printf 'scenarios=\n' >> "$GITHUB_OUTPUT"
           elif [[ "$FULL_PROFILE" == true ]]; then
             printf 'scenarios=\n' >> "$GITHUB_OUTPUT"
@@ -437,7 +452,7 @@ jobs:
   ansible-lint:
     name: Ansible Lint
     needs: changes
-    if: ${{ needs.changes.outputs.ansible == 'true' }}
+    if: ${{ inputs.full_suite || needs.changes.outputs.ansible == 'true' }}
     runs-on: ${{ (!github.event.pull_request || github.event.pull_request.head.repo.full_name == github.repository) && inputs.runner_label || 'ubuntu-24.04' }}
     timeout-minutes: ${{ github.event_name == 'pull_request' && 5 || 30 }}
     steps:
@@ -504,9 +519,8 @@ jobs:
     needs: changes
     if: >-
       ${{ inputs.molecule &&
-      needs.changes.outputs.tiny != 'true' &&
       needs.changes.outputs.molecule == 'true' &&
-      needs.changes.outputs.molecule_scenarios != '[]' }}
+      (inputs.full_suite || needs.changes.outputs.tiny != 'true') }}
     # Molecule gets its own label so it can run on the self-hosted fleet while
     # the quick jobs stay hosted. Hosted for a public repo and for fork PRs;
     # self-hosted (molecule_runner_label) only for a private repo's own PRs.
@@ -586,7 +600,7 @@ jobs:
   token-limits:
     name: Token Limits
     needs: changes
-    if: ${{ needs.changes.outputs.ansible == 'true' }}
+    if: ${{ inputs.full_suite || needs.changes.outputs.ansible == 'true' }}
     permissions:
       contents: read
     uses: ./.github/workflows/_token-limits.yml
@@ -601,7 +615,7 @@ jobs:
   renovate-annotations:
     name: Renovate Annotations
     needs: changes
-    if: ${{ inputs.renovate_annotations && needs.changes.outputs.ansible == 'true' }}
+    if: ${{ inputs.renovate_annotations && (inputs.full_suite || needs.changes.outputs.ansible == 'true') }}
     permissions:
       contents: read
     uses: ./.github/workflows/_renovate-annotations.yml
@@ -611,7 +625,7 @@ jobs:
   renovate_config:
     name: Renovate Config Validate
     needs: changes
-    if: ${{ needs.changes.outputs.renovate_config == 'true' }}
+    if: ${{ needs.changes.outputs.renovate_config_present == 'true' && (inputs.full_suite || needs.changes.outputs.renovate_config == 'true') }}
     uses: ./.github/workflows/renovate-config-validate.yml
     with:
       config_file: renovate.json

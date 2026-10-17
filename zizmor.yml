@@ -11,11 +11,8 @@
 # references). Everything else falls through to zizmor's implicit
 # `hash-pin` default.
 #
-# `dryvist/*` is the org itself: first-party reusable workflows (e.g.
-# JacobPEvans/.github's `_nix-validate.yml`, JacobPEvans/.github-ai) are pinned
-# by commit SHA, with the release tag as a trailing comment
-# (`uses: dryvist/...@<sha> # vX.Y.Z`). The policy value for `dryvist/*`
-# is `hash-pin`: a tag or branch reference fails the audit.
+# First-party owners (`dryvist/*`, `JacobPEvans/*`, `JacobPEvans-personal/*`)
+# float on major tags (`@v1`); pr-policy.yml enforces the `@v<major>` form.
 rules:
   # `secrets: inherit` from thin callers into first-party (dryvist/*)
   # reusable workflows is the org's standard delegation pattern: the callee
@@ -49,12 +46,10 @@ rules:
         # toolchain (2026-06); trusted to pin by version tag like actions/*.
         astral-sh/*: ref-pin
         DeterminateSystems/*: ref-pin
-        # Every dryvist/* reference must name a 40-hex commit SHA.
-        dryvist/*: hash-pin
-        # JacobPEvans / JacobPEvans-personal are first-party, like dryvist/*
-        # (JacobPEvans redirects to the same repositories): the same hash-pin policy.
-        JacobPEvans/*: hash-pin
-        JacobPEvans-personal/*: hash-pin
+        # First-party: floating major tags, checked by pr-policy.yml.
+        dryvist/*: ref-pin
+        JacobPEvans/*: ref-pin
+        JacobPEvans-personal/*: ref-pin
         # google/* (osv-scanner-action) — same trusted-publisher family as googleapis/*.
         google/*: ref-pin
         googleapis/*: ref-pin
