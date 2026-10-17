@@ -22,6 +22,10 @@ TIMEOUT_EXPRESSION = re.compile(
 )
 SHA = re.compile(r"@[0-9a-fA-F]{40}$")
 VERSION_COMMENT = re.compile(r"#\s*v\d+(?:\.\d+)*\b")
+# A documented exception on the timeout line raises the pull-request cap; the reason is required.
+TIMEOUT_EXCEPTION = re.compile(r"#\s*pr-policy:\s*timeout-exception\s+\S")
+TIMEOUT_LIMIT = 5
+TIMEOUT_EXCEPTION_LIMIT = 10
 
 
 def scalar(node: Node | None) -> str | None:
@@ -90,21 +94,21 @@ def excludes_pull_request(condition: str | None) -> bool:
     return bool(re.search(r"github\.event_name\s*!=\s*['\"]pull_request['\"]", condition))
 
 
-def timeout_is_valid(node: Node | None) -> bool:
+def timeout_is_valid(node: Node | None, limit: float = TIMEOUT_LIMIT) -> bool:
     if isinstance(node, ScalarNode) and node.tag in {
         "tag:yaml.org,2002:int",
         "tag:yaml.org,2002:float",
     }:
         try:
             value = float(node.value.replace("_", ""))
-            return math.isfinite(value) and value <= 5
+            return math.isfinite(value) and value <= limit
         except ValueError:
             return False
     value = scalar(node)
     if value is None:
         return False
     match = TIMEOUT_EXPRESSION.fullmatch(value)
-    return bool(match and float(match.group(1)) <= 5)
+    return bool(match and float(match.group(1)) <= limit)
 
 
 def walk_uses(node: Node, seen: set[int] | None = None):
@@ -144,10 +148,14 @@ def analyze(path: Path, source: str) -> list[tuple[int, str, str]]:
             condition = scalar(get(job_node, "if"))
             if excludes_pull_request(condition):
                 continue
-            if not timeout_is_valid(get(job_node, "timeout-minutes")):
+            timeout_node = get(job_node, "timeout-minutes")
+            timeout_line = first_line(timeout_node or job_key)
+            excepted = timeout_node is not None and bool(TIMEOUT_EXCEPTION.search(lines[timeout_line - 1]))
+            limit = TIMEOUT_EXCEPTION_LIMIT if excepted else TIMEOUT_LIMIT
+            if not timeout_is_valid(timeout_node, limit):
                 violations.append(
                     (
-                        first_line(get(job_node, "timeout-minutes") or job_key),
+                        timeout_line,
                         "timeout-minutes",
                         f"job {job_id!r} needs a literal timeout at most 5 or the required pull_request expression",
                     )
