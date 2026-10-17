@@ -26,10 +26,11 @@ Renovate vulnerability alerts are disabled.
 | Other majors | 30 days | Auto-merge after required checks pass |
 
 First-party packages are `JacobPEvans/**`, `JacobPEvans-*/**`, `dryvist/**` and
-`jpe-*/**`. Their GitHub Actions and reusable-workflow refs use
-floating major tags such as `@v1`; a new major such as `v1` to `v2` opens on a
-weekend and auto-merges after seven days and passing checks. Third-party actions
-remain SHA-pinned with a released-version comment.
+`jpe-*/**`. Renovate hash-pins their GitHub Actions and reusable-workflow refs,
+with the release tag in a trailing comment such as `# v1.2.3`; `@vN` refs are
+also accepted. A new major such as `v1` to `v2` opens on a weekend and
+auto-merges after seven days and passing checks. Third-party actions remain
+SHA-pinned with a released-version comment.
 
 Nix repositories extend `github>JacobPEvans/.github:renovate-nix`. Renovate's
 Nix manager maintains `flake.lock` in one weekend PR per repository and
@@ -39,13 +40,13 @@ auto-merges after required checks pass.
 
 | Source | Strategy |
 | --- | --- |
-| First-party GitHub Actions and reusable workflows | Floating major tag (`@vN`) |
+| First-party GitHub Actions and reusable workflows | Full commit SHA with a release tag comment (`# vX.Y.Z`); `@vN` is also accepted |
 | Third-party GitHub Actions | Full commit SHA with a released-version comment (`# vX.Y.Z`) |
 | Nix flake locks | Maintained by Renovate's Nix manager |
 | npm packages | Lower-bound (`^x.y.z`) in `package.json`; lockfile committed |
 
-The existing scanners remain in place. Renovate updates first-party major tags
-and third-party action SHAs; zizmor checks action refs, CodeQL provides code
+The existing scanners remain in place. Renovate updates first-party and
+third-party action SHAs; zizmor checks action refs, CodeQL provides code
 scanning on public repositories, and OSV-Scanner checks dependency
 vulnerabilities.
 
@@ -58,6 +59,6 @@ vulnerabilities.
 
 ## Auditable Workflow Boundaries
 
-Enterprise repos reference this repo's reusable workflows by floating major tag
-(`@v1`). Each release moves the tag. To audit a specific workflow run, the
-resolved commit SHA is logged in the GitHub Actions UI for that run.
+Enterprise repos may reference this repo's reusable workflows by full commit
+SHA with a release tag comment, or by `@vN`. To audit a specific workflow run, the resolved commit SHA is logged in the GitHub
+Actions UI for that run.

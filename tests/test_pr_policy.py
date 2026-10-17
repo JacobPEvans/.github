@@ -32,6 +32,19 @@ jobs:
 """
         self.assertEqual([], pr_policy.analyze(Path("valid.yml"), source))
 
+    def test_accepts_first_party_sha_with_or_without_version_comment(self):
+        source = """\
+name: first-party-pins
+on: pull_request
+jobs:
+  build:
+    timeout-minutes: 5
+    steps:
+      - uses: JacobPEvans/example@0123456789012345678901234567890123456789 # v1.2.3
+      - uses: dryvist/example/.github/workflows/build.yml@abcdefabcdefabcdefabcdefabcdefabcdefabcd
+"""
+        self.assertEqual([], pr_policy.analyze(Path("first-party-pins.yml"), source))
+
     def test_documented_timeout_exception_allows_twenty_five_minutes_only(self):
         source = """\
 name: exception
