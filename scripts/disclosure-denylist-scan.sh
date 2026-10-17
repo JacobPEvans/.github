@@ -34,6 +34,18 @@ PATTERNS_FILE="$(mktemp)"
 trap 'rm -f "$PATTERNS_FILE"' EXIT
 grep -vE '^[[:space:]]*(#|$)' "$DENYLIST_FILE" > "$PATTERNS_FILE"
 
+# A repository naming itself discloses nothing (Renovate links its own job log
+# in every PR body), so the scanned repository's own name and owner/name are
+# dropped from the patterns.
+if [[ -n "${GITHUB_REPOSITORY:-}" ]]; then
+  own_patterns="$(mktemp)"
+  awk -v full="$GITHUB_REPOSITORY" -v name="${GITHUB_REPOSITORY#*/}" '
+    { t = $0; gsub(/^[[:space:]]+|[[:space:]]+$/, "", t) }
+    tolower(t) != tolower(full) && tolower(t) != tolower(name)
+  ' "$PATTERNS_FILE" > "$own_patterns"
+  mv "$own_patterns" "$PATTERNS_FILE"
+fi
+
 if [[ ! -s "$PATTERNS_FILE" ]]; then
   echo "::error::denylist file has no active patterns after stripping comments/blanks" >&2
   exit 2

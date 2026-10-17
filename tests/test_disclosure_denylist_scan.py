@@ -111,6 +111,15 @@ class DisclosureDenylistScanTest(unittest.TestCase):
         self.assertIn("README.md:2", result.stdout)
         self.assertNotIn("ANOTHER-TERM", result.stdout + result.stderr)
 
+    def test_own_repository_name_is_not_a_hit(self):
+        body = "View the job log at https://example.test/github/acme/SECRET-TERM."
+        own = self._run(env_extra={"PR_BODY": body, "GITHUB_REPOSITORY": "acme/secret-term"})
+        self.assertEqual(own.returncode, 0, own.stdout + own.stderr)
+
+        other = self._run(env_extra={"PR_BODY": body, "GITHUB_REPOSITORY": "acme/elsewhere"})
+        self.assertEqual(other.returncode, 1)
+        self.assertIn("PR body:1", other.stdout)
+
     def test_pr_title_hit_fails_without_leaking_it(self):
         result = self._run(env_extra={"PR_TITLE": "fix ANOTHER-TERM handling"})
         self.assertEqual(result.returncode, 1)
