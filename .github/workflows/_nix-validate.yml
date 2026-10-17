@@ -77,6 +77,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
 
       # Free ~30GB on the ubuntu-24.04 runner so `nix flake check --all-systems`
       # has space to substitute darwin source paths (rustc-src, cctools,
