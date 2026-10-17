@@ -1,5 +1,30 @@
 # Changelog
 
+## [1.23.0](https://github.com/JacobPEvans/.github/compare/v1.22.0...v1.23.0) (2026-10-17)
+
+
+### Features
+
+* **renovate:** auto-merge major updates after their stabilization window ([#11](https://github.com/JacobPEvans/.github/issues/11)) ([e076cc6](https://github.com/JacobPEvans/.github/commit/e076cc65ec97475858e56b5dd70a4c7f28c9203a))
+* **workflows:** enable auto-merge on pull requests at open ([#19](https://github.com/JacobPEvans/.github/issues/19)) ([40873ab](https://github.com/JacobPEvans/.github/commit/40873ab55eb5fb09226658706a10d1da4f4e5081))
+
+
+### Bug Fixes
+
+* **ci-gate:** stop the queue watchdog inside its pull_request timeout ([#7](https://github.com/JacobPEvans/.github/issues/7)) ([86ce233](https://github.com/JacobPEvans/.github/commit/86ce23353cca2cd3dbba7c7acd7237f76364b91d))
+* **ci:** give Nix Validate and Molecule PR ceilings that fit their suites ([#8](https://github.com/JacobPEvans/.github/issues/8)) ([3f2a501](https://github.com/JacobPEvans/.github/commit/3f2a501b93c79c9e1a648156b3a0af3d8e2ca173))
+* **disclosure-gate:** skip the scanned repository's own name ([#10](https://github.com/JacobPEvans/.github/issues/10)) ([602d44d](https://github.com/JacobPEvans/.github/commit/602d44da37723b2f97dd00a51f9dd0fef1050d62))
+* **pr-policy:** check only the lines a pull request adds or changes ([#9](https://github.com/JacobPEvans/.github/issues/9)) ([a7add4b](https://github.com/JacobPEvans/.github/commit/a7add4b3ae95d7c3e033e7bfb3746aa1a6b6b7ca))
+* **renovate:** accept first-party digest pins ([#17](https://github.com/JacobPEvans/.github/issues/17)) ([2b5a8a0](https://github.com/JacobPEvans/.github/commit/2b5a8a0c134817d3f942ac777d53fca0134fb754))
+* **renovate:** hold Python below 3.15 in Ansible repositories ([#13](https://github.com/JacobPEvans/.github/issues/13)) ([46c0c42](https://github.com/JacobPEvans/.github/commit/46c0c426a712e3d3f4bf643009c55de4cf21a95d))
+* **renovate:** hold Python below 3.15 in homelab-contracts ([#14](https://github.com/JacobPEvans/.github/issues/14)) ([642bd35](https://github.com/JacobPEvans/.github/commit/642bd35665613775ea8fb66ff3432806a9fb413a))
+* **workflows:** enable auto-merge only behind a required merge gate ([#22](https://github.com/JacobPEvans/.github/issues/22)) ([9123e66](https://github.com/JacobPEvans/.github/commit/9123e66352744f2bef4872041b3fa3925388c359))
+
+
+### Miscellaneous
+
+* release 1.23.0 ([#24](https://github.com/JacobPEvans/.github/issues/24)) ([a45decc](https://github.com/JacobPEvans/.github/commit/a45decc0736b04d9d28075d3422145079b4600a8))
+
 ## [1.22.0](https://github.com/JacobPEvans/.github/compare/v1.21.0...v1.22.0) (2026-10-17)
 
 
