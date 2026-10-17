@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import math
+import os
 import re
 import sys
 from pathlib import Path
@@ -14,7 +15,7 @@ from yaml.nodes import MappingNode, Node, ScalarNode, SequenceNode
 
 
 FIRST_PARTY = ("dryvist",)
-FIRST_PARTY_PREFIXES = ("jacobpevans-", "jpe-", "vct-")
+FIRST_PARTY_PREFIXES = ("jacobpevans-", "jpe-")
 TIMEOUT_EXPRESSION = re.compile(
     r"^\$\{\{\s*github\.event_name\s*==\s*'pull_request'\s*&&\s*"
     r"(\d+(?:\.\d+)?)\s*\|\|\s*(.+?)\s*\}\}$"
@@ -60,7 +61,9 @@ def first_line(node: Node | None) -> int:
 
 def is_first_party(owner: str) -> bool:
     owner = owner.casefold()
-    return owner == "jacobpevans" or owner in FIRST_PARTY or owner.startswith(FIRST_PARTY_PREFIXES)
+    # The calling repository's own owner is first-party too, so no org list has to name it.
+    own = os.environ.get("GITHUB_REPOSITORY_OWNER", "").casefold()
+    return owner in {"jacobpevans", own} - {""} or owner in FIRST_PARTY or owner.startswith(FIRST_PARTY_PREFIXES)
 
 
 def workflow_events(root: Node) -> set[str]:

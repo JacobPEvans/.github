@@ -25,8 +25,8 @@ Renovate vulnerability alerts are disabled.
 | Trusted-org majors | 7 days | Human review with the dep:review label |
 | Other majors | 30 days | Human review |
 
-First-party packages are `JacobPEvans/**`, `JacobPEvans-*/**`, `dryvist/**`,
-`jpe-*/**` and `vct-*/**`. Their GitHub Actions and reusable-workflow refs use
+First-party packages are `JacobPEvans/**`, `JacobPEvans-*/**`, `dryvist/**` and
+`jpe-*/**`. Their GitHub Actions and reusable-workflow refs use
 floating major tags such as `@v1`; a new major such as `v1` to `v2` opens on a
 weekend and auto-merges after seven days and passing checks. Third-party actions
 remain SHA-pinned with a released-version comment.

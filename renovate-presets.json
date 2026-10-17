@@ -243,7 +243,6 @@
         "!JacobPEvans-*/**",
         "!dryvist/**",
         "!jpe-*/**",
-        "!vct-*/**",
         "!https://github.com/JacobPEvans/**",
         "!https://github.com/dryvist/**"
       ],
@@ -278,12 +277,10 @@
         "JacobPEvans-*/**",
         "dryvist/**",
         "jpe-*/**",
-        "vct-*/**",
         "https://github.com/JacobPEvans/**",
         "https://github.com/JacobPEvans-*/**",
         "https://github.com/dryvist/**",
-        "https://github.com/jpe-*/**",
-        "https://github.com/vct-*/**"
+        "https://github.com/jpe-*/**"
       ],
       "automerge": true,
       "minimumReleaseAge": "7 days"
@@ -304,8 +301,7 @@
         "JacobPEvans/**",
         "JacobPEvans-*/**",
         "dryvist/**",
-        "jpe-*/**",
-        "vct-*/**"
+        "jpe-*/**"
       ],
       "pinDigests": false,
       "allowedVersions": "/^v\\d+$/"
