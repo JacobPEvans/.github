@@ -1,8 +1,5 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "description": [
-    "This repository consumes its own shared Renovate preset."
-  ],
   "extends": [
     "local>JacobPEvans/.github"
   ]

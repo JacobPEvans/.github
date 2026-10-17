@@ -9,7 +9,7 @@ repository. Do not open a public issue for security vulnerabilities.
 [private-vuln]: https://docs.github.com/en/code-security/security-advisories/guidance-on-reporting-and-writing-information-about-vulnerabilities/privately-reporting-a-security-vulnerability
 
 For critical vulnerabilities affecting multiple dryvist repositories, report
-to this [.github repository](https://github.com/dryvist/.github/security/advisories/new).
+to this [.github repository](https://github.com/JacobPEvans/.github/security/advisories/new).
 
 ## Dependency Trust
 

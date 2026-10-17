@@ -205,7 +205,7 @@ The [AI development overview](https://docs.jacobpevans.com/ai-development/overvi
 
 ## Org-wide standards
 
-The shared configuration hub is [`dryvist/.github`](https://github.com/dryvist/.github).
+The shared configuration hub is [`JacobPEvans/.github`](https://github.com/JacobPEvans/.github).
 
 | Concern | Standard |
 | --- | --- |
@@ -213,13 +213,13 @@ The shared configuration hub is [`dryvist/.github`](https://github.com/dryvist/.
 | Commits | [Conventional Commits](https://www.conventionalcommits.org) (`feat:` / `fix:` / `chore:`) drive automated releases |
 | Releases | [release-please](https://github.com/googleapis/release-please): `fix:` patch, `feat:` minor, major releases human-initiated |
 | Code review | Every PR gets multi-model AI review before human sign-off |
-| Code lint / format | [Biome](https://biomejs.dev) for JS/TS/JSON/CSS; canonical config in [`dryvist/.github`](https://github.com/dryvist/.github) |
+| Code lint / format | [Biome](https://biomejs.dev) for JS/TS/JSON/CSS; canonical config in [`JacobPEvans/.github`](https://github.com/JacobPEvans/.github) |
 | Markdown lint | [markdownlint-cli2](https://github.com/DavidAnson/markdownlint-cli2) with org-wide rules |
-| Workflow security | [zizmor](https://github.com/woodruffw/zizmor); org-wide policy in [`dryvist/.github`](https://github.com/dryvist/.github) |
+| Workflow security | [zizmor](https://github.com/woodruffw/zizmor); org-wide policy in [`JacobPEvans/.github`](https://github.com/JacobPEvans/.github) |
 | Dependency updates | [Renovate](https://docs.renovatebot.com) extends shared presets |
-| AI assistant policy | Versioned `AGENTS.md` in every repo; org policy in [`dryvist/.github`](https://github.com/dryvist/.github) |
+| AI assistant policy | Versioned `AGENTS.md` in every repo; org policy in [`JacobPEvans/.github-ai`](https://github.com/JacobPEvans/.github-ai) |
 | CI runners | Self-hosted on AWS spot capacity; GitHub-hosted fallback for short macOS jobs |
-| Security reporting | [`SECURITY.md`](https://github.com/dryvist/.github/blob/main/SECURITY.md) auto-applied to every repo's Security tab |
+| Security reporting | [`SECURITY.md`](https://github.com/JacobPEvans/.github/blob/main/SECURITY.md) auto-applied to every repo's Security tab |
 
 ---
 
