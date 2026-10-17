@@ -35,6 +35,9 @@
 # never be skippable by ANY signal, deterministic or classified.
 # `markdown-lint` and `file-size` depend only on their path filters, never on
 # `scope`: the classifier may narrow optional jobs, not these two.
+# A pull request labeled `fast-path` skips only `nix-build` and Molecule when
+# its current GitHub API diff is under 15 added-plus-deleted lines and under
+# 5 changed files; the label never overrides either size limit.
 # https://github.com/JacobPEvans/.github-ai/blob/main/.github/scope-rubric.md
 #
 # Why the watchdog exists:
@@ -449,6 +452,11 @@ on:
       scope_source:
         description: jev | fallback - whether the scope outputs came from the classifier or a fail-safe default
         value: ${{ jobs.scope.outputs.source }}
+      fast_path:
+        description: >-
+          Callers gate repo-local heavy jobs, such as contract shards or a
+          site build, with `fast_path != 'true'`.
+        value: ${{ jobs.changes.outputs.fast_path }}
 
     secrets:
       TYPESAFE_API_KEY:
@@ -508,6 +516,7 @@ jobs:
       is-deps-only: ${{ steps.detect-deps.outputs.is-deps-only }}
       is-flake-lock-change: ${{ steps.lockfilter.outputs.flake-lock }}
       is-nix-source-change: ${{ steps.lockfilter.outputs.nix-source }}
+      fast_path: ${{ steps.tier.outputs.fast_path }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       # One filter body: an explicit `filters` input wins, else the profile's
@@ -611,7 +620,38 @@ jobs:
           BASE_REF: ${{ github.base_ref }}
           DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
           NON_DOC: ${{ steps.lockfilter.outputs.non-doc }}
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
+          fast_path_decision() {
+            local event_name="$1" has_label="$2" additions="$3" deletions="$4" changed_files="$5"
+            local changed_lines=$((10#$additions + 10#$deletions))
+            if [[ "$event_name" == pull_request && "$has_label" == true && "$changed_lines" -lt 15 && "$changed_files" -lt 5 ]]; then
+              printf true
+            else
+              printf false
+            fi
+          }
+
+          fast_path=false
+          fast_path_lines=n/a
+          fast_path_files=n/a
+          if [[ "$EVENT_NAME" == pull_request ]]; then
+            if [[ -n "${REPO:-}" && -n "${PR_NUMBER:-}" ]] && pr_json="$(gh api "repos/$REPO/pulls/$PR_NUMBER")"; then
+              has_fast_path="$(jq -r '[.labels[]?.name] | index("fast-path") != null' <<< "$pr_json")"
+              additions="$(jq -r '.additions' <<< "$pr_json")"
+              deletions="$(jq -r '.deletions' <<< "$pr_json")"
+              fast_path_files="$(jq -r '.changed_files' <<< "$pr_json")"
+              fast_path_lines=$((10#$additions + 10#$deletions))
+              fast_path="$(fast_path_decision "$EVENT_NAME" "$has_fast_path" "$additions" "$deletions" "$fast_path_files")"
+            else
+              echo "::warning::Unable to read pull request metadata; fast_path is false."
+            fi
+          fi
+          printf 'fast_path size: %s lines / %s files; decision: %s\n' "$fast_path_lines" "$fast_path_files" "$fast_path"
+          echo "fast_path=$fast_path" >> "$GITHUB_OUTPUT"
+
           case "$EVENT_NAME" in
             push) test_tier=full ;;
             pull_request)
@@ -714,7 +754,7 @@ jobs:
     needs: [changes, scope]
     # Full-tier events bypass dependency-only and scope narrowing; other PRs
     # retain the existing relevance and default-branch gates.
-    if: ${{ !cancelled() && inputs.nix_build && (github.event_name != 'pull_request' || github.base_ref == github.event.repository.default_branch) && needs.changes.outputs.nix == 'true' && (needs.changes.outputs.test_tier == 'full' || inputs.nix_skip_deps_only == false || needs.changes.outputs.is-deps-only != 'true' || needs.changes.outputs.is-flake-lock-change == 'true' || needs.changes.outputs.is-nix-source-change == 'true') && (needs.changes.outputs.test_tier == 'full' || needs.changes.outputs.profile-unmapped == 'true' || needs.scope.result != 'success' || (needs.scope.outputs.ci != 'lint-only' && needs.scope.outputs.ci != 'none')) }}
+    if: ${{ !cancelled() && inputs.nix_build && (github.event_name != 'pull_request' || github.base_ref == github.event.repository.default_branch) && needs.changes.outputs.nix == 'true' && needs.changes.outputs.fast_path != 'true' && (needs.changes.outputs.test_tier == 'full' || inputs.nix_skip_deps_only == false || needs.changes.outputs.is-deps-only != 'true' || needs.changes.outputs.is-flake-lock-change == 'true' || needs.changes.outputs.is-nix-source-change == 'true') && (needs.changes.outputs.test_tier == 'full' || needs.changes.outputs.profile-unmapped == 'true' || needs.scope.result != 'success' || (needs.scope.outputs.ci != 'lint-only' && needs.scope.outputs.ci != 'none')) }}
     uses: ./.github/workflows/_nix-build.yml
     with:
       build-command: ${{ inputs.nix_build_command }}
@@ -827,7 +867,7 @@ jobs:
       # scope's `molecule` output is a second layer on `_ansible-ci.yml`'s
       # own molecule toggle - only turns it off when scope definitively
       # said "none"; any other answer, or a scope failure, leaves it on.
-      molecule: ${{ needs.changes.outputs.test_tier == 'full' || needs.scope.result != 'success' || needs.scope.outputs.molecule != 'none' }}
+      molecule: ${{ needs.changes.outputs.fast_path != 'true' && (needs.changes.outputs.test_tier == 'full' || needs.scope.result != 'success' || needs.scope.outputs.molecule != 'none') }}
       full_suite: ${{ needs.changes.outputs.test_tier == 'full' }}
       runner_label: ${{ (!github.event.pull_request || github.event.pull_request.head.repo.full_name == github.repository) && inputs.runner_label || 'ubuntu-24.04' }}
 
