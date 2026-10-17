@@ -42,14 +42,15 @@ function runTiny(overrides = {}) {
   return readFileSync(output, 'utf8').trim();
 }
 
-test('tiny output is wired from Detect Changes to workflow_call and skips only Molecule', () => {
+test('tiny output is wired from Detect Changes and narrows Molecule only outside the full tier', () => {
   assert.match(ansibleCi, /tiny:\n\s+description: >-\n(?:.*\n)*?\s+value: \$\{\{ jobs\.changes\.outputs\.tiny \}\}/);
   assert.match(ansibleCi, /tiny: \$\{\{ steps\.tiny\.outputs\.tiny \}\}/);
   assert.match(ansibleCi, /- name: Detect tiny develop pull request\n\s+id: tiny/);
   assert.match(ansibleCi, /printf 'tiny=%s\\n' "\$tiny" >> "\$GITHUB_OUTPUT"/);
+  assert.match(ansibleCi, /full_suite:\n\s+description:.*\n\s+type: boolean\n\s+default: false/);
   assert.match(
     ansibleCi,
-    /needs\.changes\.outputs\.tiny != 'true' &&\n\s+needs\.changes\.outputs\.molecule == 'true'/,
+    /needs\.changes\.outputs\.molecule == 'true' &&\n\s+\(inputs\.full_suite \|\| needs\.changes\.outputs\.tiny != 'true'\)/,
   );
 });
 
@@ -108,7 +109,11 @@ test('missing or non-numeric tiny counts fail closed', () => {
 test('shared Ansible CI runs strict Renovate validation for renovate.json changes', () => {
   assert.match(ansibleCi, /renovate_config:\n\s+- 'renovate\.json'/);
   assert.match(ansibleCi, /renovate_config:\n\s+name: Renovate Config Validate/);
-  assert.match(ansibleCi, /if: \$\{\{ needs\.changes\.outputs\.renovate_config == 'true' \}\}/);
+  assert.match(ansibleCi, /renovate_config_present: \$\{\{ steps\.renovate-config-file\.outputs\.present \}\}/);
+  assert.match(
+    ansibleCi,
+    /if: \$\{\{ needs\.changes\.outputs\.renovate_config_present == 'true' && \(inputs\.full_suite \|\| needs\.changes\.outputs\.renovate_config == 'true'\) \}\}/,
+  );
   assert.match(ansibleCi, /uses: \.\/\.github\/workflows\/renovate-config-validate\.yml/);
   assert.match(ansibleCi, /needs: \[changes, ansible-lint, molecule, token-limits, renovate-annotations, renovate_config\]/);
   assert.match(ansibleCi, /CI_GATE_ALLOWED_SKIPS: .*renovate_config/);
@@ -206,7 +211,7 @@ test('the molecule output is false when the caller repo has no Molecule scenario
   );
   assert.match(
     ansibleCi,
-    /molecule: >-\n\s+\$\{\{ steps\.molecule_scenarios\.outputs\.present == 'true'\n\s+&& \(\(steps\.filter\.outputs\.molecule == 'true'\n\s+&& steps\.nondocs\.outputs\.match == 'true'\)/,
+    /molecule: >-\n\s+\$\{\{ steps\.molecule_scenarios\.outputs\.present == 'true'\n\s+&& \(inputs\.full_suite\n\s+\|\| \(steps\.filter\.outputs\.molecule == 'true'\n\s+&& steps\.nondocs\.outputs\.match == 'true'\)/,
   );
 });
 
@@ -224,6 +229,6 @@ test('a Markdown-only change selects no lint or Molecule outside the push to mai
   );
   assert.match(
     ansibleCi,
-    /ansible: >-\n\s+\$\{\{ \(steps\.filter\.outputs\.ansible == 'true'\n\s+&& steps\.nondocs\.outputs\.match == 'true'\)\n\s+\|\| \(github\.event_name == 'push'/,
+    /ansible: >-\n\s+\$\{\{ inputs\.full_suite\n\s+\|\| \(steps\.filter\.outputs\.ansible == 'true'\n\s+&& steps\.nondocs\.outputs\.match == 'true'\)/,
   );
 });
