@@ -22,8 +22,8 @@ Renovate vulnerability alerts are disabled.
 | --- | --- | --- |
 | Minor, patch, digest and pin updates | 7 days | Auto-merge after required checks pass |
 | First-party updates, including majors | 7 days | Auto-merge after required checks pass |
-| Trusted-org majors | 7 days | Human review with the dep:review label |
-| Other majors | 30 days | Human review |
+| Trusted-org majors | 7 days | Auto-merge after required checks pass; the dep:review label adds the dependency review |
+| Other majors | 30 days | Auto-merge after required checks pass |
 
 First-party packages are `JacobPEvans/**`, `JacobPEvans-*/**`, `dryvist/**` and
 `jpe-*/**`. Their GitHub Actions and reusable-workflow refs use

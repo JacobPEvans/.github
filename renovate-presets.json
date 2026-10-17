@@ -251,12 +251,12 @@
       ]
     },
     {
-      "description": "Hold other major updates 30 days for review.",
+      "description": "Auto-merge other major updates after 30 days and green checks.",
       "matchUpdateTypes": [
         "major"
       ],
       "minimumReleaseAge": "30 days",
-      "automerge": false
+      "automerge": true
     },
     {
       "description": "Auto-merge minor, patch, digest, and pin updates after seven days and green checks.",
@@ -307,7 +307,7 @@
       "allowedVersions": "/^v\\d+$/"
     },
     {
-      "description": "Hold trusted-org majors seven days for human review and add dep:review.",
+      "description": "Auto-merge trusted-org majors after seven days and green checks; dep:review triggers the dependency review.",
       "matchPackageNames": [
         "actions/**",
         "ansible/**",
@@ -365,7 +365,7 @@
       "matchUpdateTypes": [
         "major"
       ],
-      "automerge": false,
+      "automerge": true,
       "minimumReleaseAge": "7 days",
       "addLabels": [
         "dep:review"
