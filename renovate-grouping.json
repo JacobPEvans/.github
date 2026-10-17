@@ -107,8 +107,8 @@
         "github-actions"
       ],
       "matchPackageNames": [
-        "dryvist/.github",
-        "dryvist/ai-workflows"
+        "JacobPEvans/.github",
+        "JacobPEvans/.github-ai"
       ],
       "matchUpdateTypes": [
         "minor",
