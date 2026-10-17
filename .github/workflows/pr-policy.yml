@@ -18,12 +18,23 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           persist-credentials: false
+      # As a required workflow this runs in the consumer repo, which has no
+      # copy of the checker; fetch it from this workflow's own commit.
+      - name: Check out the checker
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          repository: JacobPEvans/.github
+          ref: ${{ job.workflow_sha }}
+          path: .pr-policy
+          persist-credentials: false
+          sparse-checkout: scripts/pr-policy.py
+          sparse-checkout-cone-mode: false
       - name: Install the YAML parser
         run: python3 -m pip install --disable-pip-version-check --no-warn-script-location --target "$RUNNER_TEMP/pr-policy-deps" 'PyYAML>=6.0.2,<7'
       - name: Check workflow policy
         env:
           PYTHONPATH: ${{ runner.temp }}/pr-policy-deps
-        run: python3 scripts/pr-policy.py "$GITHUB_WORKSPACE"
+        run: python3 .pr-policy/scripts/pr-policy.py "$GITHUB_WORKSPACE"
 
   pr-title:
     name: PR Title
