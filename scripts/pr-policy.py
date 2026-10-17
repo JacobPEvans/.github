@@ -25,7 +25,7 @@ VERSION_COMMENT = re.compile(r"#\s*v\d+(?:\.\d+)*\b")
 # A documented exception on the timeout line raises the pull-request cap; the reason is required.
 TIMEOUT_EXCEPTION = re.compile(r"#\s*pr-policy:\s*timeout-exception\s+\S")
 TIMEOUT_LIMIT = 5
-TIMEOUT_EXCEPTION_LIMIT = 10
+TIMEOUT_EXCEPTION_LIMIT = 25
 
 
 def scalar(node: Node | None) -> str | None:

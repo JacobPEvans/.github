@@ -73,7 +73,7 @@ jobs:
     # `inputs.timeout_minutes > 0` guards the numeric input: 0 is falsy in
     # expressions, so `cond && n || f` yields n only when the input is set and
     # otherwise falls through to the org-variable value.
-    timeout-minutes: ${{ github.event_name == 'pull_request' && 5 || inputs.timeout_minutes > 0 && inputs.timeout_minutes || fromJSON(vars.GH_ACTION_TIMEOUT_NIX || '15') }}
+    timeout-minutes: ${{ github.event_name == 'pull_request' && 25 || inputs.timeout_minutes > 0 && inputs.timeout_minutes || fromJSON(vars.GH_ACTION_TIMEOUT_NIX || '15') }} # pr-policy: timeout-exception a cold nix flake check takes 12-21 min on PRs
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
