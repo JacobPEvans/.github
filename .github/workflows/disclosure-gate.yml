@@ -1,0 +1,17 @@
+# Required workflow: injected by an enterprise ruleset into every pull request of the organizations that hold
+# the gitleaks and denylist secrets. It runs in the target repository, so `secrets: inherit` passes that
+# organization's secrets.
+name: Disclosure Gate
+
+on:
+  pull_request:
+
+permissions: {}
+
+jobs:
+  disclosure-gate:
+    uses: JacobPEvans/.github/.github/workflows/_disclosure-gate.yml@v1
+    permissions:
+      contents: read
+      pull-requests: read
+    secrets: inherit
