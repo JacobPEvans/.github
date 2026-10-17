@@ -58,7 +58,6 @@ vulnerabilities.
 
 ## Auditable Workflow Boundaries
 
-Dryvist repos reference this repo's reusable workflows by commit SHA. The SHA in
-a caller's `uses:` line names the exact workflow version that runs. If you need
-to audit a specific workflow run, the resolved SHA is logged in the GitHub
-Actions UI for that run.
+Enterprise repos reference this repo's reusable workflows by floating major tag
+(`@v1`). Each release moves the tag. To audit a specific workflow run, the
+resolved commit SHA is logged in the GitHub Actions UI for that run.

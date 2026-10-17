@@ -239,7 +239,12 @@
         "major"
       ],
       "matchPackageNames": [
+        "!JacobPEvans/**",
+        "!JacobPEvans-*/**",
         "!dryvist/**",
+        "!jpe-*/**",
+        "!vct-*/**",
+        "!https://github.com/JacobPEvans/**",
         "!https://github.com/dryvist/**"
       ],
       "addLabels": [
@@ -408,14 +413,6 @@
         "git-refs"
       ],
       "minimumReleaseAgeBehaviour": "timestamp-optional"
-    },
-    {
-      "description": "Disable Renovate auto-merge in repositories with a manual merge policy.",
-      "matchRepositories": [
-        "dryvist/ansible-*",
-        "dryvist/nix-ai"
-      ],
-      "automerge": false
     }
   ],
   "updateNotScheduled": false
