@@ -222,14 +222,39 @@ def policy_files(root: Path) -> list[Path]:
     return sorted(path for path in files if path.is_file())
 
 
+def changed_lines(diff: str) -> dict[str, set[int]]:
+    """Map each file in a unified diff to the line numbers it adds or changes in the new version."""
+    changed: dict[str, set[int]] = {}
+    current: set[int] | None = None
+    line = 0
+    for text in diff.splitlines():
+        if text.startswith("+++ "):
+            target = text[4:].split("\t")[0]
+            current = changed.setdefault(target[2:], set()) if target.startswith("b/") else None
+        elif text.startswith("@@"):
+            match = re.match(r"@@ -\S+ \+(\d+)", text)
+            line = int(match.group(1)) if match else 0
+        elif current is not None and text.startswith("+"):
+            current.add(line)
+            line += 1
+        elif current is not None and text.startswith(" "):
+            line += 1
+    return changed
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("root", nargs="?", type=Path, default=Path.cwd())
-    root = parser.parse_args().root.resolve()
+    parser.add_argument("--diff", type=Path, help="unified diff of the PR; only lines it adds or changes are checked")
+    args = parser.parse_args()
+    root = args.root.resolve()
+    changed = changed_lines(args.diff.read_text()) if args.diff else None
     violations = []
     for path in policy_files(root):
+        relative = path.relative_to(root).as_posix()
         for line, rule, message in analyze(path, path.read_text()):
-            violations.append(f"{path.relative_to(root).as_posix()}:{line} {rule} {message}")
+            if changed is None or line in changed.get(relative, ()):
+                violations.append(f"{relative}:{line} {rule} {message}")
     for violation in violations:
         print(violation)
     if violations:

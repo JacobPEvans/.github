@@ -92,6 +92,71 @@ jobs:
 """
         self.assertEqual([], pr_policy.analyze(Path("scheduled.yml"), source))
 
+    def test_changed_lines_counts_only_added_lines_in_the_new_file(self):
+        diff = """\
+diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml
+--- a/.github/workflows/ci.yml
++++ b/.github/workflows/ci.yml
+@@ -3,3 +3,4 @@ jobs:
+   build:
+-    timeout-minutes: 30
++    timeout-minutes: 5
++    steps: []
+   test:
+diff --git a/old.yml b/old.yml
+--- a/old.yml
++++ /dev/null
+@@ -1 +0,0 @@
+-gone
+diff --git a/new.yml b/new.yml
+--- /dev/null
++++ b/new.yml
+@@ -0,0 +1,2 @@
++name: new
++on: pull_request
+"""
+        self.assertEqual(
+            {".github/workflows/ci.yml": {4, 5}, "new.yml": {1, 2}},
+            pr_policy.changed_lines(diff),
+        )
+
+    def test_diff_mode_reports_only_violations_on_changed_lines(self):
+        import contextlib
+        import io
+        import sys
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            workflows = root / ".github" / "workflows"
+            workflows.mkdir(parents=True)
+            (workflows / "ci.yml").write_text(
+                "on: pull_request\njobs:\n  old:\n    timeout-minutes: 30\n    steps: []\n"
+                "  new:\n    timeout-minutes: 30\n    steps: []\n"
+            )
+            diff = root / "pr.diff"
+
+            def run(diff_text):
+                diff.write_text(diff_text)
+                out = io.StringIO()
+                argv = sys.argv
+                sys.argv = ["pr-policy.py", str(root), "--diff", str(diff)]
+                try:
+                    with contextlib.redirect_stdout(out):
+                        code = pr_policy.main()
+                finally:
+                    sys.argv = argv
+                return code, out.getvalue()
+
+            header = "--- a/.github/workflows/ci.yml\n+++ b/.github/workflows/ci.yml\n"
+            code, out = run(header + "@@ -5,0 +6,3 @@\n+  new:\n+    timeout-minutes: 30\n+    steps: []\n")
+            self.assertEqual(1, code)
+            self.assertIn("ci.yml:7 timeout-minutes", out)
+            self.assertNotIn("ci.yml:4", out)
+
+            code, out = run("--- a/README.md\n+++ b/README.md\n@@ -1 +1 @@\n-a\n+b\n")
+            self.assertEqual(0, code)
+
 
 if __name__ == "__main__":
     unittest.main()

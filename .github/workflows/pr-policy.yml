@@ -12,6 +12,7 @@ jobs:
     timeout-minutes: 2
     permissions:
       contents: read
+      pull-requests: read
     steps:
       - name: Check out the PR head
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -31,10 +32,23 @@ jobs:
           sparse-checkout-cone-mode: false
       - name: Install the YAML parser
         run: python3 -m pip install --disable-pip-version-check --no-warn-script-location --target "$RUNNER_TEMP/pr-policy-deps" 'PyYAML>=6.0.2,<7'
+      # Only lines the PR adds or changes are checked, so existing debt never blocks an unrelated PR.
+      # A diff too large for the API falls back to checking every file.
+      - name: Fetch the PR diff
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          if gh api -H 'Accept: application/vnd.github.diff' "repos/$REPO/pulls/$PR" > "$RUNNER_TEMP/pr.diff"; then
+            echo "PR_POLICY_DIFF=$RUNNER_TEMP/pr.diff" >> "$GITHUB_ENV"
+          else
+            echo "::warning::PR diff unavailable; checking every workflow file."
+          fi
       - name: Check workflow policy
         env:
           PYTHONPATH: ${{ runner.temp }}/pr-policy-deps
-        run: python3 .pr-policy/scripts/pr-policy.py "$GITHUB_WORKSPACE"
+        run: python3 .pr-policy/scripts/pr-policy.py "$GITHUB_WORKSPACE" ${PR_POLICY_DIFF:+--diff "$PR_POLICY_DIFF"}
 
   pr-title:
     name: PR Title
