@@ -26,6 +26,8 @@
 #       uses: JacobPEvans/.github/.github/workflows/promote-major-tag.yml@v1
 #       with:
 #         tag: ${{ github.event.release.tag_name }}
+#       secrets:
+#         GH_ACTION_RELEASE_PLEASE_PRIVATE_KEY: ${{ secrets.GH_ACTION_RELEASE_PLEASE_PRIVATE_KEY }}
 #
 # Only stable tags (vMAJOR.MINOR.PATCH, optionally with +build metadata) move the
 # floating tag. Only one promotion runs at a time. The floating tag never moves
@@ -48,6 +50,9 @@ on:
           triggering release event.
         required: false
         type: string
+    secrets:
+      GH_ACTION_RELEASE_PLEASE_PRIVATE_KEY:
+        required: false
 
 permissions: {}
 
@@ -64,11 +69,23 @@ jobs:
       contents: write
       checks: read
     steps:
+      # github.token can never hold the workflows permission, and moving the tag
+      # onto a release that changed a workflow file needs it, so the push uses the release App.
+      - name: Mint the App token
+        id: app-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3
+        with:
+          app-id: ${{ vars.GH_ACTION_RELEASE_PLEASE_APP_ID }}
+          private-key: ${{ secrets.GH_ACTION_RELEASE_PLEASE_PRIVATE_KEY }}
+          permission-contents: write
+          permission-workflows: write
+
       - name: Check out tags
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
           fetch-tags: true
+          token: ${{ steps.app-token.outputs.token }}
 
       - name: Check out the promotion script
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
