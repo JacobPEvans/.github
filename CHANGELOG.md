@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.23.2](https://github.com/JacobPEvans/.github/compare/v1.23.1...v1.23.2) (2026-10-18)
+
+
+### Performance
+
+* **ansible-ci:** add a changes-only mode ([f827c40](https://github.com/JacobPEvans/.github/commit/f827c406fea90a9d63e29114ea6ea6cc5636c88b))
+* **ansible-ci:** Merge pull request [#28](https://github.com/JacobPEvans/.github/issues/28) from JacobPEvans/perf/ansible-ci-changes-only ([f827c40](https://github.com/JacobPEvans/.github/commit/f827c406fea90a9d63e29114ea6ea6cc5636c88b))
+
 ## [1.23.1](https://github.com/JacobPEvans/.github/compare/v1.23.0...v1.23.1) (2026-10-18)
 
 
