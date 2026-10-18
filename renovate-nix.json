@@ -1,23 +1,7 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "description": [
-    "Opt-in Renovate preset for Nix repositories.",
-    "Renovate is the only flake.lock writer; the old workflow and dispatch fan-out are being deleted."
-  ],
+  "description": "Shim of the dryvist master Renovate preset.",
   "extends": [
-    "local>JacobPEvans/.github"
-  ],
-  "nix": {
-    "enabled": true
-  },
-  "lockFileMaintenance": {
-    "enabled": true,
-    "schedule": [
-      "* * * * 0,6"
-    ],
-    "automerge": true,
-    "minimumReleaseAge": null,
-    "updateNotScheduled": false,
-    "groupName": "Nix lock file maintenance"
-  }
+    "github>dryvist/.github:renovate-nix"
+  ]
 }

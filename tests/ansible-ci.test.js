@@ -9,7 +9,6 @@ const test = require('node:test');
 
 const ansibleCi = readFileSync('.github/workflows/_ansible-ci.yml', 'utf8');
 const renovateValidator = readFileSync('.github/workflows/renovate-config-validate.yml', 'utf8');
-const renovatePreset = JSON.parse(readFileSync('renovate-presets.json', 'utf8'));
 
 function tinyRunScript() {
   const step = ansibleCi.slice(ansibleCi.indexOf('- name: Detect tiny develop pull request'));
@@ -166,31 +165,24 @@ test('shared Ansible CI runs strict Renovate validation for renovate.json change
   assert.match(renovateValidator, /key: renovate-cli-\$\{\{ runner\.os \}\}-\$\{\{ env\.RENOVATE_VERSION \}\}/);
 });
 
-test('Renovate custom managers track the validator tool and compatible Node pins', () => {
+test('Renovate presets delegate to the dryvist master preset', () => {
   const cases = [
-    {
-      depName: 'node',
-      datasource: 'node-version',
-      line: '          node-version: "24.11.0"',
-      version: '24.11.0',
-    },
-    {
-      depName: 'renovate',
-      datasource: 'npm',
-      line: '      RENOVATE_VERSION: "44.82.4"',
-      version: '44.82.4',
-    },
+    ['renovate-presets.json', 'github>dryvist/.github:renovate-presets'],
+    ['renovate-nix.json', 'github>dryvist/.github:renovate-nix'],
+    ['renovate-grouping.json', 'github>dryvist/.github:renovate-grouping'],
+    ['default.json', 'github>dryvist/.github'],
   ];
 
-  for (const { depName, datasource, line, version } of cases) {
-    const manager = renovatePreset.customManagers.find(
-      (entry) => entry.depNameTemplate === depName && entry.datasourceTemplate === datasource,
-    );
-    assert.ok(manager, `missing ${datasource} manager for ${depName}`);
-    assert.ok(manager.managerFilePatterns.some((pattern) => pattern.includes('.github/workflows')));
-    const match = manager.matchStrings.map((pattern) => new RegExp(pattern).exec(line)).find(Boolean);
-    assert.equal(match?.groups?.currentValue, version);
+  for (const [file, preset] of cases) {
+    const config = JSON.parse(readFileSync(file, 'utf8'));
+    assert.deepEqual(Object.keys(config).sort(), ['$schema', 'description', 'extends']);
+    assert.equal(config.description, 'Shim of the dryvist master Renovate preset.');
+    assert.deepEqual(config.extends, [preset]);
   }
+
+  const consumer = JSON.parse(readFileSync('renovate.json', 'utf8'));
+  assert.deepEqual(consumer.extends, ['local>JacobPEvans/.github']);
+  assert.equal(readFileSync('renovate.json', 'utf8').trim().includes('\n'), false);
 });
 
 test('unmapped Molecule paths never fail the run; they select the full profile with a warning per path', () => {

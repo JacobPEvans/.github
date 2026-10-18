@@ -1,11 +1,7 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "description": [
-    "Enterprise Renovate entry point for consumers using github>JacobPEvans/.github.",
-    "Nix consumers also extend github>JacobPEvans/.github:renovate-nix."
-  ],
+  "description": "Shim of the dryvist master Renovate preset.",
   "extends": [
-    "config:recommended",
-    "local>JacobPEvans/.github:renovate-presets"
+    "github>dryvist/.github"
   ]
 }
