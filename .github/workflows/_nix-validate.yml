@@ -87,7 +87,7 @@ jobs:
       # runner long-lived state is never modified.
       - name: Free disk space
         if: inputs.all_systems && startsWith(inputs.runner_label, 'ubuntu-')
-        uses: jlumbroso/free-disk-space@3f13feab2962a87273d379ebc36ea159527e6cc9 # v1.3.2
+        uses: jlumbroso/free-disk-space@ceedf095f4ec1a097402bc6bd80831f2e1a6fde6 # v2.0.0
         with:
           tool-cache: false
           android: true
@@ -117,7 +117,7 @@ jobs:
       # cache backend of a later cache step to S3, once runs-on/action has run.
       - name: Enable RunsOn cache backend
         if: startsWith(inputs.runner_label, 'runs-on=')
-        uses: runs-on/action@dfae4d98c5537a0dc7bbb7e6b9211f30ba240f6d # v2.4.0
+        uses: runs-on/action@17b59092eb37ebfdbb034460892887c09100eaa3 # v2.5.0
 
       # Restore-only on PRs; saves on pushes to the default branch (branch-agnostic
       # so both trunk and git-flow callers save where their PRs can read).
