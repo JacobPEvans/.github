@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.23.1](https://github.com/JacobPEvans/.github/compare/v1.23.0...v1.23.1) (2026-10-18)
+
+
+### Bug Fixes
+
+* **pr-policy:** Merge pull request [#26](https://github.com/JacobPEvans/.github/issues/26) from JacobPEvans/fix/pr-policy-large-diff ([4715f6a](https://github.com/JacobPEvans/.github/commit/4715f6aee0ad8a3936f22fd23afd93ce686bd0fc))
+* **pr-policy:** rebuild the PR diff from file patches past the 300-file cap ([4715f6a](https://github.com/JacobPEvans/.github/commit/4715f6aee0ad8a3936f22fd23afd93ce686bd0fc))
+* **pr-policy:** rebuild the PR diff from file patches past the 300-file cap ([f990bce](https://github.com/JacobPEvans/.github/commit/f990bce143ddedf55642571241dd351bdb1b68d8))
+
 ## [1.23.0](https://github.com/JacobPEvans/.github/compare/v1.22.0...v1.23.0) (2026-10-17)
 
 
