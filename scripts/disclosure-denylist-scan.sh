@@ -13,8 +13,9 @@
 #   <base-ref>      — git ref to diff against; only lines added since it are scanned
 #
 # Reads PR_TITLE / PR_BODY / PR_AUTHOR from the environment (may be unset outside
-# a PR). For a renovate[bot] PR, the body's `### Release Notes` section (up to
-# `### Configuration`) is skipped: it is upstream changelog text copied verbatim.
+# a PR). For a Renovate PR (renovate[bot], or jacobpevans-release-please[bot] for
+# the self-hosted run in renovate.yml), the body's `### Release Notes` section (up
+# to `### Configuration`) is skipped: it is upstream changelog text copied verbatim.
 #
 # Exit codes:
 #   0 — no hits
@@ -123,7 +124,7 @@ if [[ -n "${PR_TITLE:-}" ]]; then
 fi
 if [[ -n "${PR_BODY:-}" ]]; then
   body_file="$(mktemp)"
-  if [[ "${PR_AUTHOR:-}" == "renovate[bot]" ]]; then
+  if [[ "${PR_AUTHOR:-}" == "renovate[bot]" || "${PR_AUTHOR:-}" == "jacobpevans-release-please[bot]" ]]; then
     # Blank the skipped lines rather than drop them, so hits keep their body line numbers.
     printf '%s\n' "$PR_BODY" \
       | awk '/^### Release Notes/ { skip = 1 } /^### Configuration/ { skip = 0 } { print (skip ? "" : $0) }' \

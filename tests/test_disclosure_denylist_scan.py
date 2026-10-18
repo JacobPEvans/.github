@@ -191,6 +191,18 @@ class DisclosureDenylistScanTest(unittest.TestCase):
         result = self._run(env_extra={"PR_BODY": body, "PR_AUTHOR": "renovate[bot]"})
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
+    def test_self_hosted_renovate_release_notes_are_not_scanned(self):
+        body = self.RENOVATE_BODY.format(config="schedule: at any time")
+        result = self._run(
+            env_extra={"PR_BODY": body, "PR_AUTHOR": "jacobpevans-release-please[bot]"}
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_other_author_release_notes_are_scanned(self):
+        body = self.RENOVATE_BODY.format(config="schedule: at any time")
+        result = self._run(env_extra={"PR_BODY": body, "PR_AUTHOR": "someone"})
+        self.assertEqual(result.returncode, 1)
+
     def test_renovate_body_outside_release_notes_still_hits(self):
         body = self.RENOVATE_BODY.format(config="ANOTHER-TERM")
         result = self._run(env_extra={"PR_BODY": body, "PR_AUTHOR": "renovate[bot]"})
