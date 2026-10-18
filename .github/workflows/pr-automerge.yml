@@ -4,14 +4,17 @@
 # PR opens, reopens or leaves draft, it turns on native auto-merge (squash), so
 # the PR merges as soon as its required checks pass.
 #
-# Skipped: draft PRs, PRs from forks, promotions (develop into the default
-# branch, which merge by merge commit through their own flow) and PRs labelled
-# human:review.
+# Auto-merge is not enabled for draft PRs, PRs from forks, promotions (develop
+# into the default branch, which merge by merge commit through their own flow)
+# or PRs carrying human:review. A late human:review label disables an armed
+# request.
 #
-# The opened event's labels are a snapshot that can miss a label `gh pr create`
-# adds a moment later. So after arming, the job re-reads the live labels and
-# turns auto-merge off again on a human:review PR, and adding human:review at
-# any later point turns it off too.
+# The opened event's labels are a snapshot that can miss a label added just
+# after creation. Before arming, the workflow reads the live labels with gh.
+# Adding human:review later triggers a hold run that disables auto-merge. Runs
+# for arming and human:review share a PR-scoped concurrency group. If a later
+# PR transition replaces a pending hold run, its live-state check also disables
+# auto-merge on a held PR. Unrelated label events use unique groups.
 #
 # Auto-merge waits only for checks an active rule requires, so it is armed only
 # when the base branch's active rules require a "Merge Gate" status check.
@@ -29,44 +32,76 @@ on:
 
 permissions: {}
 
+concurrency:
+  group: >-
+    ${{ github.event.action == 'labeled'
+    && github.event.label.name != 'human:review'
+    && format('pr-automerge-{0}-event-{1}', github.event.pull_request.number, github.run_id)
+    || format('pr-automerge-{0}', github.event.pull_request.number) }}
+  cancel-in-progress: false
+
 jobs:
   automerge:
     name: Enable Auto-Merge
     if: >-
       ${{ github.event.action != 'labeled'
-      && !github.event.pull_request.draft
-      && github.event.pull_request.head.repo.full_name == github.repository
-      && !(github.event.pull_request.head.ref == 'develop' && github.event.pull_request.base.ref == github.event.repository.default_branch)
-      && !contains(github.event.pull_request.labels.*.name, 'human:review') }}
+      && github.event.pull_request.head.repo.full_name == github.repository }}
     runs-on: ubuntu-24.04
     timeout-minutes: 2
     permissions:
       contents: read
+      pull-requests: read
     steps:
-      # As a required workflow this runs in the consumer repo; fetch the check from this workflow's own commit.
-      - name: Check out the readiness check
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          repository: JacobPEvans/.github
-          ref: ${{ job.workflow_sha }}
-          path: .pr-automerge
-          persist-credentials: false
-          sparse-checkout: |
-            scripts/pr-automerge-ready.sh
-            scripts/pr-automerge-hold.sh
-          sparse-checkout-cone-mode: false
-      - name: Check for a required merge gate and the release App
-        id: app
+      - name: Check live labels and auto-merge state
+        id: state
         env:
-          APP_ID: ${{ vars.GH_ACTION_RELEASE_PLEASE_APP_ID }}
-          HAS_KEY: ${{ secrets.GH_ACTION_RELEASE_PLEASE_PRIVATE_KEY != '' }}
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+        run: gh pr view "$PR" --json labels,autoMergeRequest --jq '"state=" + (if (.labels | map(.name) | contains(["human:review"])) then "held" else "clear" end) + "," + (if .autoMergeRequest == null then "unarmed" else "armed" end)' >> "$GITHUB_OUTPUT"
+      - name: Check for a required Merge Gate
+        id: gate
+        if: >-
+          ${{ steps.state.outputs.state == 'clear,unarmed'
+          && !github.event.pull_request.draft
+          && !(github.event.pull_request.head.ref == 'develop' && github.event.pull_request.base.ref == github.event.repository.default_branch) }}
+        env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
           BASE: ${{ github.event.pull_request.base.ref }}
-        run: bash .pr-automerge/scripts/pr-automerge-ready.sh "$REPO" "$BASE" >> "$GITHUB_OUTPUT"
+        run: gh api "repos/$REPO/rules/branches/$BASE" --jq '"ready=" + ((([.[] | select(.type == "required_status_checks") | .parameters.required_status_checks[]?.context | select(type == "string" and test("(^|/ )Merge Gate$"))] | length) > 0) | tostring)' >> "$GITHUB_OUTPUT"
+      - name: Warn when no required Merge Gate is active
+        if: >-
+          ${{ steps.state.outputs.state == 'clear,unarmed'
+          && !github.event.pull_request.draft
+          && !(github.event.pull_request.head.ref == 'develop' && github.event.pull_request.base.ref == github.event.repository.default_branch)
+          && steps.gate.outputs.ready != 'true' }}
+        env:
+          BASE: ${{ github.event.pull_request.base.ref }}
+        run: echo "::warning::No active rule on $BASE requires a Merge Gate check; auto-merge not enabled."
+      - name: Warn when the release App is not configured
+        if: >-
+          ${{ (steps.state.outputs.state == 'held,armed'
+          || (steps.state.outputs.state == 'clear,unarmed'
+          && steps.gate.outputs.ready == 'true'
+          && !github.event.pull_request.draft
+          && !(github.event.pull_request.head.ref == 'develop' && github.event.pull_request.base.ref == github.event.repository.default_branch)))
+          && (vars.GH_ACTION_RELEASE_PLEASE_APP_ID == '' || env.APP_PRIVATE_KEY == '') }}
+        env:
+          APP_PRIVATE_KEY: ${{ secrets.GH_ACTION_RELEASE_PLEASE_PRIVATE_KEY }}
+        run: echo "::warning::GH_ACTION_RELEASE_PLEASE_APP_ID or GH_ACTION_RELEASE_PLEASE_PRIVATE_KEY is not set; auto-merge not enabled."
       - name: Mint the App token
         id: app-token
-        if: ${{ steps.app.outputs.ready == 'true' }}
+        if: >-
+          ${{ (steps.state.outputs.state == 'held,armed'
+          || (steps.state.outputs.state == 'clear,unarmed'
+          && steps.gate.outputs.ready == 'true'
+          && !github.event.pull_request.draft
+          && !(github.event.pull_request.head.ref == 'develop' && github.event.pull_request.base.ref == github.event.repository.default_branch)))
+          && vars.GH_ACTION_RELEASE_PLEASE_APP_ID != ''
+          && env.APP_PRIVATE_KEY != '' }}
+        env:
+          APP_PRIVATE_KEY: ${{ secrets.GH_ACTION_RELEASE_PLEASE_PRIVATE_KEY }}
         uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3
         with:
           app-id: ${{ vars.GH_ACTION_RELEASE_PLEASE_APP_ID }}
@@ -74,18 +109,24 @@ jobs:
           permission-contents: write
           permission-pull-requests: write
       - name: Enable auto-merge
-        if: ${{ steps.app.outputs.ready == 'true' }}
+        if: >-
+          ${{ steps.state.outputs.state == 'clear,unarmed'
+          && steps.gate.outputs.ready == 'true'
+          && !github.event.pull_request.draft
+          && !(github.event.pull_request.head.ref == 'develop' && github.event.pull_request.base.ref == github.event.repository.default_branch)
+          && steps.app-token.outputs.token != '' }}
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           GH_REPO: ${{ github.repository }}
           PR: ${{ github.event.pull_request.number }}
         run: gh pr merge "$PR" --auto --squash
-      - name: Turn auto-merge off again if human:review is now set
-        if: ${{ steps.app.outputs.ready == 'true' }}
+      - name: Turn auto-merge off for a held PR
+        if: ${{ steps.state.outputs.state == 'held,armed' && steps.app-token.outputs.token != '' }}
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_REPO: ${{ github.repository }}
           PR: ${{ github.event.pull_request.number }}
-        run: bash .pr-automerge/scripts/pr-automerge-hold.sh "$GITHUB_REPOSITORY" "$PR"
+        run: gh pr merge "$PR" --disable-auto
 
   hold:
     name: Hold for human review
@@ -97,27 +138,37 @@ jobs:
     timeout-minutes: 2
     permissions:
       contents: read
+      pull-requests: read
     steps:
-      - name: Check out the hold script
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          repository: JacobPEvans/.github
-          ref: ${{ job.workflow_sha }}
-          path: .pr-automerge
-          persist-credentials: false
-          sparse-checkout: scripts/pr-automerge-hold.sh
-          sparse-checkout-cone-mode: false
-      # Auto-merge is armed with the release App's token, so it is turned off with the same App.
+      - name: Warn when the release App is not configured
+        if: ${{ vars.GH_ACTION_RELEASE_PLEASE_APP_ID == '' || env.APP_PRIVATE_KEY == '' }}
+        env:
+          APP_PRIVATE_KEY: ${{ secrets.GH_ACTION_RELEASE_PLEASE_PRIVATE_KEY }}
+        run: echo "::warning::GH_ACTION_RELEASE_PLEASE_APP_ID or GH_ACTION_RELEASE_PLEASE_PRIVATE_KEY is not set; auto-merge was not armed."
       - name: Mint the App token
         id: app-token
+        if: ${{ vars.GH_ACTION_RELEASE_PLEASE_APP_ID != '' && env.APP_PRIVATE_KEY != '' }}
+        env:
+          APP_PRIVATE_KEY: ${{ secrets.GH_ACTION_RELEASE_PLEASE_PRIVATE_KEY }}
         uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3
         with:
           app-id: ${{ vars.GH_ACTION_RELEASE_PLEASE_APP_ID }}
           private-key: ${{ secrets.GH_ACTION_RELEASE_PLEASE_PRIVATE_KEY }}
           permission-contents: write
           permission-pull-requests: write
-      - name: Turn auto-merge off
+      - name: Check whether auto-merge is armed
+        id: state
+        if: ${{ steps.app-token.outputs.token != '' }}
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_REPO: ${{ github.repository }}
           PR: ${{ github.event.pull_request.number }}
-        run: bash .pr-automerge/scripts/pr-automerge-hold.sh "$GITHUB_REPOSITORY" "$PR"
+        run: gh pr view "$PR" --json autoMergeRequest --jq '"armed=" + ((.autoMergeRequest != null) | tostring)' >> "$GITHUB_OUTPUT"
+      # The state check makes this a no-op when a label arrives before arming.
+      - name: Turn auto-merge off
+        if: ${{ steps.state.outputs.armed == 'true' }}
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+        run: gh pr merge "$PR" --disable-auto
