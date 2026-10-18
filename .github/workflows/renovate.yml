@@ -110,5 +110,9 @@ jobs:
           RENOVATE_REQUIRE_CONFIG: required
           RENOVATE_ONBOARDING: "false"
           RENOVATE_PLATFORM_COMMIT: enabled
+          # The release App cannot write commit statuses, and Renovate aborts the
+          # repository when posting the release-age status fails. The release-age
+          # filter still holds back young releases; only the status is not posted.
+          RENOVATE_STATUS_CHECK_NAMES: '{"minimumReleaseAge":null}'
           RENOVATE_USERNAME: jacobpevans-release-please[bot]
           RENOVATE_GIT_AUTHOR: jacobpevans-release-please[bot] <289461958+jacobpevans-release-please[bot]@users.noreply.github.com>
