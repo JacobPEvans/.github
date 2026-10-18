@@ -77,6 +77,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
 
       # Free ~30GB on the ubuntu-24.04 runner so `nix flake check --all-systems`
       # has space to substitute darwin source paths (rustc-src, cctools,
@@ -111,12 +113,15 @@ jobs:
             fallback = true
             log-lines = 1000
 
+      # RunsOn's s3-cache extra persists nothing by itself; it only moves the
+      # cache backend of a later cache step to S3, once runs-on/action has run.
+      - name: Enable RunsOn cache backend
+        if: startsWith(inputs.runner_label, 'runs-on=')
+        uses: runs-on/action@dfae4d98c5537a0dc7bbb7e6b9211f30ba240f6d # v2.4.0
+
       # Restore-only on PRs; saves on pushes to the default branch (branch-agnostic
-      # so both trunk and git-flow callers save where their PRs can read). Gated to
-      # ubuntu-* runners so it is a no-op on RunsOn s3-cache labels, which already
-      # warm the store at the Nix level.
+      # so both trunk and git-flow callers save where their PRs can read).
       - name: Cache Nix Store
-        if: startsWith(inputs.runner_label, 'ubuntu-')
         uses: nix-community/cache-nix-action@7df957e333c1e5da7721f60227dbba6d06080569 # v7
         with:
           primary-key: nix-${{ runner.os }}-${{ hashFiles('flake.lock') }}
