@@ -2,11 +2,11 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "description": [
     "Enterprise Renovate policy for consumers of github>JacobPEvans/.github.",
-    "Use weekend-only updates, seven-day stabilization, native auto-merge, and shared custom managers and grouping.",
-    "Nix support is enabled by the dedicated Nix preset; security updates are handled by Dependabot."
+    "Every update opens in one grouped PR per repository on Saturday 12:00-15:59 UTC; security updates also open Wednesday 12:00-15:59 UTC.",
+    "Seven-day stabilization, native auto-merge and shared custom managers. Nix support is enabled by the dedicated Nix preset."
   ],
   "extends": [
-    "local>JacobPEvans/.github:renovate-grouping"
+    "group:all"
   ],
   "platformAutomerge": true,
   "baseBranchPatterns": [
@@ -39,19 +39,21 @@
     ".github/aw/**"
   ],
   "minimumReleaseAge": "7 days",
-  "timezone": "America/New_York",
+  "timezone": "UTC",
   "schedule": [
-    "* * * * 0,6"
+    "* 12-15 * * 6"
   ],
   "vulnerabilityAlerts": {
-    "enabled": false
-  },
-  "lockFileMaintenance": {
-    "description": "Run lock-file maintenance on weekends and auto-merge after required checks pass. Package managers select versions, so release-age filtering does not apply.",
     "enabled": true,
     "schedule": [
-      "* * * * 0,6"
+      "* 12-15 * * 3",
+      "* 12-15 * * 6"
     ],
+    "minimumReleaseAge": "0 days"
+  },
+  "lockFileMaintenance": {
+    "description": "Run lock-file maintenance in the Saturday window and auto-merge after required checks pass. Package managers select versions, so release-age filtering does not apply.",
+    "enabled": true,
     "automerge": true,
     "minimumReleaseAge": null,
     "updateNotScheduled": false
@@ -86,14 +88,14 @@
       "versioningTemplate": "{{#if versioning}}{{{versioning}}}{{else}}semver-coerced{{/if}}"
     },
     {
-      "description": "Track Docker image tags in Ansible role defaults.",
+      "description": "Track Docker image tags, with an optional sha256 digest, in Ansible role defaults: quoted, unquoted or folded values.",
       "customType": "regex",
       "managerFilePatterns": [
         "/roles/.+/defaults/main\\.ya?ml$/",
         "/roles/.+/defaults/main/.+\\.ya?ml$/"
       ],
       "matchStrings": [
-        "_image:\\s*[\"'](?<depName>[^:\"'\\s]+):(?<currentValue>[^\"'\\s]+)[\"']"
+        "_image:\\s*(?:>-\\s*\\n\\s+)?[\"']?(?<depName>[^:{}\"'\\s]+):(?<currentValue>[^@:{}\"'\\s]+)(?:@(?<currentDigest>sha256:[A-Fa-f0-9]{64}))?[\"']?(?:[ \\t\\r\\n]|$)"
       ],
       "datasourceTemplate": "docker"
     },
