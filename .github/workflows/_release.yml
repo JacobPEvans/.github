@@ -85,6 +85,8 @@ jobs:
     permissions:
       contents: write
       checks: read
+    secrets:
+      GH_ACTION_RELEASE_PLEASE_PRIVATE_KEY: ${{ secrets.GH_ACTION_RELEASE_PLEASE_PRIVATE_KEY }}
 
   release-freeze:
     if: ${{ github.event_name == 'pull_request' }}
