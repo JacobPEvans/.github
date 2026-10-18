@@ -178,6 +178,32 @@ class DisclosureDenylistScanTest(unittest.TestCase):
         self.assertIn("notes.txt:1", result.stdout)
         self.assertNotIn("SECRET-TERM", result.stdout)
 
+    RENOVATE_BODY = (
+        "Bumps a dependency.\n"
+        "### Release Notes\n"
+        "upstream says SECRET-TERM\n"
+        "### Configuration\n"
+        "{config}\n"
+    )
+
+    def test_renovate_release_notes_are_not_scanned(self):
+        body = self.RENOVATE_BODY.format(config="schedule: at any time")
+        result = self._run(env_extra={"PR_BODY": body, "PR_AUTHOR": "renovate[bot]"})
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_renovate_body_outside_release_notes_still_hits(self):
+        body = self.RENOVATE_BODY.format(config="ANOTHER-TERM")
+        result = self._run(env_extra={"PR_BODY": body, "PR_AUTHOR": "renovate[bot]"})
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(result.stdout.split(), ["PR", "body:5"])
+        self.assertNotIn("ANOTHER-TERM", result.stdout + result.stderr)
+
+    def test_release_notes_heading_from_a_person_is_still_scanned(self):
+        body = self.RENOVATE_BODY.format(config="nothing")
+        result = self._run(env_extra={"PR_BODY": body, "PR_AUTHOR": "someone"})
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("PR body:3", result.stdout)
+
 
 
     def test_missing_denylist_is_instrument_error(self):
