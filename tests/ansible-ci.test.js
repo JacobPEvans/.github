@@ -42,6 +42,46 @@ function runTiny(overrides = {}) {
   return readFileSync(output, 'utf8').trim();
 }
 
+function jobRuns(jobName, lint) {
+  const start = ansibleCi.indexOf(`\n  ${jobName}:\n`);
+  assert.notEqual(start, -1, `${jobName} job exists`);
+  const rest = ansibleCi.slice(start + 1);
+  const nextJob = /\n  [a-zA-Z][\w-]*:\n/.exec(rest.slice(1));
+  const job = rest.slice(0, nextJob ? nextJob.index + 1 : undefined);
+  const condition =
+    job.match(/^ {4}if: \$\{\{([\s\S]*?)\}\}/m) ??
+    job.match(/^ {4}if: >-\n\s+\$\{\{([\s\S]*?)\}\}/m);
+  assert.ok(condition, `${jobName} has a job-level if expression`);
+
+  const expression = condition[1]
+    .replace(/\binputs\.lint\b/g, 'lint')
+    .replace(/\binputs\.[a-zA-Z_][\w]*\b/g, 'true')
+    .replace(/needs\.changes\.outputs\.[a-zA-Z_][\w]*\s*(?:==|!=)\s*'true'/g, 'true')
+    .replace(/always\(\)/g, 'true')
+    .replace(/!cancelled\(\)/g, 'true');
+  return new Function('lint', `return (${expression});`)(lint);
+}
+
+test('lint false skips validation jobs; the gate runs and default lint keeps existing selection', () => {
+  const lintDefault = ansibleCi.match(
+    /^      lint:\n        description: .*\n        type: boolean\n        default: (true|false)$/m,
+  );
+  assert.ok(lintDefault, 'lint is a boolean workflow input with a default');
+  assert.equal(lintDefault[1], 'true');
+
+  for (const jobName of ['ansible-lint', 'molecule', 'token-limits', 'renovate-annotations', 'renovate_config']) {
+    assert.equal(jobRuns(jobName, false), false, `${jobName} skips when lint is false`);
+    assert.equal(jobRuns(jobName, lintDefault[1] === 'true'), true, `${jobName} remains selected when lint defaults true`);
+  }
+
+  assert.equal(jobRuns('gate', false), true, 'the aggregate gate runs in changes-only mode');
+  assert.equal(jobRuns('gate', lintDefault[1] === 'true'), true, 'the aggregate gate runs with default lint');
+  assert.match(
+    ansibleCi,
+    /CI_GATE_ALLOWED_SKIPS: ansible-lint, molecule, token-limits, renovate-annotations, renovate_config/,
+  );
+});
+
 test('tiny output is wired from Detect Changes and narrows Molecule only outside the full tier', () => {
   assert.match(ansibleCi, /tiny:\n\s+description: >-\n(?:.*\n)*?\s+value: \$\{\{ jobs\.changes\.outputs\.tiny \}\}/);
   assert.match(ansibleCi, /tiny: \$\{\{ steps\.tiny\.outputs\.tiny \}\}/);
@@ -112,7 +152,7 @@ test('shared Ansible CI runs strict Renovate validation for renovate.json change
   assert.match(ansibleCi, /renovate_config_present: \$\{\{ steps\.renovate-config-file\.outputs\.present \}\}/);
   assert.match(
     ansibleCi,
-    /if: \$\{\{ needs\.changes\.outputs\.renovate_config_present == 'true' && \(inputs\.full_suite \|\| needs\.changes\.outputs\.renovate_config == 'true'\) \}\}/,
+    /if: \$\{\{ inputs\.lint && needs\.changes\.outputs\.renovate_config_present == 'true' && \(inputs\.full_suite \|\| needs\.changes\.outputs\.renovate_config == 'true'\) \}\}/,
   );
   assert.match(ansibleCi, /uses: \.\/\.github\/workflows\/renovate-config-validate\.yml/);
   assert.match(ansibleCi, /needs: \[changes, ansible-lint, molecule, token-limits, renovate-annotations, renovate_config\]/);
