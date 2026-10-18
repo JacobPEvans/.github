@@ -8,6 +8,11 @@
 # branch, which merge by merge commit through their own flow) and PRs labelled
 # human:review.
 #
+# The opened event's labels are a snapshot that can miss a label `gh pr create`
+# adds a moment later. So after arming, the job re-reads the live labels and
+# turns auto-merge off again on a human:review PR, and adding human:review at
+# any later point turns it off too.
+#
 # Auto-merge waits only for checks an active rule requires, so it is armed only
 # when the base branch's active rules require a "Merge Gate" status check.
 # Without one, the job warns and arms nothing.
@@ -20,7 +25,7 @@ name: PR Auto-Merge
 
 on:
   pull_request:
-    types: [opened, reopened, ready_for_review]
+    types: [opened, reopened, ready_for_review, labeled]
 
 permissions: {}
 
@@ -28,7 +33,8 @@ jobs:
   automerge:
     name: Enable Auto-Merge
     if: >-
-      ${{ !github.event.pull_request.draft
+      ${{ github.event.action != 'labeled'
+      && !github.event.pull_request.draft
       && github.event.pull_request.head.repo.full_name == github.repository
       && !(github.event.pull_request.head.ref == 'develop' && github.event.pull_request.base.ref == github.event.repository.default_branch)
       && !contains(github.event.pull_request.labels.*.name, 'human:review') }}
@@ -45,7 +51,9 @@ jobs:
           ref: ${{ job.workflow_sha }}
           path: .pr-automerge
           persist-credentials: false
-          sparse-checkout: scripts/pr-automerge-ready.sh
+          sparse-checkout: |
+            scripts/pr-automerge-ready.sh
+            scripts/pr-automerge-hold.sh
           sparse-checkout-cone-mode: false
       - name: Check for a required merge gate and the release App
         id: app
@@ -72,3 +80,44 @@ jobs:
           GH_REPO: ${{ github.repository }}
           PR: ${{ github.event.pull_request.number }}
         run: gh pr merge "$PR" --auto --squash
+      - name: Turn auto-merge off again if human:review is now set
+        if: ${{ steps.app.outputs.ready == 'true' }}
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: bash .pr-automerge/scripts/pr-automerge-hold.sh "$GITHUB_REPOSITORY" "$PR"
+
+  hold:
+    name: Hold for human review
+    if: >-
+      ${{ github.event.action == 'labeled'
+      && github.event.label.name == 'human:review'
+      && github.event.pull_request.head.repo.full_name == github.repository }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    permissions:
+      contents: read
+    steps:
+      - name: Check out the hold script
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          repository: JacobPEvans/.github
+          ref: ${{ job.workflow_sha }}
+          path: .pr-automerge
+          persist-credentials: false
+          sparse-checkout: scripts/pr-automerge-hold.sh
+          sparse-checkout-cone-mode: false
+      # Auto-merge is armed with the release App's token, so it is turned off with the same App.
+      - name: Mint the App token
+        id: app-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3
+        with:
+          app-id: ${{ vars.GH_ACTION_RELEASE_PLEASE_APP_ID }}
+          private-key: ${{ secrets.GH_ACTION_RELEASE_PLEASE_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
+      - name: Turn auto-merge off
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: bash .pr-automerge/scripts/pr-automerge-hold.sh "$GITHUB_REPOSITORY" "$PR"
