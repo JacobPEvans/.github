@@ -100,7 +100,7 @@
       "datasourceTemplate": "docker"
     },
     {
-      "description": "Track annotated version pins in Ansible YAML files.",
+      "description": "Track annotated version pins in Ansible YAML files and in .env.example files.",
       "customType": "regex",
       "managerFilePatterns": [
         "/roles/.+/defaults/main\\.ya?ml$/",
@@ -112,10 +112,12 @@
         "/group_vars/.+\\.ya?ml$/",
         "/host_vars/.+\\.ya?ml$/",
         "/playbooks/.+\\.ya?ml$/",
-        "/scripts/.+/"
+        "/scripts/.+/",
+        "/(^|/)\\.env\\.example$/"
       ],
       "matchStrings": [
         "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)(?: versioning=(?<versioning>\\S+))?[^\\n]*\\n(?:\\s*#[^\\n]*\\n)*\\s*[\\w]+:\\s*[\"']?(?<currentValue>[^\"'\\s]{1,39}|[^\"'\\s]{41,})(?:[\"'\\s]|$)",
+        "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)(?: versioning=(?<versioning>\\S+))?[^\\n]*\\n[A-Z][A-Z0-9_]*=(?<currentValue>[^\\s#]+)",
         "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)(?: versioning=(?<versioning>\\S+))?[^\\n]*\\n(?:\\s*#[^\\n]*\\n)*\\s*-\\s*[\"']?[A-Za-z0-9_.\\[\\]\\-]+==(?<currentValue>[^\"'\\s]+)[\"']?"
       ],
       "versioningTemplate": "{{#if versioning}}{{{versioning}}}{{else}}semver-coerced{{/if}}"
