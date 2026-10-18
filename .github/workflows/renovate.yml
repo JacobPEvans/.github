@@ -34,6 +34,13 @@ on:
         description: Open pull requests now instead of waiting for the preset's schedule windows.
         type: boolean
         default: false
+      log_level:
+        description: Renovate log level. `debug` explains every branch and pull request decision.
+        type: choice
+        options:
+          - info
+          - debug
+        default: info
 
 permissions: {}
 
@@ -96,6 +103,7 @@ jobs:
           token: ${{ steps.app-token.outputs.token }}
         env:
           GITHUB_COM_TOKEN: ${{ github.token }}
+          LOG_LEVEL: ${{ inputs.log_level || 'info' }}
           RENOVATE_PLATFORM: github
           RENOVATE_AUTODISCOVER: "true"
           RENOVATE_AUTODISCOVER_FILTER: ${{ matrix.owner }}/*
