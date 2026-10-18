@@ -1,0 +1,95 @@
+# Self-hosted Renovate for the organizations that do not have the Renovate GitHub
+# App installed. The release App (the same one release-please and the tag promotion
+# use) is installed on each of them, so one job per organization mints an
+# installation token and lets Renovate update the repositories that carry a Renovate
+# config. The preset every repo extends (default.json) supplies the schedule, limits
+# and automerge rules.
+#
+# This repository is public, so its run logs are public. The token is therefore
+# limited to the organization's public repositories: Renovate cannot reach a private
+# repository, and no private repository name reaches a log.
+#
+# dryvist keeps the hosted Renovate App; running it here too would open every pull
+# request twice. A manual run defaults to `lookup`, which logs the updates Renovate
+# would make and opens nothing.
+name: Renovate
+
+on:
+  schedule:
+    - cron: "23 */6 * * *"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Renovate dry-run mode. `none` opens pull requests.
+        type: choice
+        options:
+          - lookup
+          - full
+          - none
+        default: lookup
+
+permissions: {}
+
+jobs:
+  renovate:
+    name: Renovate (${{ matrix.owner }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    concurrency:
+      group: renovate-${{ matrix.owner }}
+      cancel-in-progress: false
+    strategy:
+      fail-fast: false
+      matrix:
+        owner:
+          - JacobPEvans
+          - jpe-ansible
+          - jpe-cribl
+          - jpe-splunk
+          - jpe-openbao-plugin-secrets
+    steps:
+      - name: List public repositories
+        id: repos
+        env:
+          GH_TOKEN: ${{ github.token }}
+          OWNER: ${{ matrix.owner }}
+        run: |
+          names=$(gh api --paginate "orgs/$OWNER/repos?type=public&per_page=100" \
+            --jq '.[] | select(.archived | not) | select(.fork | not) | .name' | paste -sd, -)
+          echo "names=$names" >> "$GITHUB_OUTPUT"
+          [[ -n "$names" ]] || echo "::notice::$OWNER has no public repositories to update."
+
+      - name: Mint the App token
+        id: app-token
+        if: steps.repos.outputs.names != ''
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3
+        with:
+          app-id: ${{ vars.GH_ACTION_RELEASE_PLEASE_APP_ID }}
+          private-key: ${{ secrets.GH_ACTION_RELEASE_PLEASE_PRIVATE_KEY }}
+          owner: ${{ matrix.owner }}
+          repositories: ${{ steps.repos.outputs.names }}
+          permission-contents: write
+          permission-pull-requests: write
+          permission-workflows: write
+
+      - name: Set the dry-run mode
+        if: steps.repos.outputs.names != '' && github.event_name == 'workflow_dispatch' && inputs.dry_run != 'none'
+        env:
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: echo "RENOVATE_DRY_RUN=$DRY_RUN" >> "$GITHUB_ENV"
+
+      - name: Run Renovate
+        if: steps.repos.outputs.names != ''
+        uses: renovatebot/github-action@f0f41e5f2e706165f6814b1d0f0d0e319de7d1d9 # v46.3.8
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+        env:
+          GITHUB_COM_TOKEN: ${{ github.token }}
+          RENOVATE_PLATFORM: github
+          RENOVATE_AUTODISCOVER: "true"
+          RENOVATE_AUTODISCOVER_FILTER: ${{ matrix.owner }}/*
+          RENOVATE_REQUIRE_CONFIG: required
+          RENOVATE_ONBOARDING: "false"
+          RENOVATE_PLATFORM_COMMIT: enabled
+          RENOVATE_USERNAME: jacobpevans-release-please[bot]
+          RENOVATE_GIT_AUTHOR: jacobpevans-release-please[bot] <289461958+jacobpevans-release-please[bot]@users.noreply.github.com>

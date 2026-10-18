@@ -7,7 +7,8 @@
 # change — see `is-flake-lock-change` in the same job).
 #
 #   - Renovate: author + chore(deps) title (dual check since Renovate can also
-#     open non-dependency PRs).
+#     open non-dependency PRs). The author is `renovate[bot]` for the hosted App
+#     and `jacobpevans-release-please[bot]` for the self-hosted run (renovate.yml).
 #   - Dependabot: author check alone (it exclusively opens dependency PRs).
 #
 # The Renovate author was `jacobpevans-github-actions*`, which no pull request
@@ -34,6 +35,8 @@ if [[ ${1:-} == --self-check ]]; then
   fail=0
   for case in "renovate[bot]|chore(deps): bump x|true" \
               "renovate[bot]|feat: a real change|false" \
+              "jacobpevans-release-please[bot]|chore(deps): bump x|true" \
+              "jacobpevans-release-please[bot]|chore(main): release 1.2.3|false" \
               "dependabot[bot]|chore(deps): bump y|true" \
               "someone|chore(deps): bump z|false" \
               "||false"; do
@@ -44,13 +47,13 @@ if [[ ${1:-} == --self-check ]]; then
     rm -f "$out"
     [[ $got == "$want" ]] || { echo "FAIL: author='$a' title='$m' -> $got, want $want" >&2; fail=1; }
   done
-  [[ $fail == 0 ]] && echo "self-check OK: 5 cases"
+  [[ $fail == 0 ]] && echo "self-check OK: 7 cases"
   exit $fail
 fi
 
 : "${GITHUB_OUTPUT:?required}"
 
-if [[ ("${AUTHOR:-}" == "renovate[bot]" && "${COMMIT_MSG:-}" == chore\(deps\)*) || \
+if [[ (("${AUTHOR:-}" == "renovate[bot]" || "${AUTHOR:-}" == "jacobpevans-release-please[bot]") && "${COMMIT_MSG:-}" == chore\(deps\)*) || \
       "${AUTHOR:-}" == "dependabot[bot]" ]]; then
   echo "is-deps-only=true" >>"$GITHUB_OUTPUT"
 else
