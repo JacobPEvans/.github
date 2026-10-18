@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.25.0](https://github.com/JacobPEvans/.github/compare/v1.24.0...v1.25.0) (2026-10-18)
+
+
+### Features
+
+* **renovate:** track annotated pins in .env.example files ([#45](https://github.com/JacobPEvans/.github/issues/45)) ([ab2e7e4](https://github.com/JacobPEvans/.github/commit/ab2e7e4b2ce3bddf63c36066b7265e185fa41637))
+
 ## [1.24.0](https://github.com/JacobPEvans/.github/compare/v1.23.3...v1.24.0) (2026-10-18)
 
 
