@@ -1,4 +1,8 @@
 import importlib.util
+import json
+import os
+import subprocess
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -169,6 +173,50 @@ diff --git a/new.yml b/new.yml
 
             code, out = run("--- a/README.md\n+++ b/README.md\n@@ -1 +1 @@\n-a\n+b\n")
             self.assertEqual(0, code)
+
+
+DIFF_SCRIPT = Path(__file__).parents[1] / "scripts" / "pr-policy-diff.sh"
+# A gh stub whose diff endpoint fails the way it does past 300 files and whose file list returns $FILES.
+FAKE_GH = """\
+#!/usr/bin/env bash
+case "$*" in
+  *vnd.github.diff*) exit 1 ;;
+  *) cat "$FILES" ;;
+esac
+"""
+
+
+class PrPolicyDiffTests(unittest.TestCase):
+    def run_diff(self, files):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp = Path(tmp)
+            (tmp / "gh").write_text(FAKE_GH)
+            (tmp / "gh").chmod(0o755)
+            (tmp / "files.json").write_text(json.dumps(files))
+            env = {
+                **os.environ,
+                "PATH": f"{tmp}:{os.environ['PATH']}",
+                "FILES": str(tmp / "files.json"),
+                "REPO": "o/r",
+                "PR": "1",
+                "CHANGED_FILES": str(len(files)),
+            }
+            result = subprocess.run(["bash", str(DIFF_SCRIPT), str(tmp / "pr.diff")], env=env)
+            diff = (tmp / "pr.diff").read_text() if result.returncode == 0 else None
+            return result.returncode, diff
+
+    def test_rebuilds_the_diff_from_file_patches_past_the_diff_cap(self):
+        files = [
+            {"filename": ".github/workflows/ci.yml", "patch": "@@ -1,2 +1,3 @@\n a\n+b\n c"},
+            {"filename": "image.png"},
+        ]
+        code, diff = self.run_diff(files)
+        self.assertEqual(0, code)
+        self.assertEqual({".github/workflows/ci.yml": {2}, "image.png": set()}, pr_policy.changed_lines(diff))
+
+    def test_falls_back_when_a_workflow_file_has_no_patch(self):
+        code, _ = self.run_diff([{"filename": ".github/workflows/ci.yml"}])
+        self.assertEqual(1, code)
 
 
 if __name__ == "__main__":
