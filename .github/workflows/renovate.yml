@@ -30,6 +30,10 @@ on:
           - full
           - none
         default: lookup
+      ignore_schedule:
+        description: Open pull requests now instead of waiting for the preset's schedule windows.
+        type: boolean
+        default: false
 
 permissions: {}
 
@@ -80,6 +84,10 @@ jobs:
         env:
           DRY_RUN: ${{ inputs.dry_run }}
         run: echo "RENOVATE_DRY_RUN=$DRY_RUN" >> "$GITHUB_ENV"
+
+      - name: Ignore the preset schedule
+        if: steps.repos.outputs.names != '' && github.event_name == 'workflow_dispatch' && inputs.ignore_schedule
+        run: echo 'RENOVATE_FORCE={"schedule":["at any time"]}' >> "$GITHUB_ENV"
 
       - name: Run Renovate
         if: steps.repos.outputs.names != ''
