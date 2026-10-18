@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.24.0](https://github.com/JacobPEvans/.github/compare/v1.23.3...v1.24.0) (2026-10-18)
+
+
+### Features
+
+* **renovate:** one grouped Saturday PR, Wed/Sat security updates ([#34](https://github.com/JacobPEvans/.github/issues/34)) ([cab0f73](https://github.com/JacobPEvans/.github/commit/cab0f733cb62cc741bd64280aa886e3bf681524e))
+
+
+### Bug Fixes
+
+* **pr-automerge:** honour a human:review label added after a PR opens ([#27](https://github.com/JacobPEvans/.github/issues/27)) ([a3fa0e5](https://github.com/JacobPEvans/.github/commit/a3fa0e54fb13fa5407a36fd0fb662ba4dfe8f949))
+* **release:** move the major tag with the release App token ([#29](https://github.com/JacobPEvans/.github/issues/29)) ([fc7f2ec](https://github.com/JacobPEvans/.github/commit/fc7f2ec9e0ebb0ba07aed8b0e299cb1f84f4b9f7))
+
 ## [1.23.3](https://github.com/JacobPEvans/.github/compare/v1.23.2...v1.23.3) (2026-10-18)
 
 
