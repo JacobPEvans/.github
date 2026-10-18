@@ -13,10 +13,10 @@ to this [.github repository](https://github.com/JacobPEvans/.github/security/adv
 
 ## Dependency Trust
 
-Renovate consumers use this repository's shared presets. Non-security dependency
-PRs and updates to existing PRs are limited to Saturday and Sunday in
-America/New_York. Security updates are handled by Dependabot per repository;
-Renovate vulnerability alerts are disabled.
+Renovate consumers use this repository's shared presets. Every dependency
+update opens in one grouped PR per repository on Saturday 12:00-15:59 UTC.
+Security updates from Renovate vulnerability alerts open on Wednesday or
+Saturday 12:00-15:59 UTC with no stabilization hold.
 
 | Update | Stabilization | Review and merge |
 | --- | --- | --- |
@@ -28,12 +28,12 @@ Renovate vulnerability alerts are disabled.
 First-party packages are `JacobPEvans/**`, `JacobPEvans-*/**`, `dryvist/**` and
 `jpe-*/**`. Renovate hash-pins their GitHub Actions and reusable-workflow refs,
 with the release tag in a trailing comment such as `# v1.2.3`; `@vN` refs are
-also accepted. A new major such as `v1` to `v2` opens on a weekend and
+also accepted. A new major such as `v1` to `v2` opens on Saturday and
 auto-merges after seven days and passing checks. Third-party actions remain
 SHA-pinned with a released-version comment.
 
 Nix repositories extend `github>JacobPEvans/.github:renovate-nix`. Renovate's
-Nix manager maintains `flake.lock` in one weekend PR per repository and
+Nix manager maintains `flake.lock` in one Saturday PR per repository and
 auto-merges after required checks pass.
 
 ## Version Pinning
