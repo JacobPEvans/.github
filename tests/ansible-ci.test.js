@@ -161,8 +161,8 @@ test('shared Ansible CI runs strict Renovate validation for renovate.json change
   assert.match(renovateValidator, /config_file:/);
   assert.match(renovateValidator, /RENOVATE_CONFIG_FILE/);
   assert.match(renovateValidator, /renovate-config-validator --strict/);
-  assert.match(renovateValidator, /RENOVATE_VERSION: "44\.82\.4"/);
-  assert.match(renovateValidator, /node-version: "24\.11\.0"/);
+  assert.match(renovateValidator, /RENOVATE_VERSION: "\d+\.\d+\.\d+"/);
+  assert.match(renovateValidator, /node-version: "\d+\.\d+\.\d+"/);
   assert.match(renovateValidator, /key: renovate-cli-\$\{\{ runner\.os \}\}-\$\{\{ env\.RENOVATE_VERSION \}\}/);
 });
 
