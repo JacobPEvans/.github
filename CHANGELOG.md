@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.23.3](https://github.com/JacobPEvans/.github/compare/v1.23.2...v1.23.3) (2026-10-18)
+
+
+### Performance
+
+* **ci:** restore the Nix store cache on RunsOn runners ([#15](https://github.com/JacobPEvans/.github/issues/15)) ([68f6eb3](https://github.com/JacobPEvans/.github/commit/68f6eb335d230b4f0627cb0cd2b1a673a63ed514))
+
 ## [1.23.2](https://github.com/JacobPEvans/.github/compare/v1.23.1...v1.23.2) (2026-10-18)
 
 
