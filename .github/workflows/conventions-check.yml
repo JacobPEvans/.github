@@ -39,6 +39,11 @@ jobs:
       - name: Checkout target repo
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
+      # The master preset owns every Renovate schedule; a consumer config sets none.
+      - name: Reject Renovate schedule overrides
+        run: |
+          ! git grep -nE '"?(schedule|timezone|automergeSchedule)"?[[:space:]]*:|at any time' -- renovate.json renovate.json5 '.renovaterc*' .github/renovate.json .github/renovate.json5
+
       - name: Check presence of required repo conventions
         shell: sh
         run: |
