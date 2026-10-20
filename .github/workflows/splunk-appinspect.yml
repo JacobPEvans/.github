@@ -1,0 +1,121 @@
+name: Splunk AppInspect
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: org-splunk-appinspect-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  appinspect:
+    name: AppInspect
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25 # pr-policy: timeout-exception AppInspect includes dependency installation and static checks
+    steps:
+      - name: Checkout target repo
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: "3.13"
+
+      - name: Detect Splunk app
+        id: app
+        env:
+          REPOSITORY_NAME: ${{ github.event.repository.name }}
+        run: |
+          set -euo pipefail
+          if [[ ! -f app.manifest && ! -f default/app.conf ]]; then
+            echo "::notice::No Splunk app manifest found; AppInspect is not applicable."
+            echo "is_app=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          app_name=$(python - <<'PY'
+          import configparser
+          import json
+          import os
+          import re
+          from pathlib import Path
+
+          app_name = ""
+          manifest = Path("app.manifest")
+          if manifest.is_file():
+              try:
+                  app_name = json.loads(manifest.read_text()).get("info", {}).get("id", {}).get("name", "")
+              except json.JSONDecodeError:
+                  pass
+          if not app_name and Path("default/app.conf").is_file():
+              config = configparser.ConfigParser(interpolation=None)
+              config.read("default/app.conf")
+              app_name = config.get("package", "id", fallback="")
+          if not app_name:
+              app_name = os.environ["REPOSITORY_NAME"]
+          if not re.fullmatch(r"[A-Za-z0-9_.-]+", app_name):
+              raise SystemExit(f"Invalid Splunk app id: {app_name!r}")
+          print(app_name)
+          PY
+          )
+          echo "is_app=true" >> "$GITHUB_OUTPUT"
+          echo "name=$app_name" >> "$GITHUB_OUTPUT"
+
+      - name: Package app
+        id: package
+        if: steps.app.outputs.is_app == 'true'
+        env:
+          APP_NAME: ${{ steps.app.outputs.name }}
+        run: |
+          set -euo pipefail
+          if [[ -f scripts/package.sh ]]; then
+            bash scripts/package.sh
+          else
+            mkdir -p build
+            tar --exclude=.git --exclude=.github --exclude=build --exclude=tests \
+              --transform="s,^.,${APP_NAME}," \
+              -czf "build/${APP_NAME}-org-required.tar.gz" .
+          fi
+          shopt -s nullglob
+          packages=(build/"${APP_NAME}"-*.tar.gz)
+          if [[ ${#packages[@]} -ne 1 ]]; then
+            echo "::error::Expected one build/${APP_NAME}-*.tar.gz archive, found ${#packages[@]}."
+            exit 1
+          fi
+          echo "path=${packages[0]}" >> "$GITHUB_OUTPUT"
+
+      - name: Install Splunk AppInspect
+        if: steps.app.outputs.is_app == 'true'
+        run: python -m pip install --disable-pip-version-check --no-warn-script-location 'splunk-appinspect==4.3.1'
+
+      - name: Run AppInspect (gate on failure and error)
+        if: steps.app.outputs.is_app == 'true'
+        env:
+          PACKAGE_PATH: ${{ steps.package.outputs.path }}
+        run: |
+          splunk-appinspect inspect "$PACKAGE_PATH" --data-format json --output-file appinspect.json || true
+          python - <<'PY'
+          import json
+          import sys
+
+          with open("appinspect.json") as report:
+              summary = json.load(report)["summary"]
+          print(json.dumps(summary, indent=2))
+          sys.exit(1 if summary.get("failure", 0) + summary.get("error", 0) else 0)
+          PY
+
+      - name: Validate Dashboard Studio definitions
+        if: steps.app.outputs.is_app == 'true' && hashFiles('scripts/validate_dashboards.py') != ''
+        run: python scripts/validate_dashboards.py default/data/ui/views/*.xml
+
+      - name: Upload AppInspect report
+        if: always() && steps.app.outputs.is_app == 'true'
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
+        with:
+          name: appinspect-report
+          path: appinspect.json
+          if-no-files-found: ignore
