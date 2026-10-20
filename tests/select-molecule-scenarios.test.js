@@ -7,7 +7,7 @@ const { tmpdir } = require('node:os');
 const { join } = require('node:path');
 const test = require('node:test');
 const selectorPath = require.resolve('../.github/scripts/select-molecule-scenarios.js');
-const workflowPath = require.resolve('../.github/workflows/_ansible-ci.yml');
+const workflowPath = require.resolve('../.github/workflows/_ansible-changes.yml');
 const { selectMoleculeScenarios } = require(selectorPath);
 
 function selectionAndWarnings(changedFiles, scenarios = {}, contractFiles = [], fullMatrixFiles = []) {

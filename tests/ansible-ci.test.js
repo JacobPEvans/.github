@@ -8,11 +8,12 @@ const { tmpdir } = require('node:os');
 const test = require('node:test');
 
 const ansibleCi = readFileSync('.github/workflows/_ansible-ci.yml', 'utf8');
+const ansibleChanges = readFileSync('.github/workflows/_ansible-changes.yml', 'utf8');
 const renovateValidator = readFileSync('.github/workflows/renovate-config-validate.yml', 'utf8');
 const renovatePreset = JSON.parse(readFileSync('renovate-presets.json', 'utf8'));
 
 function tinyRunScript() {
-  const step = ansibleCi.slice(ansibleCi.indexOf('- name: Detect tiny develop pull request'));
+  const step = ansibleChanges.slice(ansibleChanges.indexOf('- name: Detect tiny develop pull request'));
   const run = step.match(/\n        run: \|\n((?: {10}[^\n]*(?:\n|$))*)/);
   assert.ok(run, 'tiny output step has an inline run script');
   return run[1]
@@ -82,11 +83,33 @@ test('lint false skips validation jobs; the gate runs and default lint keeps exi
   );
 });
 
+test('shared Ansible CI delegates change selection to the reusable workflow and forwards its inputs and outputs', () => {
+  assert.match(
+    ansibleCi,
+    /changes:\n\s+name: Detect Changes\n\s+uses: \.\/\.github\/workflows\/_ansible-changes\.yml\n\s+with:/,
+  );
+  for (const input of [
+    'full_suite',
+    'molecule',
+    'molecule_scenarios',
+    'molecule_scenario_filters',
+    'molecule_contract_filters',
+    'runner_label',
+  ]) {
+    assert.ok(ansibleCi.includes(`      ${input}: \${{ inputs.${input} }}`), `${input} is forwarded`);
+  }
+  for (const output of ['ansible', 'molecule', 'tiny', 'renovate_config', 'renovate_config_present', 'molecule_scenarios']) {
+    assert.ok(ansibleCi.includes(`value: \${{ jobs.changes.outputs.${output} }}`), `${output} stays public`);
+    assert.ok(ansibleChanges.includes(`value: \${{ jobs.changes.outputs.${output} }}`), `${output} is exported`);
+  }
+  assert.doesNotMatch(ansibleCi, /Select scenarios only when every relevant path is covered/);
+});
+
 test('tiny output is wired from Detect Changes and narrows Molecule only outside the full tier', () => {
   assert.match(ansibleCi, /tiny:\n\s+description: >-\n(?:.*\n)*?\s+value: \$\{\{ jobs\.changes\.outputs\.tiny \}\}/);
-  assert.match(ansibleCi, /tiny: \$\{\{ steps\.tiny\.outputs\.tiny \}\}/);
-  assert.match(ansibleCi, /- name: Detect tiny develop pull request\n\s+id: tiny/);
-  assert.match(ansibleCi, /printf 'tiny=%s\\n' "\$tiny" >> "\$GITHUB_OUTPUT"/);
+  assert.match(ansibleChanges, /tiny: \$\{\{ steps\.tiny\.outputs\.tiny \}\}/);
+  assert.match(ansibleChanges, /- name: Detect tiny develop pull request\n\s+id: tiny/);
+  assert.match(ansibleChanges, /printf 'tiny=%s\\n' "\$tiny" >> "\$GITHUB_OUTPUT"/);
   assert.match(ansibleCi, /full_suite:\n\s+description:.*\n\s+type: boolean\n\s+default: false/);
   assert.match(
     ansibleCi,
@@ -100,8 +123,8 @@ test('tiny is false for pushes and pull requests into main', () => {
 });
 
 test('tiny is false for deleted or renamed paths', () => {
-  assert.match(ansibleCi, /tiny_files:\n\s+- added\|modified: 'roles\/\*\/tasks\/\*\*'/);
-  assert.match(ansibleCi, /- added\|modified: 'roles\/\*\/handlers\/\*\*'/);
+  assert.match(ansibleChanges, /tiny_files:\n\s+- added\|modified: 'roles\/\*\/tasks\/\*\*'/);
+  assert.match(ansibleChanges, /- added\|modified: 'roles\/\*\/handlers\/\*\*'/);
   assert.equal(runTiny({ CHANGED_FILES: '1', ALLOWED_FILES: '0' }), 'tiny=false');
 });
 
@@ -127,7 +150,7 @@ test('tiny is false when any never-tiny path changed', () => {
     '.sops.yaml',
     'llm-models.d/**',
   ];
-  for (const pattern of excluded) assert.ok(ansibleCi.includes(`              - '${pattern}'`), pattern);
+  for (const pattern of excluded) assert.ok(ansibleChanges.includes(`              - '${pattern}'`), pattern);
   assert.equal(runTiny({ CHANGED_FILES: '1', ADDITIONS: '1', ALLOWED_FILES: '1', EXCLUDED_FILES: '1' }), 'tiny=false');
 });
 
@@ -137,7 +160,7 @@ test('tiny is false for three files or more than ten changed lines', () => {
 });
 
 test('two task files with two changed lines produce tiny=true', () => {
-  assert.match(ansibleCi, /id: classify\n[\s\S]*?list-files: json\n[\s\S]*?tiny_files:/);
+  assert.match(ansibleChanges, /id: classify\n[\s\S]*?list-files: json\n[\s\S]*?tiny_files:/);
   assert.equal(runTiny(), 'tiny=true');
 });
 
@@ -147,9 +170,9 @@ test('missing or non-numeric tiny counts fail closed', () => {
 });
 
 test('shared Ansible CI runs strict Renovate validation for renovate.json changes', () => {
-  assert.match(ansibleCi, /renovate_config:\n\s+- 'renovate\.json'/);
+  assert.match(ansibleChanges, /renovate_config:\n\s+- 'renovate\.json'/);
   assert.match(ansibleCi, /renovate_config:\n\s+name: Renovate Config Validate/);
-  assert.match(ansibleCi, /renovate_config_present: \$\{\{ steps\.renovate-config-file\.outputs\.present \}\}/);
+  assert.match(ansibleChanges, /renovate_config_present: \$\{\{ steps\.renovate-config-file\.outputs\.present \}\}/);
   assert.match(
     ansibleCi,
     /if: \$\{\{ inputs\.lint && needs\.changes\.outputs\.renovate_config_present == 'true' && \(inputs\.full_suite \|\| needs\.changes\.outputs\.renovate_config == 'true'\) \}\}/,
@@ -194,23 +217,23 @@ test('Renovate custom managers track the validator tool and compatible Node pins
 });
 
 test('unmapped Molecule paths never fail the run; they select the full profile with a warning per path', () => {
-  assert.doesNotMatch(ansibleCi, /Require focused Molecule path mappings/);
-  assert.doesNotMatch(ansibleCi, /Add Molecule scenario or caller-contract path mappings/);
-  assert.match(ansibleCi, /echo "::notice::molecule off, mapping not required"/);
-  assert.match(ansibleCi, /echo "::warning::unmapped path \$path, running full profile"/);
-  assert.match(ansibleCi, /done < <\(jq -r '\.\[\]' <<<"\$\{MOLECULE_FILES:-\[\]\}"\)/);
-  assert.match(ansibleCi, /echo "full_profile=true" >> "\$GITHUB_OUTPUT"/);
-  assert.match(ansibleCi, /elif \[\[ "\$FULL_PROFILE" == true \]\]; then\n\s+printf 'scenarios=\\n'/);
+  assert.doesNotMatch(ansibleChanges, /Require focused Molecule path mappings/);
+  assert.doesNotMatch(ansibleChanges, /Add Molecule scenario or caller-contract path mappings/);
+  assert.match(ansibleChanges, /echo "::notice::molecule off, mapping not required"/);
+  assert.match(ansibleChanges, /echo "::warning::unmapped path \$path, running full profile"/);
+  assert.match(ansibleChanges, /done < <\(jq -r '\.\[\]' <<<"\$\{MOLECULE_FILES:-\[\]\}"\)/);
+  assert.match(ansibleChanges, /echo "full_profile=true" >> "\$GITHUB_OUTPUT"/);
+  assert.match(ansibleChanges, /elif \[\[ "\$FULL_PROFILE" == true \]\]; then\n\s+printf 'scenarios=\\n'/);
 });
 
 test('unmapped paths warn only on molecule-matched files and select the full profile whether or not mappings are set', () => {
-  assert.match(ansibleCi, /id: filter\n\s+with:\n\s+base: [^\n]*\n\s+list-files: json/);
-  assert.match(ansibleCi, /MOLECULE_FILES: \$\{\{ steps\.filter\.outputs\.molecule_files \}\}/);
+  assert.match(ansibleChanges, /id: filter\n\s+with:\n\s+base: [^\n]*\n\s+list-files: json/);
+  assert.match(ansibleChanges, /MOLECULE_FILES: \$\{\{ steps\.filter\.outputs\.molecule_files \}\}/);
   assert.match(
-    ansibleCi,
+    ansibleChanges,
     /FULL_PROFILE: \$\{\{ steps\.unmapped\.outputs\.full_profile \|\| steps\.scenario_selection\.outputs\.full_profile \}\}/,
   );
-  assert.doesNotMatch(ansibleCi, /still fails classification/);
+  assert.doesNotMatch(ansibleChanges, /still fails classification/);
 });
 
 test('Galaxy installs run only when requirements.yml exists and say so when it does not', () => {
@@ -220,8 +243,8 @@ test('Galaxy installs run only when requirements.yml exists and say so when it d
 });
 
 test('mapped Molecule paths still go through the scenario selector', () => {
-  assert.match(ansibleCi, /Select scenarios only when every relevant path is covered/);
-  assert.match(ansibleCi, /run: node \.gh-shared\/\.github\/scripts\/select-molecule-scenarios\.js/);
+  assert.match(ansibleChanges, /Select scenarios only when every relevant path is covered/);
+  assert.match(ansibleChanges, /run: node \.gh-shared\/\.github\/scripts\/select-molecule-scenarios\.js/);
 });
 
 test('lint roles path keeps the repo ansible.cfg roles_path between repo roles/ and Galaxy roles', () => {
@@ -242,33 +265,33 @@ test('lint roles path keeps the repo ansible.cfg roles_path between repo roles/ 
 
 test('the molecule output is false when the caller repo has no Molecule scenario', () => {
   assert.match(
-    ansibleCi,
+    ansibleChanges,
     /id: molecule_scenarios\n\s+if: \$\{\{ hashFiles\('\*\*\/molecule\/\*\/molecule\.yml'\) != '' \}\}\n\s+run: echo "present=true"/,
   );
   assert.match(
-    ansibleCi,
+    ansibleChanges,
     /if: \$\{\{ hashFiles\('\*\*\/molecule\/\*\/molecule\.yml'\) == '' \}\}\n\s+run: echo "::notice::no Molecule scenarios in this repository, Molecule job not applicable"/,
   );
   assert.match(
-    ansibleCi,
+    ansibleChanges,
     /molecule: >-\n\s+\$\{\{ steps\.molecule_scenarios\.outputs\.present == 'true'\n\s+&& \(inputs\.full_suite\n\s+\|\| \(steps\.filter\.outputs\.molecule == 'true'\n\s+&& steps\.nondocs\.outputs\.match == 'true'\)/,
   );
 });
 
 test('the molecule output is false when the selector maps the change to no scenario', () => {
   assert.match(
-    ansibleCi,
+    ansibleChanges,
     /&& github\.ref == 'refs\/heads\/main'\)\)\n\s+&& steps\.scenario_scope\.outputs\.scenarios != '\[\]' \}\}/,
   );
 });
 
 test('a Markdown-only change selects no lint or Molecule outside the push to main', () => {
   assert.match(
-    ansibleCi,
+    ansibleChanges,
     /id: nondocs\n\s+with:\n(?:.*\n)*?\s+predicate-quantifier: every\n\s+filters: \|\n\s+match:\n\s+- '\*\*'\n\s+- '!\*\*\/\*\.md'\n\s+- '!\*\*\/\*\.mdx'/,
   );
   assert.match(
-    ansibleCi,
+    ansibleChanges,
     /ansible: >-\n\s+\$\{\{ inputs\.full_suite\n\s+\|\| \(steps\.filter\.outputs\.ansible == 'true'\n\s+&& steps\.nondocs\.outputs\.match == 'true'\)/,
   );
 });
