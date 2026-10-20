@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.25.7](https://github.com/JacobPEvans/.github/compare/v1.25.6...v1.25.7) (2026-10-20)
+
+
+### Bug Fixes
+
+* **renovate:** accept GitHub release tags without a v prefix in custom-regex pins ([#64](https://github.com/JacobPEvans/.github/issues/64)) ([a64a3e6](https://github.com/JacobPEvans/.github/commit/a64a3e6c17a79909bdcce8448adf6ba0c93c897a))
+
 ## [1.25.6](https://github.com/JacobPEvans/.github/compare/v1.25.5...v1.25.6) (2026-10-20)
 
 
