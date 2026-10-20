@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.25.8](https://github.com/JacobPEvans/.github/compare/v1.25.7...v1.25.8) (2026-10-20)
+
+
+### CI
+
+* let callers reuse the Splunk AppInspect workflow ([#63](https://github.com/JacobPEvans/.github/issues/63)) ([9eb2b11](https://github.com/JacobPEvans/.github/commit/9eb2b11154a70f2c2bcbd6eada8124120f03075f))
+
 ## [1.25.7](https://github.com/JacobPEvans/.github/compare/v1.25.6...v1.25.7) (2026-10-20)
 
 
