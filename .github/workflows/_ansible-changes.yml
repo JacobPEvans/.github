@@ -1,0 +1,335 @@
+# Shared Ansible change detection and Molecule scenario selection.
+# Repos with local Molecule jobs can call this directly alongside _ansible-ci.
+name: _ansible-changes
+
+on:
+  workflow_call:
+    inputs:
+      full_suite:
+        description: Ignore path and tiny-diff relevance gates when selected by _ci-gate's event tier.
+        type: boolean
+        default: false
+      molecule:
+        description: Enable Molecule-specific unmapped-path notices and fallback selection.
+        type: boolean
+        default: true
+      molecule_scenarios:
+        description: JSON array of molecule scenario names to run as a matrix.
+        type: string
+        default: '["default"]'
+      molecule_scenario_filters:
+        description: YAML map of molecule scenario name -> paths, in dorny/paths-filter syntax.
+        type: string
+        default: ""
+      molecule_contract_filters:
+        description: YAML map named contract_only for paths covered by caller-owned contract checks.
+        type: string
+        default: ""
+      runner_label:
+        description: Runner label for this quick change-detection job.
+        type: string
+        default: ubuntu-24.04
+    outputs:
+      ansible:
+        description: >-
+          Whether ansible-relevant files changed (the standardized filter).
+          Callers gate their own repo-local jobs on this so every job in the
+          repo shares ONE change-detection definition.
+        value: ${{ jobs.changes.outputs.ansible }}
+      molecule:
+        description: Whether molecule-relevant files changed and a Molecule scenario exists (the standardized filter).
+        value: ${{ jobs.changes.outputs.molecule }}
+      tiny:
+        description: >-
+          Whether this is a small pull request into develop with only safe task or
+          handler changes.
+        value: ${{ jobs.changes.outputs.tiny }}
+      renovate_config:
+        description: Whether the caller's Renovate config changed.
+        value: ${{ jobs.changes.outputs.renovate_config }}
+      renovate_config_present:
+        description: Whether the caller has a renovate.json to validate.
+        value: ${{ jobs.changes.outputs.renovate_config_present }}
+      molecule_scenarios:
+        description: >-
+          JSON array of scenarios mapped to changed paths, [] when a caller
+          contract covers the change, and an empty string for the full suite
+          (selected by _ci-gate, a push to main, or an unmapped path).
+        value: ${{ jobs.changes.outputs.molecule_scenarios }}
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  changes:
+    name: Detect Changes
+    runs-on: ${{ (!github.event.pull_request || github.event.pull_request.head.repo.full_name == github.repository) && inputs.runner_label || 'ubuntu-24.04' }}
+    timeout-minutes: ${{ github.event_name == 'pull_request' && 5 || 30 }}
+    outputs:
+      ansible: >-
+        ${{ inputs.full_suite
+            || (steps.filter.outputs.ansible == 'true'
+            && steps.nondocs.outputs.match == 'true')
+            || (github.event_name == 'push'
+            && github.ref == 'refs/heads/main') }}
+      # False when the selector mapped the change to no scenario ([]), so a
+      # caller that runs its own Molecule job on this output never starts an
+      # empty matrix.
+      molecule: >-
+        ${{ steps.molecule_scenarios.outputs.present == 'true'
+            && (inputs.full_suite
+            || (steps.filter.outputs.molecule == 'true'
+            && steps.nondocs.outputs.match == 'true')
+            || (github.event_name == 'push'
+            && github.ref == 'refs/heads/main'))
+            && steps.scenario_scope.outputs.scenarios != '[]' }}
+      renovate_config: ${{ inputs.full_suite || steps.filter.outputs.renovate_config == 'true' }}
+      renovate_config_present: ${{ steps.renovate-config-file.outputs.present }}
+      # Normalize ONCE for every consumer: an empty string means all scenarios
+      # only after a push to main; focused PRs and branch pushes use mapped
+      # scenarios or [] when caller contracts cover the change.
+      molecule_scenarios: ${{ steps.scenario_scope.outputs.scenarios }}
+      tiny: ${{ steps.tiny.outputs.tiny }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Detect whether a Renovate config exists
+        id: renovate-config-file
+        if: ${{ hashFiles('renovate.json') != '' }}
+        run: echo "present=true" >> "$GITHUB_OUTPUT"
+      # A repo without a Molecule scenario has nothing for the molecule job to
+      # run, so that job is skipped there rather than failing on a missing file.
+      - name: Detect Molecule scenarios
+        id: molecule_scenarios
+        if: ${{ hashFiles('**/molecule/*/molecule.yml') != '' }}
+        run: echo "present=true" >> "$GITHUB_OUTPUT"
+      - name: Note that no Molecule scenario exists
+        if: ${{ hashFiles('**/molecule/*/molecule.yml') == '' }}
+        run: echo "::notice::no Molecule scenarios in this repository, Molecule job not applicable"
+      - name: Require a previous commit for focused branch pushes
+        if: >-
+          ${{ github.event_name == 'push' && github.ref != 'refs/heads/main' &&
+          github.event.before == '0000000000000000000000000000000000000000' }}
+        run: |
+          echo "Cannot classify a first push without a previous commit." >&2
+          exit 1
+      - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4
+        id: filter
+        with:
+          base: ${{ github.event_name == 'push' && github.event.before || '' }}
+          list-files: json
+          filters: |
+            ansible:
+              - '**.yml'
+              - '**.yaml'
+              - '**.j2'
+              - 'roles/**'
+              - 'playbooks/**'
+              - 'inventory/**'
+              - 'molecule/**'
+              - '.ansible-lint'
+              - '.yamllint'
+              - 'requirements.yml'
+              # Callers gate pytest and ansible-lint on THIS filter, so a
+              # test-only change has to match it. The globs above cover YAML
+              # suites via '**.yml', but a Python suite under tests/ matched
+              # nothing: both jobs reported SKIPPED, Merge Gate allowed the
+              # skips, and a test-only PR could merge on a green board having
+              # never been run. Same fix already applied to the molecule filter
+              # below — they were fixed separately because they gate different
+              # jobs, which is exactly why the second gap survived the first.
+              - 'tests/**'
+              # Repo scripts (the converge runner and its helpers) are what
+              # those Python suites exercise, so a script-only change must run
+              # them too.
+              - 'scripts/**'
+            molecule:
+              - 'roles/**'
+              - 'playbooks/**'
+              - 'inventory/**'
+              - 'group_vars/**'
+              - 'host_vars/**'
+              - 'molecule/**'
+              - '.config/molecule/**'
+              - 'requirements.yml'
+              - 'requirements-ci.txt'
+              - 'ansible.cfg'
+              - '.github/workflows/**'
+              - '.github/scripts/**'
+              # Suites that live outside molecule/ but run under the molecule
+              # workflow. Without these, editing one of those tests does not
+              # run it: a change confined to the suite leaves this filter
+              # false, every molecule job is skipped, and the PR merges green
+              # having never exercised the thing it changed.
+              - 'tests/**'
+            renovate_config:
+              - 'renovate.json'
+      # A change made only of Markdown (a role README, for example) runs no
+      # lint or Molecule; `match` is true when any changed file is not .md/.mdx.
+      - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4
+        id: nondocs
+        with:
+          base: ${{ github.event_name == 'push' && github.event.before || '' }}
+          predicate-quantifier: every
+          filters: |
+            match:
+              - '**'
+              - '!**/*.md'
+              - '!**/*.mdx'
+      # Match all Molecule-relevant paths once. File lists let the selector
+      # verify that every changed path is covered by a scenario or caller
+      # contract before narrowing the matrix.
+      - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4
+        id: classify
+        if: >-
+          ${{ github.event_name == 'pull_request' ||
+          (github.event_name == 'push' && github.ref != 'refs/heads/main') }}
+        with:
+          base: ${{ github.event_name == 'push' && github.event.before || '' }}
+          list-files: json
+          filters: |
+            changed:
+              - 'roles/**'
+              - 'playbooks/**'
+              - 'inventory/**'
+              - 'group_vars/**'
+              - 'host_vars/**'
+              - 'molecule/**'
+              - '.config/molecule/**'
+              - 'requirements.yml'
+              - 'requirements-ci.txt'
+              - 'ansible.cfg'
+              - '.github/workflows/**'
+              - '.github/scripts/**'
+              - 'tests/**'
+            full_matrix:
+              - 'playbooks/**'
+              - 'inventory/**'
+              - 'group_vars/**'
+              - 'host_vars/**'
+              - 'roles/**/meta/**'
+              - 'molecule/shared/**'
+              - 'molecule/resources/**'
+              - '.config/molecule/**'
+              - 'requirements-ci.txt'
+              - 'ansible.cfg'
+            # Counts only add/modify changes inside the tiny-diff allowlist.
+            tiny_files:
+              - added|modified: 'roles/*/tasks/**'
+              - added|modified: 'roles/*/handlers/**'
+            tiny_excluded:
+              - '.github/**'
+              - 'inventory/**'
+              - 'group_vars/**'
+              - 'host_vars/**'
+              - 'playbooks/**'
+              - 'tests/**'
+              - 'molecule/**'
+              - 'requirements*'
+              - 'ansible.cfg'
+              - 'roles/openbao/**'
+              - 'roles/openbao_secrets/**'
+              - 'roles/*/vars/**'
+              - '**/*secret*'
+              - '**/*credential*'
+              - '**/*token*'
+              - '**/vault/**'
+              - '*.sops.*'
+              - '.sops.yaml'
+              - 'llm-models.d/**'
+            ${{ inputs.molecule_scenario_filters }}
+            ${{ inputs.molecule_contract_filters }}
+      # Comparing this filtered count with the PR payload rejects any changed
+      # file outside the allowlist, including deletes and renames.
+      - name: Detect tiny develop pull request
+        id: tiny
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_REF: ${{ github.base_ref }}
+          CHANGED_FILES: ${{ github.event.pull_request.changed_files }}
+          ADDITIONS: ${{ github.event.pull_request.additions }}
+          DELETIONS: ${{ github.event.pull_request.deletions }}
+          ALLOWED_FILES: ${{ steps.classify.outputs.tiny_files_count }}
+          EXCLUDED_FILES: ${{ steps.classify.outputs.tiny_excluded_count }}
+        run: |
+          tiny=false
+          if [[ "$EVENT_NAME" == "pull_request" && "$BASE_REF" == "develop" &&
+                "$CHANGED_FILES" =~ ^[0-9]+$ && "$ADDITIONS" =~ ^[0-9]+$ &&
+                "$DELETIONS" =~ ^[0-9]+$ && "$ALLOWED_FILES" =~ ^[0-9]+$ &&
+                "$EXCLUDED_FILES" =~ ^[0-9]+$ ]]; then
+            if (( 10#$CHANGED_FILES <= 2 && 10#$ADDITIONS + 10#$DELETIONS <= 10 &&
+                  10#$ALLOWED_FILES == 10#$CHANGED_FILES && 10#$EXCLUDED_FILES == 0 )); then
+              tiny=true
+            fi
+          fi
+          printf 'tiny=%s\n' "$tiny" >> "$GITHUB_OUTPUT"
+      - name: Note that mapping is not required when Molecule is off
+        if: >-
+          ${{ (github.event_name == 'pull_request' ||
+          (github.event_name == 'push' && github.ref != 'refs/heads/main')) &&
+          steps.filter.outputs.molecule == 'true' &&
+          !inputs.molecule }}
+        run: echo "::notice::molecule off, mapping not required"
+      - name: Name each unmapped Molecule path and run the full profile
+        id: unmapped
+        if: >-
+          ${{ (github.event_name == 'pull_request' ||
+          (github.event_name == 'push' && github.ref != 'refs/heads/main')) &&
+          inputs.molecule &&
+          steps.filter.outputs.molecule == 'true' &&
+          steps.classify.outputs.full_matrix != 'true' &&
+          inputs.molecule_scenario_filters == '' &&
+          inputs.molecule_contract_filters == '' }}
+        env:
+          MOLECULE_FILES: ${{ steps.filter.outputs.molecule_files }}
+        run: |
+          set -euo pipefail
+          while IFS= read -r path; do
+            echo "::warning::unmapped path $path, running full profile"
+          done < <(jq -r '.[]' <<<"${MOLECULE_FILES:-[]}")
+          echo "full_profile=true" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        if: >-
+          ${{ (github.event_name == 'pull_request' ||
+          (github.event_name == 'push' && github.ref != 'refs/heads/main')) &&
+          (inputs.molecule_scenario_filters != '' ||
+          inputs.molecule_contract_filters != '') }}
+        with:
+          repository: JacobPEvans/.github
+          ref: ${{ job.workflow_sha }}
+          path: .gh-shared
+          sparse-checkout: .github/scripts/select-molecule-scenarios.js
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+      - name: Select scenarios only when every relevant path is covered
+        id: scenario_selection
+        if: >-
+          ${{ (github.event_name == 'pull_request' ||
+          (github.event_name == 'push' && github.ref != 'refs/heads/main')) &&
+          (inputs.molecule_scenario_filters != '' ||
+          inputs.molecule_contract_filters != '') }}
+        env:
+          CHANGED_FILES: ${{ steps.classify.outputs.changed_files }}
+          MATCHED_FILTERS: ${{ steps.classify.outputs.changes }}
+          FILTER_OUTPUTS: ${{ toJSON(steps.classify.outputs) }}
+        run: node .gh-shared/.github/scripts/select-molecule-scenarios.js
+      - name: Publish Molecule scenario selection
+        id: scenario_scope
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          REF: ${{ github.ref }}
+          FULL_SUITE: ${{ inputs.full_suite }}
+          SELECTED_SCENARIOS: ${{ steps.scenario_selection.outputs.scenarios }}
+          FULL_PROFILE: ${{ steps.unmapped.outputs.full_profile || steps.scenario_selection.outputs.full_profile }}
+        run: |
+          if [[ "$FULL_SUITE" == true || ( "$EVENT_NAME" == push && "$REF" == refs/heads/main ) ]]; then
+            printf 'scenarios=\n' >> "$GITHUB_OUTPUT"
+          elif [[ "$FULL_PROFILE" == true ]]; then
+            printf 'scenarios=\n' >> "$GITHUB_OUTPUT"
+          elif [[ -n "$SELECTED_SCENARIOS" ]]; then
+            printf 'scenarios=%s\n' "$SELECTED_SCENARIOS" >> "$GITHUB_OUTPUT"
+          else
+            printf 'scenarios=[]\n' >> "$GITHUB_OUTPUT"
+          fi
