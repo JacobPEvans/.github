@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.25.4](https://github.com/JacobPEvans/.github/compare/v1.25.3...v1.25.4) (2026-10-20)
+
+
+### CI
+
+* skip pip-audit for a directory without pyproject.toml ([#57](https://github.com/JacobPEvans/.github/issues/57)) ([8fd7380](https://github.com/JacobPEvans/.github/commit/8fd73802f6ccf6a6d734a59b6f40e18cb34692f6))
+
 ## [1.25.3](https://github.com/JacobPEvans/.github/compare/v1.25.2...v1.25.3) (2026-10-20)
 
 
