@@ -7,10 +7,6 @@ on:
 permissions:
   contents: read
 
-concurrency:
-  group: org-splunk-appinspect-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
   appinspect:
     name: AppInspect
