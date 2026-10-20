@@ -112,6 +112,9 @@ jobs:
   release-please:
     runs-on: ${{ inputs.runner_label }}
     timeout-minutes: ${{ github.event_name == 'pull_request' && 5 || 30 }}
+    concurrency:
+      group: release-please-${{ github.repository }}-${{ github.ref }}
+      cancel-in-progress: false
     outputs:
       release_created: ${{ steps.release.outputs.releases_created }}
       tag_name: ${{ steps.release.outputs.tag_name }}
