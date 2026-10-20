@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.25.1](https://github.com/JacobPEvans/.github/compare/v1.25.0...v1.25.1) (2026-10-20)
+
+
+### CI
+
+* **conventions:** fail a Renovate config that sets its own schedule ([#48](https://github.com/JacobPEvans/.github/issues/48)) ([97adae0](https://github.com/JacobPEvans/.github/commit/97adae0d6f39982bbca1d7d1c7b6dd4a243aa6a7))
+* read the conventions inventory from its current location ([#49](https://github.com/JacobPEvans/.github/issues/49)) ([72045da](https://github.com/JacobPEvans/.github/commit/72045dac80e878130a8432e522d6c43bd89a84bf))
+* **release:** release ci commits ([#52](https://github.com/JacobPEvans/.github/issues/52)) ([312c8f7](https://github.com/JacobPEvans/.github/commit/312c8f7e25fddb910bf4ad5912f5cda4b2e67873))
+* remove the Cribl pack validation workflow ([#47](https://github.com/JacobPEvans/.github/issues/47)) ([4889f70](https://github.com/JacobPEvans/.github/commit/4889f701417b47687bb41dd46b8ad0176942b364))
+* serialize release-please runs per repository and ref ([#50](https://github.com/JacobPEvans/.github/issues/50)) ([d63a09f](https://github.com/JacobPEvans/.github/commit/d63a09fc9e2012960d0ddc6c2eabd3295d1afed3))
+
 ## [1.25.0](https://github.com/JacobPEvans/.github/compare/v1.24.0...v1.25.0) (2026-10-18)
 
 
