@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.25.6](https://github.com/JacobPEvans/.github/compare/v1.25.5...v1.25.6) (2026-10-20)
+
+
+### CI
+
+* add central Splunk AppInspect workflow ([#61](https://github.com/JacobPEvans/.github/issues/61)) ([b666e07](https://github.com/JacobPEvans/.github/commit/b666e07f73fe610cde0f0d642d7bc6db2adbf033))
+
 ## [1.25.5](https://github.com/JacobPEvans/.github/compare/v1.25.4...v1.25.5) (2026-10-20)
 
 
