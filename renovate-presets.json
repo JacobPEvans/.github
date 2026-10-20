@@ -362,14 +362,14 @@
       ]
     },
     {
-      "description": "Extract v-prefixed GitHub release tags for custom Nix pins.",
+      "description": "Strip an optional v prefix from GitHub release tags for custom-regex pins.",
       "matchDatasources": [
         "github-releases"
       ],
       "matchManagers": [
         "custom.regex"
       ],
-      "extractVersion": "^v(?<version>.+)$"
+      "extractVersion": "^v?(?<version>.+)$"
     },
     {
       "description": "Preserve v prefixes in custom-regex GitHub release pins.",
