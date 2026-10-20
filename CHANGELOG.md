@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.25.2](https://github.com/JacobPEvans/.github/compare/v1.25.1...v1.25.2) (2026-10-20)
+
+
+### Bug Fixes
+
+* **pr-automerge:** hold human:review PRs without repository scripts ([#43](https://github.com/JacobPEvans/.github/issues/43)) ([ff6c804](https://github.com/JacobPEvans/.github/commit/ff6c8045860bd04da32dc2921a9b3b48ffee7585))
+
 ## [1.25.1](https://github.com/JacobPEvans/.github/compare/v1.25.0...v1.25.1) (2026-10-20)
 
 
