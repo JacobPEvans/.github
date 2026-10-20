@@ -46,13 +46,14 @@ jobs:
           ORG: ${{ github.repository_owner }}
           # Governance IaC inventory: single source of truth for recorded
           # legitimate opt-outs.
+          INVENTORY_OWNER: dryvist
           INVENTORY_REPO: tofu-github
-          INVENTORY_PATH: config/repos.yml
+          INVENTORY_PATH: config/orgs/dryvist/repos.yml
         run: |
           set -euo pipefail
 
           # --- inputs -------------------------------------------------------
-          gh api "repos/${ORG}/${INVENTORY_REPO}/contents/${INVENTORY_PATH}" \
+          gh api "repos/${INVENTORY_OWNER}/${INVENTORY_REPO}/contents/${INVENTORY_PATH}" \
             --jq '.content' | base64 -d > inventory.yml
           # Flatten opt-outs once, as "<repo> <check> <check>...". Deliberately
           # expressed with to_entries/join rather than env-var indexing, which
