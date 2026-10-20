@@ -21,6 +21,11 @@ for dir in $PYTHON_DIRS; do
     echo "::group::Scanning $dir"
     trap 'echo "::endgroup::"' EXIT
     cd "$GITHUB_WORKSPACE/$dir"
+    # A directory of bare scripts declares no dependencies, so there is nothing to audit.
+    if [[ ! -f pyproject.toml ]]; then
+      echo "::notice::$dir has no pyproject.toml; no dependencies to audit"
+      exit 0
+    fi
     # Sync lock file in case pyproject.toml version was bumped (e.g. by
     # release-please) without a corresponding `uv lock` run. This is a
     # no-op when the lock file is already up to date.
