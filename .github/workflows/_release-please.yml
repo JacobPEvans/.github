@@ -4,7 +4,7 @@
 # runs identical logic. A calling repo adds a thin
 # .github/workflows/release-please.yml and passes the org-level release App key.
 #
-# Auth: the org-level release App — app-id from the
+# Auth: the org-level release App — client-id (its App ID) from the
 # GH_ACTION_RELEASE_PLEASE_APP_ID org variable, private key from the
 # GH_ACTION_RELEASE_PLEASE_PRIVATE_KEY org secret. The App must be installed
 # with Contents, Pull requests and Workflows write. Its token lets the release
@@ -140,7 +140,7 @@ jobs:
         if: ${{ steps.flow.outputs.flow == 'trunk' || github.ref_name == 'main' || github.ref_name == 'develop' }}
         uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3
         with:
-          app-id: ${{ vars.GH_ACTION_RELEASE_PLEASE_APP_ID }}
+          client-id: ${{ vars.GH_ACTION_RELEASE_PLEASE_APP_ID }}
           private-key: ${{ secrets.GH_ACTION_RELEASE_PLEASE_PRIVATE_KEY }}
           permission-contents: write
           permission-pull-requests: write
