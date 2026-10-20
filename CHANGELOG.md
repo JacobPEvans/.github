@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.25.5](https://github.com/JacobPEvans/.github/compare/v1.25.4...v1.25.5) (2026-10-20)
+
+
+### CI
+
+* split Ansible change detection into a reusable workflow ([#59](https://github.com/JacobPEvans/.github/issues/59)) ([8a8f825](https://github.com/JacobPEvans/.github/commit/8a8f825e7b1d460a59d63cee1d6e814b9b691953))
+
 ## [1.25.4](https://github.com/JacobPEvans/.github/compare/v1.25.3...v1.25.4) (2026-10-20)
 
 
