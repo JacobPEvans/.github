@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.25.3](https://github.com/JacobPEvans/.github/compare/v1.25.2...v1.25.3) (2026-10-20)
+
+
+### CI
+
+* pass the App ID through the client-id input of create-github-app-token ([#55](https://github.com/JacobPEvans/.github/issues/55)) ([41c664b](https://github.com/JacobPEvans/.github/commit/41c664b3ac1facacb4f4f63367263c6e5dc29e74))
+
 ## [1.25.2](https://github.com/JacobPEvans/.github/compare/v1.25.1...v1.25.2) (2026-10-20)
 
 
