@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.25.9](https://github.com/JacobPEvans/.github/compare/v1.25.8...v1.25.9) (2026-10-21)
+
+
+### CI
+
+* **markdown-lint:** use a separate concurrency group for the enterprise required workflow ([#67](https://github.com/JacobPEvans/.github/issues/67)) ([c814932](https://github.com/JacobPEvans/.github/commit/c81493242a068092b0f0dd27669c743f98b2f94e))
+
 ## [1.25.8](https://github.com/JacobPEvans/.github/compare/v1.25.7...v1.25.8) (2026-10-20)
 
 
