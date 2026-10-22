@@ -1,14 +1,14 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "description": [
-    "Enterprise Renovate policy for consumers of github>JacobPEvans/.github.",
-    "Every update opens in one grouped PR per repository on Saturday 12:00-15:59 UTC; security updates also open Wednesday 12:00-15:59 UTC.",
-    "Seven-day stabilization, native auto-merge and shared custom managers. Nix support is enabled by the dedicated Nix preset."
+    "Single Renovate policy master for JacobPEvans and dryvist repositories. It extends no other repository's config; dryvist/.github re-exports these presets as pass-throughs.",
+    "Every update opens in one grouped PR per repository on Saturday 12:00-15:59 UTC; security updates also open Wednesday and Saturday 12:00-15:59 UTC.",
+    "Seven-day stabilization for minor, patch and digest updates, no hold for first-party packages, 30 days for other majors. Renovate merges directly (platformAutomerge false). Shared custom managers live here; Nix support is enabled by the dedicated Nix preset."
   ],
   "extends": [
     "group:all"
   ],
-  "platformAutomerge": true,
+  "platformAutomerge": false,
   "baseBranchPatterns": [
     "$default"
   ],
@@ -28,7 +28,7 @@
     "329540381+jacobs-agent-smith[bot]@users.noreply.github.com"
   ],
   "ignoreDeprecated": true,
-  "osvVulnerabilityAlerts": false,
+  "osvVulnerabilityAlerts": true,
   "pre-commit": {
     "enabled": true,
     "description": "Renovate ships the pre-commit manager DISABLED by default, so every .pre-commit-config.yaml rev in the org was frozen - a manual pre-commit autoupdate was the only thing that ever moved one. Enabled here so hook revs ride the same publisher-agnostic minor/patch auto-merge tier as everything else."
@@ -44,16 +44,26 @@
     "* 12-15 * * 6"
   ],
   "vulnerabilityAlerts": {
+    "description": "Security/CVE PRs open Wednesday and Saturday 12:00-15:59 UTC with a one-day stabilization hold, then auto-merge after required checks pass.",
     "enabled": true,
     "schedule": [
       "* 12-15 * * 3",
       "* 12-15 * * 6"
     ],
-    "minimumReleaseAge": "0 days"
+    "labels": [
+      "type:security"
+    ],
+    "minimumReleaseAge": "1 day",
+    "automerge": true,
+    "rangeStrategy": "bump",
+    "vulnerabilityFixStrategy": "highest"
   },
   "lockFileMaintenance": {
-    "description": "Run lock-file maintenance in the Saturday window and auto-merge after required checks pass. Package managers select versions, so release-age filtering does not apply.",
+    "description": "Lock-file maintenance runs in the Saturday 12:00-15:59 UTC window and auto-merges after required checks pass. Package managers select versions, so release-age filtering does not apply. updateNotScheduled:false prevents intervening head refreshes.",
     "enabled": true,
+    "schedule": [
+      "* 12-15 * * 6"
+    ],
     "automerge": true,
     "minimumReleaseAge": null,
     "updateNotScheduled": false
@@ -100,7 +110,7 @@
       "datasourceTemplate": "docker"
     },
     {
-      "description": "Track annotated version pins in Ansible YAML files and in .env.example files.",
+      "description": "Track annotated version pins in Ansible YAML files, .env.example files and shell (.sh) files.",
       "customType": "regex",
       "managerFilePatterns": [
         "/roles/.+/defaults/main\\.ya?ml$/",
@@ -113,7 +123,8 @@
         "/host_vars/.+\\.ya?ml$/",
         "/playbooks/.+\\.ya?ml$/",
         "/scripts/.+/",
-        "/(^|/)\\.env\\.example$/"
+        "/(^|/)\\.env\\.example$/",
+        "/\\.sh$/"
       ],
       "matchStrings": [
         "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)(?: versioning=(?<versioning>\\S+))?[^\\n]*\\n(?:\\s*#[^\\n]*\\n)*\\s*[\\w]+:\\s*[\"']?(?<currentValue>[^\"'\\s]{1,39}|[^\"'\\s]{41,})(?:[\"'\\s]|$)",
@@ -275,7 +286,7 @@
       "minimumReleaseAge": "7 days"
     },
     {
-      "description": "Auto-merge first-party updates, including majors, after seven days and green checks.",
+      "description": "Auto-merge first-party updates, including majors, with no release-age hold once green checks pass.",
       "matchPackageNames": [
         "JacobPEvans/**",
         "JacobPEvans-*/**",
@@ -287,7 +298,7 @@
         "https://github.com/jpe-*/**"
       ],
       "automerge": true,
-      "minimumReleaseAge": "7 days"
+      "minimumReleaseAge": "0 days"
     },
     {
       "description": "Pin GitHub Actions refs to SHA digests.",
@@ -295,6 +306,77 @@
         "github-actions"
       ],
       "pinDigests": true
+    },
+    {
+      "description": "JacobPEvans and JacobPEvans-personal reusable workflows ride their floating major tag (@v1) and are not digest-pinned. dryvist/** refs are covered by the next rule.",
+      "matchManagers": [
+        "github-actions"
+      ],
+      "matchPackageNames": [
+        "JacobPEvans/**",
+        "JacobPEvans-personal/**"
+      ],
+      "pinDigests": false
+    },
+    {
+      "description": "dryvist/** GitHub Actions refs are pinned to a full 40-character commit SHA with the release tag in a trailing comment: uses: dryvist/<repo>/...@<sha> # vX.Y.Z. Renovate moves the SHA and the comment together.",
+      "matchManagers": [
+        "github-actions"
+      ],
+      "matchPackageNames": [
+        "dryvist/**"
+      ],
+      "pinDigests": true
+    },
+    {
+      "description": "dryvist/** patch updates auto-merge after green CI without a release-age hold.",
+      "matchPackageNames": [
+        "dryvist/**",
+        "https://github.com/dryvist/**"
+      ],
+      "matchUpdateTypes": [
+        "patch"
+      ],
+      "automerge": true,
+      "minimumReleaseAge": "0 days"
+    },
+    {
+      "description": "dryvist/** minor updates auto-merge after green CI without a release-age hold. Repos with manual automerge are excluded by the last rule.",
+      "matchPackageNames": [
+        "dryvist/**",
+        "https://github.com/dryvist/**"
+      ],
+      "matchUpdateTypes": [
+        "minor"
+      ],
+      "automerge": true,
+      "minimumReleaseAge": "0 days"
+    },
+    {
+      "description": "dryvist/** digest, pin and pinDigest updates are not auto-merged by Renovate; the bot-PR auto-merge sweep merges them once checks are green. A digest update moves a ref or version comment without a release.",
+      "matchPackageNames": [
+        "dryvist/**",
+        "https://github.com/dryvist/**"
+      ],
+      "matchUpdateTypes": [
+        "digest",
+        "pin",
+        "pinDigest"
+      ],
+      "automerge": false,
+      "minimumReleaseAge": "0 days"
+    },
+    {
+      "description": "dryvist/** major updates auto-merge after green CI. Repos with manual automerge are excluded by the last rule.",
+      "matchPackageNames": [
+        "dryvist/**",
+        "https://github.com/dryvist/**"
+      ],
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "automerge": true,
+      "minimumReleaseAge": "0 days"
     },
     {
       "description": "Auto-merge trusted-org majors after seven days and green checks; dep:review triggers the dependency review.",
@@ -410,6 +492,24 @@
         "python"
       ],
       "allowedVersions": "<3.15"
+    },
+    {
+      "description": "Flake relocks on repositories that configure live machines open for review instead of auto-merging.",
+      "matchRepositories": [
+        "dryvist/nix-darwin*"
+      ],
+      "matchUpdateTypes": [
+        "lockFileMaintenance"
+      ],
+      "automerge": false
+    },
+    {
+      "description": "Repos whose automerge custom property is manual (tofu-github config/automerge.yml: every ansible-* repo and nix-ai): Renovate never auto-merges there, and the org-automerge-manual ruleset requires a person's approval. Last rule so it overrides every automerge setting above.",
+      "matchRepositories": [
+        "dryvist/ansible-*",
+        "dryvist/nix-ai"
+      ],
+      "automerge": false
     }
   ],
   "updateNotScheduled": false
