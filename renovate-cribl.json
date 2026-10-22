@@ -1,0 +1,41 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "description": "Cribl pack-test pins for repositories that carry .github/workflows/cribl-pack-test.yml. Tracks the cribl/cribl test-matrix versions as docker dependencies: patch releases auto-merge, minor and major moves stay manual. Extend it next to local>JacobPEvans/.github, which it does not replace.",
+  "customManagers": [
+    {
+      "description": "Track Cribl version pins inside the multi-version test matrix default in .github/workflows/cribl-pack-test.yml. Captures any `\"version\":\"X.Y.Z\"` inside the cribl_versions JSON-array default; ignores `\"version\":\"latest\"` because the regex only matches semver triples. Each match becomes a docker dep tied to cribl/cribl, so Renovate opens a PR when a newer patch ships.",
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/\\.github/workflows/cribl-pack-test\\.yml$/"
+      ],
+      "matchStrings": [
+        "\"version\"\\s*:\\s*\"(?<currentValue>\\d+\\.\\d+\\.\\d+)\""
+      ],
+      "datasourceTemplate": "docker",
+      "depNameTemplate": "cribl/cribl"
+    }
+  ],
+  "packageRules": [
+    {
+      "description": "Allow only patch bumps on cribl/cribl pins. The matrix shape is `latest` + last-patch-of-N-1 + last-patch-of-N-2; Renovate keeps each pinned minor on its newest patch. Minor/major shifts (when the N window rolls forward) stay manual — they're a deliberate compat-band decision, not a routine bump.",
+      "matchPackageNames": [
+        "cribl/cribl"
+      ],
+      "matchUpdateTypes": [
+        "minor",
+        "major"
+      ],
+      "enabled": false
+    },
+    {
+      "description": "Cribl is in the criblio/** trusted-org list per JacobPEvans renovate-presets, so patch bumps auto-merge after the inherited stabilization window.",
+      "matchPackageNames": [
+        "cribl/cribl"
+      ],
+      "matchUpdateTypes": [
+        "patch"
+      ],
+      "automerge": true
+    }
+  ]
+}
