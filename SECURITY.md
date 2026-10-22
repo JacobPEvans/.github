@@ -16,21 +16,21 @@ to this [.github repository](https://github.com/JacobPEvans/.github/security/adv
 Renovate consumers use this repository's shared presets. Every dependency
 update opens in one grouped PR per repository on Saturday 12:00-15:59 UTC.
 Security updates from Renovate vulnerability alerts open on Wednesday or
-Saturday 12:00-15:59 UTC with no stabilization hold.
+Saturday 12:00-15:59 UTC after a one-day stabilization hold.
 
 | Update | Stabilization | Review and merge |
 | --- | --- | --- |
 | Minor, patch, digest and pin updates | 7 days | Auto-merge after required checks pass |
-| First-party updates, including majors | 7 days | Auto-merge after required checks pass |
+| First-party updates, including majors | None | Auto-merge after required checks pass |
 | Trusted-org majors | 7 days | Auto-merge after required checks pass; the dep:review label adds the dependency review |
 | Other majors | 30 days | Auto-merge after required checks pass |
 
 First-party packages are `JacobPEvans/**`, `JacobPEvans-*/**`, `dryvist/**` and
-`jpe-*/**`. Renovate hash-pins their GitHub Actions and reusable-workflow refs,
-with the release tag in a trailing comment such as `# v1.2.3`; `@vN` refs are
-also accepted. A new major such as `v1` to `v2` opens on Saturday and
-auto-merges after seven days and passing checks. Third-party actions remain
-SHA-pinned with a released-version comment.
+`jpe-*/**`. Renovate hash-pins their GitHub Actions refs, with the release tag in
+a trailing comment such as `# v1.2.3`, except `JacobPEvans/**` and
+`JacobPEvans-personal/**` reusable workflows, which ride their `@vN` major tag. A
+new major such as `v1` to `v2` opens on Saturday and auto-merges after passing
+checks. Third-party actions remain SHA-pinned with a released-version comment.
 
 Nix repositories extend `github>JacobPEvans/.github:renovate-nix`. Renovate's
 Nix manager maintains `flake.lock` in one Saturday PR per repository and
