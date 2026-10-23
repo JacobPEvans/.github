@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.26.2](https://github.com/JacobPEvans/.github/compare/v1.26.1...v1.26.2) (2026-10-23)
+
+
+### CI
+
+* **ansible-changes:** fetch history on push so private repos resolve the base ([#76](https://github.com/JacobPEvans/.github/issues/76)) ([d0ddd4a](https://github.com/JacobPEvans/.github/commit/d0ddd4adc581ac8209854e910f221335ce89c48d))
+
 ## [1.26.1](https://github.com/JacobPEvans/.github/compare/v1.26.0...v1.26.1) (2026-10-23)
 
 
