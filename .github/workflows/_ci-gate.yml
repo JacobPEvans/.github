@@ -472,6 +472,15 @@ on:
           Optional. Lets the flake freshness check resolve private flake
           inputs; public inputs resolve without it.
         required: false
+      GITLEAKS_PRIVATE_CONFIG:
+        description: Rules for the shared disclosure scan.
+        required: false
+      GITLEAKS_LICENSE_KEY:
+        description: License for the shared disclosure scan.
+        required: false
+      DISCLOSURE_DENYLIST:
+        description: Terms for the shared disclosure scan.
+        required: false
 
 permissions:
   contents: read
@@ -845,6 +854,16 @@ jobs:
 
   # Deliberately NOT in `gate.needs` — advisory pilot, warns only (see
   # _agent-pr-body.yml); not gated on `changes` (no path filter applies).
+  disclosure-gate:
+    name: Disclosure Gate
+    uses: ./.github/workflows/_disclosure-gate.yml
+    with:
+      runner_label: ${{ (!github.event.pull_request || github.event.pull_request.head.repo.full_name == github.repository) && inputs.runner_label || 'ubuntu-24.04' }}
+    secrets:
+      GITLEAKS_PRIVATE_CONFIG: ${{ secrets.GITLEAKS_PRIVATE_CONFIG }}
+      GITLEAKS_LICENSE_KEY: ${{ secrets.GITLEAKS_LICENSE_KEY }}
+      DISCLOSURE_DENYLIST: ${{ secrets.DISCLOSURE_DENYLIST }}
+
   agent-pr-body:
     name: Agent PR Body
     if: ${{ inputs.agent_pr_body && github.event_name == 'pull_request' }}
@@ -1020,7 +1039,7 @@ jobs:
   # ============================================================================
   gate:
     name: Merge Gate
-    needs: [changes, scope, watchdog, nix-validate, nix-build, markdown-lint, file-size, token-limits, python-security, python-ci, ansible-ci, renovate-annotations, tofu-ci, osv-scan, dependency-review, zizmor, uses-resolve, repo-tests, workflow-lint]
+    needs: [changes, scope, watchdog, nix-validate, nix-build, markdown-lint, file-size, token-limits, python-security, python-ci, ansible-ci, renovate-annotations, tofu-ci, osv-scan, dependency-review, zizmor, disclosure-gate, uses-resolve, repo-tests, workflow-lint]
     # Run after workflow cancellation too, so cancelled sibling checks aggregate
     # to a failing required status instead of a skipped (successful) job.
     if: ${{ always() }}
