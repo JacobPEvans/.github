@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.26.1](https://github.com/JacobPEvans/.github/compare/v1.26.0...v1.26.1) (2026-10-23)
+
+
+### Bug Fixes
+
+* **renovate:** exclude litellm 1.107.0 from updates ([#70](https://github.com/JacobPEvans/.github/issues/70)) ([23472f2](https://github.com/JacobPEvans/.github/commit/23472f22108adf4c42c203a8648e64254649c75c))
+
 ## [1.26.0](https://github.com/JacobPEvans/.github/compare/v1.25.9...v1.26.0) (2026-10-23)
 
 
