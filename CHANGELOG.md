@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.27.0](https://github.com/JacobPEvans/.github/compare/v1.26.2...v1.27.0) (2026-10-23)
+
+
+### Features
+
+* **renovate:** move weekly window to Saturday 00:00-05:59 Indianapolis, auto-merge non-major in manual repos ([#74](https://github.com/JacobPEvans/.github/issues/74)) ([74175e5](https://github.com/JacobPEvans/.github/commit/74175e50704cf3678c50e8928c92681822c244b9))
+
 ## [1.26.2](https://github.com/JacobPEvans/.github/compare/v1.26.1...v1.26.2) (2026-10-23)
 
 
