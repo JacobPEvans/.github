@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.26.0](https://github.com/JacobPEvans/.github/compare/v1.25.9...v1.26.0) (2026-10-23)
+
+
+### Features
+
+* **renovate:** make JacobPEvans/.github the single Renovate policy master ([#69](https://github.com/JacobPEvans/.github/issues/69)) ([4eca475](https://github.com/JacobPEvans/.github/commit/4eca475190509521788423a7d9a104a1fe46a664))
+
 ## [1.25.9](https://github.com/JacobPEvans/.github/compare/v1.25.8...v1.25.9) (2026-10-21)
 
 
