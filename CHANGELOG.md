@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.28.1](https://github.com/JacobPEvans/.github/compare/v1.28.0...v1.28.1) (2026-10-23)
+
+
+### CI
+
+* **pr-automerge:** arm auto-merge only for session-bot pull requests ([#80](https://github.com/JacobPEvans/.github/issues/80)) ([e543387](https://github.com/JacobPEvans/.github/commit/e543387ed582a59532d8c0fe11938082df7f231f))
+
 ## [1.28.0](https://github.com/JacobPEvans/.github/compare/v1.27.0...v1.28.0) (2026-10-23)
 
 
