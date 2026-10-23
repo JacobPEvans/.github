@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.28.0](https://github.com/JacobPEvans/.github/compare/v1.27.0...v1.28.0) (2026-10-23)
+
+
+### Features
+
+* **ci:** report floating image and version pins, raise lint timeout ([#75](https://github.com/JacobPEvans/.github/issues/75)) ([434a157](https://github.com/JacobPEvans/.github/commit/434a1575a7fcb1020cc19aeca5aba83226ab44a5))
+
 ## [1.27.0](https://github.com/JacobPEvans/.github/compare/v1.26.2...v1.27.0) (2026-10-23)
 
 
