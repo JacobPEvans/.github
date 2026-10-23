@@ -17,3 +17,10 @@ test('PR Auto-Merge is armed only for session-bot pull requests', () => {
   assert.ok(expression.includes('github.event.pull_request.head.repo.full_name == github.repository'));
   assert.ok(expression.includes("github.event.pull_request.user.login == 'jacobpevans-claude[bot]'"));
 });
+
+test('PR Auto-Merge skips develop-to-main promotions on git-flow repos', () => {
+  const promotionGuard = "!(github.event.pull_request.head.ref == 'develop' && github.event.pull_request.base.ref == 'main')";
+  const guards = workflow.replace(/\s+/g, ' ').split(promotionGuard).length - 1;
+  assert.equal(guards, 5, 'every arming step skips develop-to-main promotions');
+  assert.ok(!workflow.includes('base.ref == github.event.repository.default_branch'));
+});

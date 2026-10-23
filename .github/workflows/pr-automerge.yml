@@ -6,7 +6,7 @@
 # their own merge policy.
 #
 # Auto-merge is not enabled for draft PRs, PRs from forks, promotions (develop
-# into the default branch, which merge by merge commit through their own flow)
+# into main, which merge by merge commit through their own flow)
 # or PRs carrying human:review. A late human:review label disables an armed
 # request.
 #
@@ -69,7 +69,7 @@ jobs:
         if: >-
           ${{ steps.state.outputs.state == 'clear,unarmed'
           && !github.event.pull_request.draft
-          && !(github.event.pull_request.head.ref == 'develop' && github.event.pull_request.base.ref == github.event.repository.default_branch) }}
+          && !(github.event.pull_request.head.ref == 'develop' && github.event.pull_request.base.ref == 'main') }}
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
@@ -79,7 +79,7 @@ jobs:
         if: >-
           ${{ steps.state.outputs.state == 'clear,unarmed'
           && !github.event.pull_request.draft
-          && !(github.event.pull_request.head.ref == 'develop' && github.event.pull_request.base.ref == github.event.repository.default_branch)
+          && !(github.event.pull_request.head.ref == 'develop' && github.event.pull_request.base.ref == 'main')
           && steps.gate.outputs.ready != 'true' }}
         env:
           BASE: ${{ github.event.pull_request.base.ref }}
@@ -90,7 +90,7 @@ jobs:
           || (steps.state.outputs.state == 'clear,unarmed'
           && steps.gate.outputs.ready == 'true'
           && !github.event.pull_request.draft
-          && !(github.event.pull_request.head.ref == 'develop' && github.event.pull_request.base.ref == github.event.repository.default_branch)))
+          && !(github.event.pull_request.head.ref == 'develop' && github.event.pull_request.base.ref == 'main')))
           && (env.HAS_APP != 'true') }}
         run: echo "::warning::GH_ACTION_RELEASE_PLEASE_APP_ID or GH_ACTION_RELEASE_PLEASE_PRIVATE_KEY is not set; auto-merge not enabled."
       - name: Mint the App token
@@ -100,7 +100,7 @@ jobs:
           || (steps.state.outputs.state == 'clear,unarmed'
           && steps.gate.outputs.ready == 'true'
           && !github.event.pull_request.draft
-          && !(github.event.pull_request.head.ref == 'develop' && github.event.pull_request.base.ref == github.event.repository.default_branch)))
+          && !(github.event.pull_request.head.ref == 'develop' && github.event.pull_request.base.ref == 'main')))
           && env.HAS_APP == 'true' }}
         uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3
         with:
@@ -113,7 +113,7 @@ jobs:
           ${{ steps.state.outputs.state == 'clear,unarmed'
           && steps.gate.outputs.ready == 'true'
           && !github.event.pull_request.draft
-          && !(github.event.pull_request.head.ref == 'develop' && github.event.pull_request.base.ref == github.event.repository.default_branch)
+          && !(github.event.pull_request.head.ref == 'develop' && github.event.pull_request.base.ref == 'main')
           && steps.app-token.outputs.token != '' }}
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
