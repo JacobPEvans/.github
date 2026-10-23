@@ -22,21 +22,37 @@
 # comment is annotated enough to pass here while never matching a real
 # customManager and never producing a Renovate PR.
 #
+# Pin findings (role defaults and group_vars): a `*_image:` needs an exact
+# x.y.z tag and a sha256 digest; a `*_version:` must not be latest, release or
+# stable. PIN_CHECK_MODE=warn (default) reports them as ::warning and exits 0;
+# PIN_CHECK_MODE=enforce reports ::error and fails. A line opts out with
+# `# pin-exempt: <reason>` on that same line.
+#
 # Exit codes:
-#   0 — every pin in a covered path is annotated
-#   1 — one or more unannotated pins found (see stderr for file:line)
+#   0 — every pin in a covered path is annotated, and no pin finding fails
+#       (warn mode reports pin findings and still exits 0)
+#   1 — one or more unannotated pins found, or a pin finding in enforce mode
+#       (see stderr for file:line)
 #   2 — instrument error: zero files matched the covered path set. A repo
 #       that opts into this check but has no covered files is misconfigured
 #       (wrong ROOT, or none of roles/*/defaults|vars|tasks|templates,
 #       inventory/, group_vars/, host_vars/, playbooks/, scripts/,
 #       requirements*.yml exist here) — NOT evidence of a clean repo. A
 #       "0 files, 0 unannotated" run must never look identical to "OK".
+#       Also an unknown PIN_CHECK_MODE.
 #
-# Usage: check-renovate-annotations.sh [ROOT]   (ROOT defaults to .)
+# Usage: [PIN_CHECK_MODE=warn|enforce] check-renovate-annotations.sh [ROOT]
+#        (ROOT defaults to .; PIN_CHECK_MODE defaults to warn)
 
 set -euo pipefail
 
 ROOT="${1:-.}"
+
+PIN_CHECK_MODE="${PIN_CHECK_MODE:-warn}"
+if [[ "$PIN_CHECK_MODE" != warn && "$PIN_CHECK_MODE" != enforce ]]; then
+  echo "Renovate annotation check ERROR: PIN_CHECK_MODE must be 'warn' or 'enforce', got '${PIN_CHECK_MODE}'." >&2
+  exit 2
+fi
 
 # Paths mirror the customManagers' managerFilePatterns in renovate-presets.json.
 PATH_ARGS=(
@@ -144,9 +160,111 @@ if [[ "$files_scanned" -eq 0 ]]; then
   exit 2
 fi
 
+# Pin scan: container images and version pins in role defaults and group_vars.
+PIN_PATH_ARGS=(
+  -path '*/roles/*/defaults/*.yml' -o -path '*/roles/*/defaults/*.yaml'
+  -o -path '*/group_vars/*.yml' -o -path '*/group_vars/*.yaml'
+)
+image_key_re="^[[:space:]]*([A-Za-z0-9_]*_image):[[:space:]]*(.*)\$"
+version_key_re="^[[:space:]]*([A-Za-z0-9_]*_version):[[:space:]]*[\"']?(latest|release|stable)[\"']?([[:space:]]|#|\$)"
+block_scalar_re='^[>|][-+0-9]*([[:space:]]|$)'
+exempt_re="#[[:space:]]*pin-exempt:[[:space:]]*[^[:space:]]"
+tag_pinned_re='^v?[0-9]+\.[0-9]+\.[0-9]+([-+_.~].*)?$'
+digest_re='^sha256:[0-9a-fA-F]{64}$'
+
+pin_files=0
+pin_findings=0
+
+# Scalar of a `key: <rest>` value: quotes removed, or cut at the first space so
+# a trailing comment is dropped.
+scalar_of() {
+  local rest=$1
+  case "$rest" in
+    \"*) rest=${rest#\"}; printf '%s' "${rest%%\"*}" ;;
+    \'*) rest=${rest#\'}; printf '%s' "${rest%%\'*}" ;;
+    *) printf '%s' "${rest%%[[:space:]]*}" ;;
+  esac
+}
+
+# Why an image reference is unpinned, or nothing. A Jinja expression in the last
+# path segment is resolved from its variable, so it is not judged.
+image_problem() {
+  local ref=$1 name=$1 last tag="" digest="" dyn=0
+  [[ "$ref" == *"{{"* ]] && dyn=1
+  if [[ "$ref" == *@* ]]; then name=${ref%%@*} digest=${ref#*@}; fi
+  last=${name##*/}
+  [[ "$last" == *"{{"* ]] && return 0
+  [[ "$last" == *:* ]] && tag=${last##*:}
+  if [[ -n "$tag" ]]; then
+    [[ "$tag" =~ $tag_pinned_re ]] || { echo "floating tag '${tag}'"; return 0; }
+  elif [[ -z "$digest" && "$dyn" -eq 0 ]]; then
+    echo "no tag or digest (implicit latest)"
+    return 0
+  fi
+  [[ "$dyn" -eq 1 || "$digest" =~ $digest_re ]] || echo "no sha256 digest"
+  return 0
+}
+
+# report_pin LINE MESSAGE — a finding in current_file, ::warning or ::error if enforced.
+report_pin() {
+  local level=warning
+  if [[ "$PIN_CHECK_MODE" == enforce ]]; then level=error; fi
+  echo "::${level} file=${current_file#./},line=$1::$2" >&2
+  pin_findings=$((pin_findings + 1))
+}
+
+# check_image LINE KEY REF EXEMPT
+check_image() {
+  local problem
+  if [[ -z "$3" || "$3" == "~" || "$3" == null || "$4" -eq 1 ]]; then return 0; fi
+  problem=$(image_problem "$3")
+  [[ -z "$problem" ]] || report_pin "$1" "container image $2 '$3' is not pinned: ${problem}; pin it or add '# pin-exempt: <reason>'"
+  return 0
+}
+
+while IFS= read -r -d '' f; do
+  pin_files=$((pin_files + 1))
+  current_file=$f
+  lineno=0 block_line=0 block_key="" block_exempt=0
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    lineno=$((lineno + 1))
+    line=${line%$'\r'}
+    exempt=0
+    if [[ "$line" =~ $exempt_re ]]; then exempt=1; fi
+    trimmed=${line#"${line%%[![:space:]]*}"}
+    if [[ "$block_line" -gt 0 ]]; then
+      # A block scalar's value is the first non-blank line after its key.
+      if [[ -n "$trimmed" ]]; then
+        check_image "$block_line" "$block_key" "$(scalar_of "$trimmed")" "$block_exempt"
+        block_line=0
+      fi
+    elif [[ "$line" =~ $image_key_re ]]; then
+      key=${BASH_REMATCH[1]} rest=${BASH_REMATCH[2]}
+      if [[ "$rest" =~ $block_scalar_re ]]; then
+        block_line=$lineno block_key=$key block_exempt=$exempt
+      else
+        check_image "$lineno" "$key" "$(scalar_of "$rest")" "$exempt"
+      fi
+    elif [[ "$line" =~ $version_key_re && "$exempt" -eq 0 ]]; then
+      report_pin "$lineno" "${BASH_REMATCH[1]} is '${BASH_REMATCH[2]}', a floating version; pin it or add '# pin-exempt: <reason>'"
+    fi
+  done <"$f"
+done < <(find "$ROOT" -type f \( "${PIN_PATH_ARGS[@]}" \) -not -path '*/.git/*' -not -path '*/.worktrees/*' -print0)
+
+echo "pin check (${PIN_CHECK_MODE}): scanned ${pin_files} files, ${pin_findings} pin finding(s)." >&2
+
 if [[ "$unannotated" -ne 0 ]]; then
   echo "Renovate annotation check FAILED — see file:line entries above." >&2
   exit 1
 fi
 
-echo "Renovate annotation check OK."
+if [[ "$pin_findings" -ne 0 && "$PIN_CHECK_MODE" == enforce ]]; then
+  echo "Renovate annotation check FAILED — pin findings, see file:line entries above." >&2
+  exit 1
+fi
+
+if [[ "$pin_findings" -ne 0 ]]; then
+  echo "Renovate annotation check OK — ${pin_findings} pin finding(s) reported, not failing (warn mode)."
+else
+  echo "Renovate annotation check OK."
+fi
