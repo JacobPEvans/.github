@@ -12,6 +12,8 @@ on:
       - '.github/workflows/_ci-gate.yml'
       - '.github/workflows/_ansible-ci.yml'
       - '.github/workflows/renovate-config-validate.yml'
+      - '.github/workflows/_renovate-annotations.yml'
+      - 'scripts/check-renovate-annotations.sh'
       - '.github/workflows/tests.yml'
 
 concurrency:
