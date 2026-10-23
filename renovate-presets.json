@@ -2,7 +2,7 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "description": [
     "Single Renovate policy master for JacobPEvans and dryvist repositories. It extends no other repository's config; dryvist/.github re-exports these presets as pass-throughs.",
-    "Every update opens in one grouped PR per repository on Saturday 12:00-15:59 UTC; security updates also open Wednesday and Saturday 12:00-15:59 UTC.",
+    "Every update opens in one grouped PR per repository on Saturday 00:00-05:59 America/Indiana/Indianapolis time; security updates open at any time.",
     "Seven-day stabilization for minor, patch and digest updates, no hold for first-party packages, 30 days for other majors. Renovate merges directly (platformAutomerge false). Shared custom managers live here; Nix support is enabled by the dedicated Nix preset."
   ],
   "extends": [
@@ -39,16 +39,15 @@
     ".github/aw/**"
   ],
   "minimumReleaseAge": "7 days",
-  "timezone": "UTC",
+  "timezone": "America/Indiana/Indianapolis",
   "schedule": [
-    "* 12-15 * * 6"
+    "* 0-5 * * 6"
   ],
   "vulnerabilityAlerts": {
-    "description": "Security/CVE PRs open Wednesday and Saturday 12:00-15:59 UTC with a one-day stabilization hold, then auto-merge after required checks pass.",
+    "description": "Security/CVE PRs open at any time with a one-day stabilization hold, then auto-merge after required checks pass.",
     "enabled": true,
     "schedule": [
-      "* 12-15 * * 3",
-      "* 12-15 * * 6"
+      "at any time"
     ],
     "labels": [
       "type:security"
@@ -59,10 +58,10 @@
     "vulnerabilityFixStrategy": "highest"
   },
   "lockFileMaintenance": {
-    "description": "Lock-file maintenance runs in the Saturday 12:00-15:59 UTC window and auto-merges after required checks pass. Package managers select versions, so release-age filtering does not apply. updateNotScheduled:false prevents intervening head refreshes.",
+    "description": "Lock-file maintenance runs in the Saturday 00:00-05:59 America/Indiana/Indianapolis window and auto-merges after required checks pass. Package managers select versions, so release-age filtering does not apply. updateNotScheduled:false prevents intervening head refreshes.",
     "enabled": true,
     "schedule": [
-      "* 12-15 * * 6"
+      "* 0-5 * * 6"
     ],
     "automerge": true,
     "minimumReleaseAge": null,
@@ -341,7 +340,7 @@
       "minimumReleaseAge": "0 days"
     },
     {
-      "description": "dryvist/** minor updates auto-merge after green CI without a release-age hold. Repos with manual automerge are excluded by the last rule.",
+      "description": "dryvist/** minor updates auto-merge after green CI without a release-age hold. Major updates in repos with manual automerge are excluded by the last rule.",
       "matchPackageNames": [
         "dryvist/**",
         "https://github.com/dryvist/**"
@@ -367,7 +366,7 @@
       "minimumReleaseAge": "0 days"
     },
     {
-      "description": "dryvist/** major updates auto-merge after green CI. Repos with manual automerge are excluded by the last rule.",
+      "description": "dryvist/** major updates auto-merge after green CI. Major updates in repos with manual automerge are excluded by the last rule.",
       "matchPackageNames": [
         "dryvist/**",
         "https://github.com/dryvist/**"
@@ -503,20 +502,13 @@
       "allowedVersions": "!/^1\\.107\\.0$/"
     },
     {
-      "description": "Flake relocks on repositories that configure live machines open for review instead of auto-merging.",
-      "matchRepositories": [
-        "dryvist/nix-darwin*"
-      ],
-      "matchUpdateTypes": [
-        "lockFileMaintenance"
-      ],
-      "automerge": false
-    },
-    {
-      "description": "Repos whose automerge custom property is manual (tofu-github config/automerge.yml: every ansible-* repo and nix-ai): Renovate never auto-merges there, and the org-automerge-manual ruleset requires a person's approval. Last rule so it overrides every automerge setting above.",
+      "description": "Repos whose automerge custom property is manual (tofu-github config/automerge.yml: every ansible-* repo and nix-ai): major updates are never auto-merged there and the org-automerge-manual ruleset requires a person's approval; other update types auto-merge. Last rule so it overrides every automerge setting above.",
       "matchRepositories": [
         "dryvist/ansible-*",
         "dryvist/nix-ai"
+      ],
+      "matchUpdateTypes": [
+        "major"
       ],
       "automerge": false
     }

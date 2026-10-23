@@ -17,9 +17,10 @@ name: Renovate
 on:
   schedule:
     - cron: "23 */6 * * *"
-    # The preset opens pull requests only in a Saturday 12:00-15:59 UTC window and
-    # Wednesday and Saturday for security updates; hourly runs there give retries.
-    - cron: "43 12-15 * * 3,6"
+    # The preset opens pull requests only in a Saturday 00:00-05:59 Indianapolis
+    # window (04:00-10:59 UTC across daylight saving) and at any time for security
+    # updates; hourly runs in the window give retries.
+    - cron: "43 4-10 * * 6"
   workflow_dispatch:
     inputs:
       dry_run:
