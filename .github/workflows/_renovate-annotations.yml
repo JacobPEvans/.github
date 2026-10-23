@@ -15,8 +15,13 @@
 # comment starts with `# renovate:` so the check passes, but carries no
 # `datasource=` so no customManager ever matches it or opens a PR for it.
 #
-# Exit codes: 0 clean, 1 unannotated pin(s) found, 2 zero files matched the
-# covered path set (instrument error — check the toggle/ROOT, not a pass).
+# It also reports floating pins in role defaults and group_vars: a `*_image:`
+# without an exact x.y.z tag and a sha256 digest, and a `*_version:` set to
+# latest, release or stable. Those are warnings unless `pin_enforce` is true.
+#
+# Exit codes: 0 clean, 1 unannotated pin(s) found (or a floating pin in enforce
+# mode), 2 zero files matched the covered path set (instrument error — check the
+# toggle/ROOT, not a pass).
 name: _renovate-annotations
 
 on:
@@ -29,6 +34,15 @@ on:
         type: string
         required: false
         default: ubuntu-24.04
+      pin_enforce:
+        description: >-
+          Fail on floating container image and version pins (see the header)
+          in role defaults and group_vars. Default false reports them as
+          warnings and the job passes, so a repo can adopt pins gradually.
+          Set true once the repo's pins have landed. Opt a single line out
+          with `# pin-exempt: <reason>` on that line.
+        type: boolean
+        default: false
 
 permissions: {}
 
@@ -53,4 +67,6 @@ jobs:
           sparse-checkout-cone-mode: false
 
       - name: Check Renovate annotations
+        env:
+          PIN_CHECK_MODE: ${{ inputs.pin_enforce && 'enforce' || 'warn' }}
         run: bash .gh-shared/scripts/check-renovate-annotations.sh

@@ -129,6 +129,14 @@ on:
           for the Ansible fleet. Default false: opt in per repo.
         type: boolean
         default: false
+      pin_enforce:
+        description: >-
+          With `renovate_annotations`, fail on floating container image and
+          version pins in role defaults and group_vars (see
+          `_renovate-annotations.yml`). Default false reports them as warnings
+          only; set true once the repo's pins have landed.
+        type: boolean
+        default: false
       runner_label:
         description: >-
           Runner label for the quick jobs (changes, ansible-lint, gate). These
@@ -201,7 +209,7 @@ jobs:
     needs: changes
     if: ${{ inputs.lint && (inputs.full_suite || needs.changes.outputs.ansible == 'true') }}
     runs-on: ${{ (!github.event.pull_request || github.event.pull_request.head.repo.full_name == github.repository) && inputs.runner_label || 'ubuntu-24.04' }}
-    timeout-minutes: ${{ github.event_name == 'pull_request' && 5 || 30 }}
+    timeout-minutes: ${{ github.event_name == 'pull_request' && 10 || 30 }} # pr-policy: timeout-exception ansible-lint with Galaxy installs can exceed 5 minutes
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       # The Galaxy steps below call ansible-galaxy, which a self-hosted runner
@@ -368,6 +376,7 @@ jobs:
     uses: ./.github/workflows/_renovate-annotations.yml
     with:
       runner_label: ${{ (!github.event.pull_request || github.event.pull_request.head.repo.full_name == github.repository) && inputs.runner_label || 'ubuntu-24.04' }}
+      pin_enforce: ${{ inputs.pin_enforce }}
 
   renovate_config:
     name: Renovate Config Validate

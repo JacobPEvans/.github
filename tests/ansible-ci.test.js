@@ -10,6 +10,7 @@ const test = require('node:test');
 const ansibleCi = readFileSync('.github/workflows/_ansible-ci.yml', 'utf8');
 const ansibleChanges = readFileSync('.github/workflows/_ansible-changes.yml', 'utf8');
 const renovateValidator = readFileSync('.github/workflows/renovate-config-validate.yml', 'utf8');
+const renovateAnnotations = readFileSync('.github/workflows/_renovate-annotations.yml', 'utf8');
 const renovatePreset = JSON.parse(readFileSync('renovate-presets.json', 'utf8'));
 
 function tinyRunScript() {
@@ -187,6 +188,16 @@ test('shared Ansible CI runs strict Renovate validation for renovate.json change
   assert.match(renovateValidator, /RENOVATE_VERSION: "\d+\.\d+\.\d+"/);
   assert.match(renovateValidator, /node-version: "\d+\.\d+\.\d+"/);
   assert.match(renovateValidator, /key: renovate-cli-\$\{\{ runner\.os \}\}-\$\{\{ env\.RENOVATE_VERSION \}\}/);
+});
+
+test('floating pin enforcement is opt-in and reaches the annotation check as PIN_CHECK_MODE', () => {
+  assert.match(ansibleCi, /\n {6}pin_enforce:\n(?: {8}.*\n)+ {8}type: boolean\n {8}default: false\n/);
+  assert.ok(ansibleCi.includes('pin_enforce: ${{ inputs.pin_enforce }}'), 'pin_enforce is forwarded to the annotation check');
+  assert.match(renovateAnnotations, /\n {6}pin_enforce:\n(?: {8}.*\n)+ {8}type: boolean\n {8}default: false\n/);
+  assert.ok(
+    renovateAnnotations.includes("PIN_CHECK_MODE: ${{ inputs.pin_enforce && 'enforce' || 'warn' }}"),
+    'the checker reads pin_enforce as its mode',
+  );
 });
 
 test('Renovate custom managers track the validator tool and compatible Node pins', () => {
