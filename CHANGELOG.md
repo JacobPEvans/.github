@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.28.2](https://github.com/JacobPEvans/.github/compare/v1.28.1...v1.28.2) (2026-10-23)
+
+
+### Bug Fixes
+
+* **automerge:** skip develop-to-main promotions on git-flow repos ([#82](https://github.com/JacobPEvans/.github/issues/82)) ([f1d8790](https://github.com/JacobPEvans/.github/commit/f1d87908a5eb8615b08fc29a465713357093df72))
+
 ## [1.28.1](https://github.com/JacobPEvans/.github/compare/v1.28.0...v1.28.1) (2026-10-23)
 
 
