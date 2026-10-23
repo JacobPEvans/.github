@@ -1,8 +1,9 @@
 # PR Auto-Merge
 #
-# Injected into every repository as an organization required workflow. When a
-# PR opens, reopens or leaves draft, it turns on native auto-merge (squash), so
-# the PR merges as soon as its required checks pass.
+# Injected into every repository as an organization required workflow. It turns
+# on native auto-merge (squash) for pull requests opened by the session bot when
+# they open, reopen or leave draft. Pull requests from other authors are left to
+# their own merge policy.
 #
 # Auto-merge is not enabled for draft PRs, PRs from forks, promotions (develop
 # into the default branch, which merge by merge commit through their own flow)
@@ -45,7 +46,8 @@ jobs:
     name: Enable Auto-Merge
     if: >-
       ${{ github.event.action != 'labeled'
-      && github.event.pull_request.head.repo.full_name == github.repository }}
+      && github.event.pull_request.head.repo.full_name == github.repository
+      && github.event.pull_request.user.login == 'jacobpevans-claude[bot]' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 2
     permissions:
