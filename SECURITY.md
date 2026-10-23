@@ -14,9 +14,9 @@ to this [.github repository](https://github.com/JacobPEvans/.github/security/adv
 ## Dependency Trust
 
 Renovate consumers use this repository's shared presets. Every dependency
-update opens in one grouped PR per repository on Saturday 12:00-15:59 UTC.
-Security updates from Renovate vulnerability alerts open on Wednesday or
-Saturday 12:00-15:59 UTC after a one-day stabilization hold.
+update opens in one grouped PR per repository on Saturday 00:00-05:59 America/Indiana/Indianapolis time.
+Security updates from Renovate vulnerability alerts open at any time after a
+one-day stabilization hold.
 
 | Update | Stabilization | Review and merge |
 | --- | --- | --- |
