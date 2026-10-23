@@ -201,7 +201,7 @@ jobs:
     needs: changes
     if: ${{ inputs.lint && (inputs.full_suite || needs.changes.outputs.ansible == 'true') }}
     runs-on: ${{ (!github.event.pull_request || github.event.pull_request.head.repo.full_name == github.repository) && inputs.runner_label || 'ubuntu-24.04' }}
-    timeout-minutes: ${{ github.event_name == 'pull_request' && 5 || 30 }}
+    timeout-minutes: ${{ github.event_name == 'pull_request' && 10 || 30 }} # pr-policy: timeout-exception ansible-lint with Galaxy installs can exceed 5 minutes
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       # The Galaxy steps below call ansible-galaxy, which a self-hosted runner
