@@ -95,6 +95,8 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
+          # Push needs `before` locally; checkout authenticates the clone, later fetches do not.
+          fetch-depth: ${{ github.event_name == 'push' && '0' || '1' }}
       - name: Detect whether a Renovate config exists
         id: renovate-config-file
         if: ${{ hashFiles('renovate.json') != '' }}
