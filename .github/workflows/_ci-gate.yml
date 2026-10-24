@@ -208,6 +208,13 @@ on:
           PRs are stable enough to trust without a full build.
         type: boolean
         default: false
+      flake_lock_max_age_days:
+        description: >-
+          Maximum age in days for GitHub inputs in flake.lock. Zero skips the
+          freshness job.
+        type: number
+        required: false
+        default: 0
       markdown_lint:
         description: Enable `Markdown Lint` (gated on `markdown` filter)
         type: boolean
@@ -723,6 +730,16 @@ jobs:
   # Each is gated on `inputs.<toggle>` AND `needs.changes.outputs.<filter>`.
   # Disabled or untouched paths skip; the gate aggregate accepts configured skips.
   # ============================================================================
+  # Optional caller-configured freshness check; the default age disables this job.
+  flake-lock-fresh:
+    name: Flake Lock Fresh
+    if: ${{ inputs.flake_lock_max_age_days > 0 }}
+    permissions:
+      contents: read
+    uses: dryvist/.github/.github/workflows/_flake-lock-fresh.yml@eb01e3e633b89a63c9097f63305183f952ce2888 # PR #426 merge commit
+    with:
+      max_age_days: ${{ inputs.flake_lock_max_age_days }}
+
   nix-validate:
     name: Nix Validate
     needs: [changes, scope]
@@ -1020,7 +1037,7 @@ jobs:
   # ============================================================================
   gate:
     name: Merge Gate
-    needs: [changes, scope, watchdog, nix-validate, nix-build, markdown-lint, file-size, token-limits, python-security, python-ci, ansible-ci, renovate-annotations, tofu-ci, osv-scan, dependency-review, zizmor, uses-resolve, repo-tests, workflow-lint]
+    needs: [changes, scope, watchdog, flake-lock-fresh, nix-validate, nix-build, markdown-lint, file-size, token-limits, python-security, python-ci, ansible-ci, renovate-annotations, tofu-ci, osv-scan, dependency-review, zizmor, uses-resolve, repo-tests, workflow-lint]
     # Run after workflow cancellation too, so cancelled sibling checks aggregate
     # to a failing required status instead of a skipped (successful) job.
     if: ${{ always() }}
@@ -1055,6 +1072,7 @@ jobs:
         env:
           CI_GATE_JOBS: ${{ toJSON(needs) }}
           CI_GATE_ALLOWED_SKIPS: >-
+            flake-lock-fresh,
             nix-validate, nix-build, markdown-lint, file-size, token-limits,
             python-security, python-ci, ansible-ci, renovate-annotations,
             tofu-ci, osv-scan, dependency-review, zizmor, watchdog,
