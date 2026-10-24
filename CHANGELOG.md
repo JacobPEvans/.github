@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.28.4](https://github.com/JacobPEvans/.github/compare/v1.28.3...v1.28.4) (2026-10-24)
+
+
+### Bug Fixes
+
+* **ci:** Merge pull request [#87](https://github.com/JacobPEvans/.github/issues/87) from JacobPEvans/fix/restore-cribl-pack-validate ([088ce44](https://github.com/JacobPEvans/.github/commit/088ce446d813133ce5af0f23fb0f62c8c789fd8a))
+* **ci:** restore reusable Cribl pack validation ([088ce44](https://github.com/JacobPEvans/.github/commit/088ce446d813133ce5af0f23fb0f62c8c789fd8a))
+
 ## [1.28.3](https://github.com/JacobPEvans/.github/compare/v1.28.2...v1.28.3) (2026-10-24)
 
 
