@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.28.3](https://github.com/JacobPEvans/.github/compare/v1.28.2...v1.28.3) (2026-10-24)
+
+
+### Bug Fixes
+
+* **renovate:** cover annotated shell pins in shared manager ([#86](https://github.com/JacobPEvans/.github/issues/86)) ([9a41d5b](https://github.com/JacobPEvans/.github/commit/9a41d5b1608dfe0ffe5501794de77914292b63ed))
+
 ## [1.28.2](https://github.com/JacobPEvans/.github/compare/v1.28.1...v1.28.2) (2026-10-23)
 
 
