@@ -14,11 +14,11 @@ AI review and agent automation workflows live in [JacobPEvans/.github-ai](https:
 `profile/README.md`.
 
 The caller needs the `GH_ACTION_RELEASE_PLEASE_PRIVATE_KEY` secret and the
-`GH_ACTION_RELEASE_PLEASE_APP_ID` organization variable. The App needs repository
-metadata read and organization custom properties read for discovery, plus
-contents and pull request write on the caller repository. The reusable mints an
-organization read token for discovery and a caller-repository token for its
-index pull request.
+`GH_ACTION_RELEASE_PLEASE_APP_ID` organization variable. The App needs contents
+and pull request write on the caller repository, plus repository metadata read
+for `visibility_scope: all`. Public scope lists repositories with the workflow
+token. All scope mints an organization read token. Both open the index pull
+request with a caller-repository token.
 
 `JacobPEvans/.github` calls this workflow weekly and on manual dispatch with
 `visibility_scope: public`. For `JacobPEvans/.github-private`, the caller is:
