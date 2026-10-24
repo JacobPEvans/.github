@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.34.0](https://github.com/JacobPEvans/.github/compare/v1.33.1...v1.34.0) (2026-10-24)
+
+
+### Features
+
+* **workflows:** add a reusable org index workflow ([#120](https://github.com/JacobPEvans/.github/issues/120)) ([5c97ff9](https://github.com/JacobPEvans/.github/commit/5c97ff97873a6c9b946dd9860b667e0ab65fbaac))
+
 ## [1.33.1](https://github.com/JacobPEvans/.github/compare/v1.33.0...v1.33.1) (2026-10-24)
 
 
