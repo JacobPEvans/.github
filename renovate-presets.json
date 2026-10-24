@@ -78,6 +78,7 @@
       "description": "Track annotated version pins in Nix files; hashes are updated separately.",
       "customType": "regex",
       "managerFilePatterns": [
+        "/\\.pkr\\.hcl$/",
         "/\\.nix$/",
         "/\\.sh$/"
       ],
