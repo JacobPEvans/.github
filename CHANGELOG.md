@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.29.1](https://github.com/JacobPEvans/.github/compare/v1.29.0...v1.29.1) (2026-10-24)
+
+
+### Bug Fixes
+
+* escape regex metacharacters in CI gate test ([63fc37c](https://github.com/JacobPEvans/.github/commit/63fc37cad52a90970b6b9f362c9f85ca3ccf0460))
+
 ## [1.29.0](https://github.com/JacobPEvans/.github/compare/v1.28.4...v1.29.0) (2026-10-24)
 
 
