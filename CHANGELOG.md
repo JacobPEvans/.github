@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.31.0](https://github.com/JacobPEvans/.github/compare/v1.30.1...v1.31.0) (2026-10-24)
+
+
+### Features
+
+* add optional flake lock freshness gate ([060bc08](https://github.com/JacobPEvans/.github/commit/060bc08faad5d82b06a64d95f642a8ad5b6891bf))
+
 ## [1.30.1](https://github.com/JacobPEvans/.github/compare/v1.30.0...v1.30.1) (2026-10-24)
 
 
