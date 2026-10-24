@@ -1,0 +1,737 @@
+# Reusable: Molecule execution only
+#
+# Runs Molecule scenarios from the caller repository. Scenario filters,
+# required gates, and caller-local checks stay in the caller. This workflow
+# provides explicit controls for discovery, runners, dependencies, Galaxy,
+# runtime isolation, and narrowly mapped test secrets.
+#
+# The test command is intentionally fixed: `molecule test -s
+# "$MOLECULE_SCENARIO"`, with optional Molecule arguments appended as argv.
+# Doppler outputs are never injected into the job environment; only keys named
+# in `test_secret_env_map` are written for the final Molecule step.
+name: _molecule
+
+on:
+  workflow_call:
+    inputs:
+      scenarios:
+        description: JSON array of selected scenario names; an empty string requests discovery.
+        type: string
+        required: false
+        default: ""
+      full_suite:
+        description: Run every scenario found by the configured discovery mode.
+        type: boolean
+        required: false
+        default: false
+      scenario_discovery:
+        description: "Scenario source: directories, repo_script, or caller_supplied."
+        type: string
+        required: false
+        default: directories
+      scenario_discovery_script:
+        description: Caller-repository script that writes a JSON scenarios output.
+        type: string
+        required: false
+        default: ""
+      scenario_name_profile:
+        description: "Scenario name rule: lower_underscore or ascii_alnum_dash_underscore."
+        type: string
+        required: false
+        default: lower_underscore
+      scenario_require_molecule_yml:
+        description: Require molecule/<scenario>/molecule.yml for discovered and selected scenarios.
+        type: boolean
+        required: false
+        default: false
+      preflight_command:
+        description: Optional argv-style preflight command, split without a shell, run in the caller checkout.
+        type: string
+        required: false
+        default: ""
+      discover_runner:
+        description: Runner label for scenario discovery.
+        type: string
+        required: false
+        default: ubuntu-latest
+      runner_label:
+        description: Runner label for Molecule scenarios.
+        type: string
+        required: false
+        default: ubuntu-latest
+      public_and_fork_hosted:
+        description: Force public repositories and fork pull requests onto ubuntu-latest.
+        type: boolean
+        required: false
+        default: false
+      discover_timeout_minutes:
+        description: Discovery job timeout in minutes.
+        type: number
+        required: false
+        default: 360
+      timeout_minutes:
+        description: Base Molecule scenario timeout in minutes.
+        type: number
+        required: false
+        default: 360
+      scenario_timeout_floors:
+        description: JSON map of scenario names to minimum timeout minutes.
+        type: string
+        required: false
+        default: "{}"
+      python_version:
+        description: Python version for the Molecule job.
+        type: string
+        required: false
+        default: "3.14"
+      python_install_mode:
+        description: Install dependencies with uv_packages or pip_requirements.
+        type: string
+        required: false
+        default: uv_packages
+      requirements_files:
+        description: JSON array of pip requirements files for pip_requirements mode.
+        type: string
+        required: false
+        default: "[]"
+      uv_cache:
+        description: Enable setup-uv's package cache.
+        type: boolean
+        required: false
+        default: false
+      ansible_home_mode:
+        description: "Ansible Galaxy home: shared or runner_temp."
+        type: string
+        required: false
+        default: shared
+      galaxy_cache_enabled:
+        description: Cache Ansible Galaxy collections and roles.
+        type: boolean
+        required: false
+        default: true
+      galaxy_cache_prefix:
+        description: Prefix before runner OS and requirements hash in the Galaxy cache key.
+        type: string
+        required: false
+        default: ansible-galaxy-v2-
+      galaxy_cache_restore_prefix:
+        description: Optional Galaxy cache restore-key prefix.
+        type: string
+        required: false
+        default: ""
+      galaxy_install_mode:
+        description: "Galaxy installation mode: requirements, collections_only, or repo_script."
+        type: string
+        required: false
+        default: requirements
+      galaxy_install_script:
+        description: Caller-repository installer used by repo_script mode.
+        type: string
+        required: false
+        default: scripts/install_galaxy_requirements.py
+      galaxy_retry_attempts:
+        description: Maximum attempts for Galaxy installation.
+        type: number
+        required: false
+        default: 1
+      galaxy_retry_wait_seconds:
+        description: Seconds between Galaxy retries; zero keeps the retry action's default.
+        type: number
+        required: false
+        default: 0
+      galaxy_step_timeout_minutes:
+        description: Per-attempt Galaxy installation timeout in minutes.
+        type: number
+        required: false
+        default: 360
+      galaxy_server_timeout_seconds:
+        description: Ansible Galaxy server request timeout in seconds.
+        type: number
+        required: false
+        default: 60
+      galaxy_refresh_contracts_v5:
+        description: "Refresh homelab-contracts v5 never, on_cache_hit, always, or handled_by_script."
+        type: string
+        required: false
+        default: never
+      fail_fast:
+        description: Fail the matrix after the first scenario failure.
+        type: boolean
+        required: false
+        default: false
+      max_parallel:
+        description: Optional maximum number of concurrent scenarios; unset uses the GitHub limit.
+        type: number
+        required: false
+      serialize_scenario:
+        description: Serialize each scenario across workflow runs without cancelling in-progress jobs.
+        type: boolean
+        required: false
+        default: false
+      docker_timeout_seconds:
+        description: Set Docker API client timeout in seconds; zero leaves it unset.
+        type: number
+        required: false
+        default: 0
+      docker_prune:
+        description: Run best-effort Docker system prune before each scenario.
+        type: boolean
+        required: false
+        default: false
+      nix_scenarios:
+        description: JSON array of scenarios that require Nix on the runner.
+        type: string
+        required: false
+        default: "[]"
+      molecule_args:
+        description: Optional Molecule argv appended to the fixed test invocation.
+        type: string
+        required: false
+        default: ""
+      molecule_workdir_mode:
+        description: "Run Molecule from repo_root or scenario_directory."
+        type: string
+        required: false
+        default: repo_root
+      molecule_scenario_arg:
+        description: "Molecule scenario argument: matrix or a fixed scenario name."
+        type: string
+        required: false
+        default: matrix
+      instance_suffix:
+        description: Append the workflow run ID and attempt to CI_INSTANCE_SUFFIX.
+        type: boolean
+        required: false
+        default: false
+      isolate_ephemeral_directory:
+        description: Put each scenario's Molecule ephemeral state under runner.temp.
+        type: boolean
+        required: false
+        default: false
+      doppler_enabled:
+        description: Fetch Doppler outputs for explicitly mapped test secrets.
+        type: boolean
+        required: false
+        default: false
+      test_secret_env_map:
+        description: JSON map from Molecule environment name to Doppler output key.
+        type: string
+        required: false
+        default: "{}"
+      use_homarr_token:
+        description: Expose HOMARR_GITHUB_TOKEN from the optional workflow secret to Molecule.
+        type: boolean
+        required: false
+        default: false
+    secrets:
+      DOPPLER_TOKEN:
+        description: Doppler service token used only by the secret-fetch step.
+        required: false
+      HOMARR_GITHUB_TOKEN:
+        description: Optional GitHub token consumed by Homarr scenarios.
+        required: false
+
+permissions: {}
+
+jobs:
+  discover:
+    name: Select Molecule scenarios
+    runs-on: ${{ inputs.discover_runner }}
+    timeout-minutes: ${{ github.event_name == 'pull_request' && 15 || inputs.discover_timeout_minutes }} # pr-policy: timeout-exception caller discovery includes validation scripts
+    permissions:
+      contents: read
+    outputs:
+      scenarios: ${{ steps.select.outputs.scenarios }}
+      has_scenarios: ${{ steps.select.outputs.has_scenarios }}
+    steps:
+      - name: Check out caller repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Run scenario preflight
+        if: ${{ inputs.preflight_command != '' }}
+        env:
+          PREFLIGHT_COMMAND: ${{ inputs.preflight_command }}
+        run: |
+          python3 - <<'PY'
+          import os
+          import shlex
+          import subprocess
+          import sys
+
+          command = shlex.split(os.environ["PREFLIGHT_COMMAND"])
+          if not command:
+              sys.exit("preflight_command must contain at least one argv item")
+          subprocess.run(command, check=True)
+          PY
+
+      - name: Discover scenario directories
+        id: directories
+        if: ${{ inputs.scenario_discovery == 'directories' }}
+        env:
+          SCENARIO_NAME_PROFILE: ${{ inputs.scenario_name_profile }}
+          SCENARIO_REQUIRE_MOLECULE_YML: ${{ inputs.scenario_require_molecule_yml }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          import re
+          import sys
+          from pathlib import Path
+
+          profiles = {
+              "lower_underscore": re.compile(r"^[a-z0-9_]+$"),
+              "ascii_alnum_dash_underscore": re.compile(r"^[A-Za-z0-9_-]+$"),
+          }
+          profile = os.environ["SCENARIO_NAME_PROFILE"]
+          if profile not in profiles:
+              sys.exit(f"unsupported scenario_name_profile: {profile}")
+
+          root = Path("molecule")
+          if not root.is_dir():
+              sys.exit("scenario_discovery=directories requires a molecule/ directory")
+          require_config = os.environ["SCENARIO_REQUIRE_MOLECULE_YML"] == "true"
+          scenarios = sorted(
+              path.name
+              for path in root.iterdir()
+              if path.is_dir() and (not require_config or (path / "molecule.yml").is_file())
+          )
+          invalid = [name for name in scenarios if not profiles[profile].fullmatch(name)]
+          if invalid:
+              sys.exit(f"invalid scenario names for {profile}: {invalid}")
+          if not scenarios:
+              sys.exit("scenario discovery found no scenarios")
+
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
+              output.write(f"scenarios={json.dumps(scenarios, separators=(',', ':'))}\n")
+          print(f"Discovered {len(scenarios)} Molecule scenarios")
+          PY
+
+      - name: Discover scenarios with caller script
+        id: repo_script
+        if: ${{ inputs.scenario_discovery == 'repo_script' }}
+        env:
+          DISCOVERY_SCRIPT: ${{ inputs.scenario_discovery_script }}
+        run: |
+          python3 - <<'PY'
+          import os
+          import sys
+          from pathlib import Path
+
+          script = Path(os.environ["DISCOVERY_SCRIPT"])
+          if not str(script) or script.is_absolute() or ".." in script.parts:
+              sys.exit("scenario_discovery_script must be a caller-repository relative path")
+          if not script.is_file():
+              sys.exit(f"scenario_discovery_script does not exist: {script}")
+          PY
+          bash "$DISCOVERY_SCRIPT"
+
+      - name: Validate inputs and select scenarios
+        id: select
+        env:
+          SCENARIOS_INPUT: ${{ inputs.scenarios }}
+          FULL_SUITE: ${{ inputs.full_suite }}
+          DISCOVERY_MODE: ${{ inputs.scenario_discovery }}
+          DISCOVERED_SCENARIOS: ${{ steps.directories.outputs.scenarios || steps.repo_script.outputs.scenarios }}
+          SCENARIO_NAME_PROFILE: ${{ inputs.scenario_name_profile }}
+          SCENARIO_REQUIRE_MOLECULE_YML: ${{ inputs.scenario_require_molecule_yml }}
+          SCENARIO_TIMEOUT_FLOORS: ${{ inputs.scenario_timeout_floors }}
+          REQUIREMENTS_FILES: ${{ inputs.requirements_files }}
+          NIX_SCENARIOS: ${{ inputs.nix_scenarios }}
+          TEST_SECRET_ENV_MAP: ${{ inputs.test_secret_env_map }}
+          DOPPLER_ENABLED: ${{ inputs.doppler_enabled }}
+          USE_HOMARR_TOKEN: ${{ inputs.use_homarr_token }}
+          DISCOVER_TIMEOUT_MINUTES: ${{ inputs.discover_timeout_minutes }}
+          TIMEOUT_MINUTES: ${{ inputs.timeout_minutes }}
+          MAX_PARALLEL: ${{ inputs.max_parallel }}
+          GALAXY_RETRY_ATTEMPTS: ${{ inputs.galaxy_retry_attempts }}
+          GALAXY_RETRY_WAIT_SECONDS: ${{ inputs.galaxy_retry_wait_seconds }}
+          GALAXY_STEP_TIMEOUT_MINUTES: ${{ inputs.galaxy_step_timeout_minutes }}
+          GALAXY_SERVER_TIMEOUT_SECONDS: ${{ inputs.galaxy_server_timeout_seconds }}
+          DOCKER_TIMEOUT_SECONDS: ${{ inputs.docker_timeout_seconds }}
+          PYTHON_INSTALL_MODE: ${{ inputs.python_install_mode }}
+          ANSIBLE_HOME_MODE: ${{ inputs.ansible_home_mode }}
+          GALAXY_INSTALL_MODE: ${{ inputs.galaxy_install_mode }}
+          GALAXY_INSTALL_SCRIPT: ${{ inputs.galaxy_install_script }}
+          GALAXY_REFRESH_CONTRACTS_V5: ${{ inputs.galaxy_refresh_contracts_v5 }}
+          MOLECULE_WORKDIR_MODE: ${{ inputs.molecule_workdir_mode }}
+          MOLECULE_SCENARIO_ARG: ${{ inputs.molecule_scenario_arg }}
+          GALAXY_CACHE_PREFIX: ${{ inputs.galaxy_cache_prefix }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          import re
+          import sys
+          from pathlib import Path
+
+          def fail(message):
+              sys.exit(message)
+
+          def parse_json(name, raw, expected_type):
+              try:
+                  value = json.loads(raw)
+              except json.JSONDecodeError as error:
+                  fail(f"{name} must be valid JSON: {error.msg}")
+              if not isinstance(value, expected_type):
+                  fail(f"{name} must decode to {expected_type.__name__}")
+              return value
+
+          def integer(name, minimum, maximum):
+              raw = os.environ[name]
+              try:
+                  value = int(raw) if raw else 0
+              except ValueError:
+                  fail(f"{name} must be an integer")
+              if not minimum <= value <= maximum:
+                  fail(f"{name} must be between {minimum} and {maximum}")
+              return value
+
+          profiles = {
+              "lower_underscore": re.compile(r"^[a-z0-9_]+$"),
+              "ascii_alnum_dash_underscore": re.compile(r"^[A-Za-z0-9_-]+$"),
+          }
+          profile_name = os.environ["SCENARIO_NAME_PROFILE"]
+          if profile_name not in profiles:
+              fail(f"unsupported scenario_name_profile: {profile_name}")
+          profile = profiles[profile_name]
+
+          mode = os.environ["DISCOVERY_MODE"]
+          if mode not in {"directories", "repo_script", "caller_supplied"}:
+              fail(f"unsupported scenario_discovery: {mode}")
+          discovered_raw = os.environ.get("DISCOVERED_SCENARIOS", "")
+          discovered = parse_json("discovered scenarios", discovered_raw, list) if discovered_raw else []
+          raw_selection = os.environ["SCENARIOS_INPUT"]
+          full_suite = os.environ["FULL_SUITE"] == "true"
+          if full_suite:
+              if mode == "caller_supplied":
+                  fail("full_suite requires directory or repository-script discovery")
+              selected = discovered
+          elif raw_selection == "":
+              if mode == "caller_supplied":
+                  fail("caller_supplied scenario_discovery requires a non-empty scenarios input")
+              selected = discovered
+          else:
+              selected = parse_json("scenarios", raw_selection, list)
+
+          if any(not isinstance(name, str) or not profile.fullmatch(name) for name in selected):
+              fail(f"selected scenario names do not match {profile_name}")
+          if len(selected) != len(set(selected)):
+              fail("scenarios must not contain duplicate names")
+          if os.environ["SCENARIO_REQUIRE_MOLECULE_YML"] == "true":
+              missing = [
+                  name
+                  for name in selected
+                  if not (Path("molecule") / name / "molecule.yml").is_file()
+              ]
+              if missing:
+                  fail(f"selected scenarios lack molecule.yml: {missing}")
+
+          timeout_floors = parse_json("scenario_timeout_floors", os.environ["SCENARIO_TIMEOUT_FLOORS"], dict)
+          for name, value in timeout_floors.items():
+              if not isinstance(name, str) or not profile.fullmatch(name):
+                  fail(f"invalid scenario timeout floor key: {name!r}")
+              if type(value) is not int or not 1 <= value <= 360:
+                  fail(f"scenario timeout floor for {name} must be an integer from 1 to 360")
+
+          requirements = parse_json("requirements_files", os.environ["REQUIREMENTS_FILES"], list)
+          if any(
+              not isinstance(path, str)
+              or not path
+              or Path(path).is_absolute()
+              or ".." in Path(path).parts
+              for path in requirements
+          ):
+              fail("requirements_files must contain relative caller-repository paths")
+          nix_scenarios = parse_json("nix_scenarios", os.environ["NIX_SCENARIOS"], list)
+          if any(not isinstance(name, str) or not profile.fullmatch(name) for name in nix_scenarios):
+              fail(f"nix_scenarios names must match {profile_name}")
+          secret_map = parse_json("test_secret_env_map", os.environ["TEST_SECRET_ENV_MAP"], dict)
+          env_name = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+          for variable, output in secret_map.items():
+              if (
+                  not isinstance(variable, str)
+                  or not env_name.fullmatch(variable)
+                  or variable.startswith(("GITHUB_", "RUNNER_"))
+                  or not isinstance(output, str)
+                  or not env_name.fullmatch(output)
+              ):
+                  fail("test_secret_env_map must map safe environment names to Doppler output keys")
+          if secret_map and os.environ["DOPPLER_ENABLED"] != "true":
+              fail("test_secret_env_map requires doppler_enabled=true")
+          if os.environ["USE_HOMARR_TOKEN"] == "true" and "HOMARR_GITHUB_TOKEN" in secret_map:
+              fail("HOMARR_GITHUB_TOKEN must use the dedicated use_homarr_token input")
+
+          if os.environ["PYTHON_INSTALL_MODE"] not in {"uv_packages", "pip_requirements"}:
+              fail("python_install_mode must be uv_packages or pip_requirements")
+          if os.environ["PYTHON_INSTALL_MODE"] == "pip_requirements" and not requirements:
+              fail("pip_requirements mode requires at least one requirements_files entry")
+          if os.environ["ANSIBLE_HOME_MODE"] not in {"shared", "runner_temp"}:
+              fail("ansible_home_mode must be shared or runner_temp")
+          if os.environ["GALAXY_INSTALL_MODE"] not in {"requirements", "collections_only", "repo_script"}:
+              fail("unsupported galaxy_install_mode")
+          if os.environ["GALAXY_INSTALL_MODE"] == "repo_script":
+              script = Path(os.environ["GALAXY_INSTALL_SCRIPT"])
+              if script.is_absolute() or ".." in script.parts or not script.is_file():
+                  fail("repo_script mode requires an existing relative galaxy_install_script")
+          if os.environ["GALAXY_REFRESH_CONTRACTS_V5"] not in {
+              "never", "on_cache_hit", "always", "handled_by_script"
+          }:
+              fail("unsupported galaxy_refresh_contracts_v5 mode")
+          if (
+              os.environ["GALAXY_REFRESH_CONTRACTS_V5"] == "handled_by_script"
+              and os.environ["GALAXY_INSTALL_MODE"] != "repo_script"
+          ):
+              fail("handled_by_script refresh mode requires galaxy_install_mode=repo_script")
+          if os.environ["MOLECULE_WORKDIR_MODE"] not in {"repo_root", "scenario_directory"}:
+              fail("molecule_workdir_mode must be repo_root or scenario_directory")
+          scenario_arg = os.environ["MOLECULE_SCENARIO_ARG"]
+          if scenario_arg != "matrix" and not profile.fullmatch(scenario_arg):
+              fail("molecule_scenario_arg must be matrix or a valid fixed scenario name")
+          if not os.environ["GALAXY_CACHE_PREFIX"]:
+              fail("galaxy_cache_prefix must not be empty")
+
+          integer("DISCOVER_TIMEOUT_MINUTES", 1, 360)
+          integer("TIMEOUT_MINUTES", 1, 360)
+          integer("GALAXY_RETRY_ATTEMPTS", 1, 20)
+          integer("GALAXY_RETRY_WAIT_SECONDS", 0, 3600)
+          integer("GALAXY_STEP_TIMEOUT_MINUTES", 1, 360)
+          integer("GALAXY_SERVER_TIMEOUT_SECONDS", 0, 3600)
+          integer("DOCKER_TIMEOUT_SECONDS", 0, 3600)
+          max_parallel = integer("MAX_PARALLEL", 0, 256)
+          if max_parallel == 0 and os.environ.get("MAX_PARALLEL", "") not in {"", "0"}:
+              fail("max_parallel must be 1 to 256 when provided")
+
+          payload = json.dumps(selected, separators=(",", ":"))
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
+              output.write(f"scenarios={payload}\n")
+              output.write(f"has_scenarios={'true' if selected else 'false'}\n")
+          print(f"Selected {len(selected)} Molecule scenario(s)")
+          PY
+
+  test:
+    name: Molecule (${{ matrix.scenario }})
+    needs: discover
+    if: ${{ needs.discover.outputs.has_scenarios == 'true' }}
+    runs-on: ${{ inputs.public_and_fork_hosted && (github.event.repository.private == false || github.event.pull_request.head.repo.fork) && 'ubuntu-latest' || inputs.runner_label }}
+    timeout-minutes: ${{ github.event_name == 'pull_request' && 25 || (inputs.timeout_minutes < fromJSON(inputs.scenario_timeout_floors)[matrix.scenario] && fromJSON(inputs.scenario_timeout_floors)[matrix.scenario] || inputs.timeout_minutes) }} # pr-policy: timeout-exception scenario runtime varies by caller and runner
+    permissions:
+      contents: read
+    concurrency:
+      group: ${{ inputs.serialize_scenario && format('molecule-{0}-{1}', github.repository, matrix.scenario) || format('molecule-{0}-{1}-{2}-{3}', github.repository, github.run_id, github.run_attempt, matrix.scenario) }}
+      cancel-in-progress: false
+    strategy:
+      fail-fast: ${{ inputs.fail_fast }}
+      max-parallel: ${{ inputs.max_parallel || 256 }}
+      matrix:
+        scenario: ${{ fromJSON(needs.discover.outputs.scenarios) }}
+    steps:
+      - name: Check out caller repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Set Ansible home
+        env:
+          ANSIBLE_HOME_MODE: ${{ inputs.ansible_home_mode }}
+        run: |
+          case "$ANSIBLE_HOME_MODE" in
+            shared) ansible_home="$HOME/.ansible" ;;
+            runner_temp) ansible_home="$RUNNER_TEMP/ansible-home" ;;
+            *) echo "unsupported ansible_home_mode" >&2; exit 1 ;;
+          esac
+          mkdir -p "$ansible_home/collections" "$ansible_home/roles"
+          echo "ANSIBLE_HOME=$ansible_home" >> "$GITHUB_ENV"
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: ${{ inputs.python_version }}
+
+      - name: Install uv
+        if: ${{ inputs.python_install_mode == 'uv_packages' }}
+        uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          version: latest
+          enable-cache: ${{ inputs.uv_cache }}
+
+      - name: Install Molecule and shared Ansible dependencies
+        if: ${{ inputs.python_install_mode == 'uv_packages' }}
+        run: >-
+          uv pip install --system molecule 'molecule-plugins[docker]>=23.0.0'
+          'ansible-core>=2.16' 'docker>=7.0.0' netaddr ansible-lint
+
+      - name: Install caller pip requirements
+        if: ${{ inputs.python_install_mode == 'pip_requirements' }}
+        env:
+          REQUIREMENTS_FILES: ${{ inputs.requirements_files }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          import subprocess
+          import sys
+
+          requirements = json.loads(os.environ["REQUIREMENTS_FILES"])
+          command = [sys.executable, "-m", "pip", "install"]
+          for path in requirements:
+              command.extend(("-r", path))
+          subprocess.run(command, check=True)
+          PY
+
+      - name: Cache Ansible Galaxy content
+        id: galaxy-cache
+        if: ${{ inputs.galaxy_cache_enabled }}
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: |
+            ${{ env.ANSIBLE_HOME }}/collections
+            ${{ env.ANSIBLE_HOME }}/roles
+          key: ${{ inputs.galaxy_cache_prefix }}${{ runner.os }}-${{ hashFiles('requirements.yml') }}
+          restore-keys: ${{ inputs.galaxy_cache_restore_prefix }}
+
+      - name: Install Ansible Galaxy requirements
+        if: ${{ inputs.galaxy_install_mode == 'collections_only' || !inputs.galaxy_cache_enabled || steps.galaxy-cache.outputs.cache-hit != 'true' }}
+        uses: nick-fields/retry@ad984534de44a9489a53aefd81eb77f87c70dc60 # v4.0.0
+        with:
+          max_attempts: ${{ inputs.galaxy_retry_attempts }}
+          retry_wait_seconds: ${{ inputs.galaxy_retry_wait_seconds || 10 }}
+          timeout_minutes: ${{ inputs.galaxy_step_timeout_minutes }}
+          command: |
+            set -euo pipefail
+            if [[ "$GALAXY_SERVER_TIMEOUT_SECONDS" -gt 0 ]]; then
+              export ANSIBLE_GALAXY_SERVER_TIMEOUT="$GALAXY_SERVER_TIMEOUT_SECONDS"
+            fi
+            case "$GALAXY_INSTALL_MODE" in
+              requirements)
+                if [[ -f requirements.yml ]]; then
+                  ansible-galaxy install -r requirements.yml
+                else
+                  echo "::notice::no requirements.yml, nothing to install"
+                fi
+                ;;
+              collections_only)
+                ansible-galaxy collection install -r requirements.yml
+                ;;
+              repo_script)
+                python3 "$GALAXY_INSTALL_SCRIPT"
+                ;;
+              *)
+                echo "unsupported galaxy_install_mode" >&2
+                exit 1
+                ;;
+            esac
+        env:
+          GALAXY_INSTALL_MODE: ${{ inputs.galaxy_install_mode }}
+          GALAXY_INSTALL_SCRIPT: ${{ inputs.galaxy_install_script }}
+          GALAXY_SERVER_TIMEOUT_SECONDS: ${{ inputs.galaxy_server_timeout_seconds }}
+
+      - name: Refresh homelab-contracts v5
+        if: ${{ inputs.galaxy_refresh_contracts_v5 == 'always' || (inputs.galaxy_refresh_contracts_v5 == 'on_cache_hit' && steps.galaxy-cache.outputs.cache-hit == 'true') }}
+        env:
+          GALAXY_SERVER_TIMEOUT_SECONDS: ${{ inputs.galaxy_server_timeout_seconds }}
+        run: |
+          if [[ "$GALAXY_SERVER_TIMEOUT_SECONDS" -gt 0 ]]; then
+            export ANSIBLE_GALAXY_SERVER_TIMEOUT="$GALAXY_SERVER_TIMEOUT_SECONDS"
+          fi
+          ansible-galaxy collection install \
+            'git+https://github.com/dryvist/homelab-contracts.git#/ansible/,v5' --force
+
+      - name: Install Nix for selected scenarios
+        if: ${{ contains(fromJSON(inputs.nix_scenarios), matrix.scenario) }}
+        uses: DeterminateSystems/determinate-nix-action@8d87e8d5e5b8a8309d4281094560f127d9a265f1 # v3
+
+      - name: Reclaim shared Docker space before testing
+        if: ${{ inputs.docker_prune }}
+        run: docker system prune --force --volumes
+        continue-on-error: true
+
+      - name: Fetch secrets from Doppler
+        id: doppler
+        if: ${{ inputs.doppler_enabled }}
+        uses: dopplerhq/secrets-fetch-action@451892f16195f9ac360e1a5bcbf0b5fd0e957534 # v2.0.0
+        with:
+          doppler-token: ${{ secrets.DOPPLER_TOKEN }}
+
+      - name: Expose selected secrets to Molecule
+        env:
+          DOPPLER_ENABLED: ${{ inputs.doppler_enabled }}
+          TEST_SECRET_ENV_MAP: ${{ inputs.test_secret_env_map }}
+          DOPPLER_OUTPUTS: ${{ inputs.doppler_enabled && toJSON(steps.doppler.outputs) || '{}' }}
+          USE_HOMARR_TOKEN: ${{ inputs.use_homarr_token }}
+          HOMARR_TOKEN: ${{ inputs.use_homarr_token && secrets.HOMARR_GITHUB_TOKEN || '' }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          import re
+          import secrets
+          import sys
+
+          try:
+              mapping = json.loads(os.environ["TEST_SECRET_ENV_MAP"])
+              outputs = json.loads(os.environ["DOPPLER_OUTPUTS"])
+          except json.JSONDecodeError as error:
+              sys.exit(f"invalid Doppler secret mapping/output JSON: {error.msg}")
+          if not isinstance(mapping, dict) or not isinstance(outputs, dict):
+              sys.exit("Doppler secret map and outputs must be JSON objects")
+          valid_name = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+          selected = {}
+          if os.environ["DOPPLER_ENABLED"] == "true":
+              for variable, key in mapping.items():
+                  if (
+                      not isinstance(variable, str)
+                      or not valid_name.fullmatch(variable)
+                      or variable.startswith(("GITHUB_", "RUNNER_"))
+                      or not isinstance(key, str)
+                      or not valid_name.fullmatch(key)
+                  ):
+                      sys.exit("test_secret_env_map contains an invalid environment or output name")
+                  if key not in outputs:
+                      sys.exit(f"Doppler did not return configured output key: {key}")
+                  selected[variable] = str(outputs[key])
+          if os.environ["USE_HOMARR_TOKEN"] == "true":
+              value = os.environ["HOMARR_TOKEN"]
+              if not value:
+                  sys.exit("use_homarr_token=true requires HOMARR_GITHUB_TOKEN")
+              selected["HOMARR_GITHUB_TOKEN"] = value
+
+          for variable, value in selected.items():
+              delimiter = "MOLECULE_SECRET_" + secrets.token_hex(16)
+              with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as env_file:
+                  env_file.write(f"{variable}<<{delimiter}\n{value}\n{delimiter}\n")
+          PY
+
+      - name: Run Molecule tests
+        working-directory: ${{ inputs.molecule_workdir_mode == 'scenario_directory' && format('molecule/{0}', matrix.scenario) || '.' }}
+        env:
+          PY_COLORS: "1"
+          ANSIBLE_FORCE_COLOR: "1"
+          MOLECULE_SCENARIO: ${{ inputs.molecule_scenario_arg == 'matrix' && matrix.scenario || inputs.molecule_scenario_arg }}
+          MOLECULE_ARGS: ${{ inputs.molecule_args }}
+          DOCKER_TIMEOUT_SECONDS: ${{ inputs.docker_timeout_seconds }}
+          CI_INSTANCE_SUFFIX: ${{ inputs.instance_suffix && format('-{0}-{1}', github.run_id, github.run_attempt) || '' }}
+          MOLECULE_EPHEMERAL_DIRECTORY: ${{ inputs.isolate_ephemeral_directory && format('{0}/molecule-{1}', runner.temp, matrix.scenario) || '' }}
+        run: |
+          if [[ "$DOCKER_TIMEOUT_SECONDS" -gt 0 ]]; then
+            export DOCKER_TIMEOUT="$DOCKER_TIMEOUT_SECONDS"
+          else
+            unset DOCKER_TIMEOUT
+          fi
+          if [[ -n "$CI_INSTANCE_SUFFIX" ]]; then
+            export CI_INSTANCE_SUFFIX
+          else
+            unset CI_INSTANCE_SUFFIX
+          fi
+          if [[ -n "$MOLECULE_EPHEMERAL_DIRECTORY" ]]; then
+            export MOLECULE_EPHEMERAL_DIRECTORY
+          else
+            unset MOLECULE_EPHEMERAL_DIRECTORY
+          fi
+
+          molecule_args=()
+          if [[ -n "$MOLECULE_ARGS" ]]; then
+            read -r -a molecule_args <<< "$MOLECULE_ARGS"
+          fi
+          molecule test -s "$MOLECULE_SCENARIO" "${molecule_args[@]}"
