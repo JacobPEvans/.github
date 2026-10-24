@@ -163,7 +163,7 @@ on:
         description: Seconds between Galaxy retries; zero keeps the retry action's default.
         type: number
         required: false
-        default: 0
+        default: 30
       galaxy_step_timeout_minutes:
         description: Per-attempt Galaxy installation timeout in minutes.
         type: number
