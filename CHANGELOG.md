@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.30.1](https://github.com/JacobPEvans/.github/compare/v1.30.0...v1.30.1) (2026-10-24)
+
+
+### Bug Fixes
+
+* expose Molecule PR timeouts and role path controls ([#102](https://github.com/JacobPEvans/.github/issues/102)) ([ef7bc85](https://github.com/JacobPEvans/.github/commit/ef7bc85dd496aa81baad55db22fec5413990f1cc))
+
 ## [1.30.0](https://github.com/JacobPEvans/.github/compare/v1.29.4...v1.30.0) (2026-10-24)
 
 
