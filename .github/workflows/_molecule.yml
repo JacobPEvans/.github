@@ -74,11 +74,21 @@ on:
         type: number
         required: false
         default: 360
+      pull_request_discover_timeout_minutes:
+        description: Discovery job timeout in minutes for pull requests.
+        type: number
+        required: false
+        default: 15
       timeout_minutes:
         description: Base Molecule scenario timeout in minutes.
         type: number
         required: false
         default: 360
+      pull_request_timeout_minutes:
+        description: Molecule scenario timeout in minutes for pull requests.
+        type: number
+        required: false
+        default: 25
       scenario_timeout_floors:
         description: JSON map of scenario names to minimum timeout minutes.
         type: string
@@ -109,6 +119,11 @@ on:
         type: string
         required: false
         default: shared
+      molecule_roles_path:
+        description: Optional caller-repository-relative Ansible roles path; defaults to the configured Ansible home.
+        type: string
+        required: false
+        default: ""
       galaxy_cache_enabled:
         description: Cache Ansible Galaxy collections and roles.
         type: boolean
@@ -257,7 +272,7 @@ jobs:
   discover:
     name: Select Molecule scenarios
     runs-on: ${{ inputs.discover_runner }}
-    timeout-minutes: ${{ github.event_name == 'pull_request' && 15 || inputs.discover_timeout_minutes }} # pr-policy: timeout-exception caller discovery includes validation scripts
+    timeout-minutes: ${{ github.event_name == 'pull_request' && (inputs.pull_request_discover_timeout_minutes > 360 && 360 || inputs.pull_request_discover_timeout_minutes > 0 && inputs.pull_request_discover_timeout_minutes || 15) || inputs.discover_timeout_minutes }} # pr-policy: bounded-timeout-input caller PR timeout capped at 360 minutes
     permissions:
       contents: read
     outputs:
@@ -546,7 +561,7 @@ jobs:
     needs: discover
     if: ${{ needs.discover.outputs.has_scenarios == 'true' }}
     runs-on: ${{ inputs.public_and_fork_hosted && (github.event.repository.private == false || github.event.pull_request.head.repo.fork) && 'ubuntu-latest' || inputs.runner_label }}
-    timeout-minutes: ${{ github.event_name == 'pull_request' && 25 || (inputs.timeout_minutes < fromJSON(inputs.scenario_timeout_floors)[matrix.scenario] && fromJSON(inputs.scenario_timeout_floors)[matrix.scenario] || inputs.timeout_minutes) }} # pr-policy: timeout-exception scenario runtime varies by caller and runner
+    timeout-minutes: ${{ github.event_name == 'pull_request' && (inputs.pull_request_timeout_minutes > 360 && 360 || inputs.pull_request_timeout_minutes > 0 && inputs.pull_request_timeout_minutes || 25) || (inputs.timeout_minutes < fromJSON(inputs.scenario_timeout_floors)[matrix.scenario] && fromJSON(inputs.scenario_timeout_floors)[matrix.scenario] || inputs.timeout_minutes) }} # pr-policy: bounded-timeout-input caller PR timeout capped at 360 minutes
     permissions:
       contents: read
     concurrency:
@@ -567,6 +582,7 @@ jobs:
         id: ansible-home
         env:
           ANSIBLE_HOME_MODE: ${{ inputs.ansible_home_mode }}
+          MOLECULE_ROLES_PATH: ${{ inputs.molecule_roles_path }}
         run: |
           case "$ANSIBLE_HOME_MODE" in
             shared) ansible_home="$HOME/.ansible" ;;
@@ -574,9 +590,22 @@ jobs:
             *) echo "unsupported ansible_home_mode" >&2; exit 1 ;;
           esac
           mkdir -p "$ansible_home/collections" "$ansible_home/roles"
+          roles_path="$ansible_home/roles"
+          if [[ -n "$MOLECULE_ROLES_PATH" ]]; then
+            if [[ "$MOLECULE_ROLES_PATH" == /* || "$MOLECULE_ROLES_PATH" == *$'\n'* || "$MOLECULE_ROLES_PATH" == *$'\r'* ]]; then
+              echo "molecule_roles_path must be a single-line relative path" >&2
+              exit 1
+            fi
+            workspace="$(realpath -m -- "$GITHUB_WORKSPACE")"
+            roles_path="$(realpath -m -- "$workspace/$MOLECULE_ROLES_PATH")"
+            case "$roles_path" in
+              "$workspace"/*) ;;
+              *) echo "molecule_roles_path must stay within the caller repository" >&2; exit 1 ;;
+            esac
+          fi
           {
             echo "ANSIBLE_HOME=$ansible_home"
-            echo "ANSIBLE_ROLES_PATH=$ansible_home/roles"
+            printf 'ANSIBLE_ROLES_PATH=%s\n' "$roles_path"
             echo "ANSIBLE_COLLECTIONS_PATH=$ansible_home/collections"
           } >> "$GITHUB_ENV"
           echo "ansible_home=$ansible_home" >> "$GITHUB_OUTPUT"

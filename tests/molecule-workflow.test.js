@@ -31,13 +31,16 @@ test('the Molecule reusable declares the approved input contract with workflow-c
     'runner_label',
     'public_and_fork_hosted',
     'discover_timeout_minutes',
+    'pull_request_discover_timeout_minutes',
     'timeout_minutes',
+    'pull_request_timeout_minutes',
     'scenario_timeout_floors',
     'python_version',
     'python_install_mode',
     'requirements_files',
     'uv_cache',
     'ansible_home_mode',
+    'molecule_roles_path',
     'galaxy_cache_enabled',
     'galaxy_cache_prefix',
     'galaxy_cache_restore_prefix',
@@ -100,8 +103,10 @@ test('scenario discovery, runner selection, matrix scheduling, and timeouts are 
   assert.match(workflow, /scenario_discovery == 'repo_script'/);
   assert.match(workflow, /caller_supplied/);
   assert.match(workflow, /scenario_timeout_floors\)\[matrix\.scenario\]/);
-  assert.match(workflow, /github\.event_name == 'pull_request' && 15 \|\| inputs\.discover_timeout_minutes.*pr-policy: timeout-exception/);
-  assert.match(workflow, /github\.event_name == 'pull_request' && 25 \|\| \(inputs\.timeout_minutes.*pr-policy: timeout-exception/);
+  assert.match(inputDeclaration('pull_request_discover_timeout_minutes'), /type: number[\s\S]*?default: 15/);
+  assert.match(inputDeclaration('pull_request_timeout_minutes'), /type: number[\s\S]*?default: 25/);
+  assert.match(workflow, /github\.event_name == 'pull_request' && \(inputs\.pull_request_discover_timeout_minutes > 360 && 360 \|\| inputs\.pull_request_discover_timeout_minutes > 0 && inputs\.pull_request_discover_timeout_minutes \|\| 15\) \|\| inputs\.discover_timeout_minutes.*pr-policy: bounded-timeout-input/);
+  assert.match(workflow, /github\.event_name == 'pull_request' && \(inputs\.pull_request_timeout_minutes > 360 && 360 \|\| inputs\.pull_request_timeout_minutes > 0 && inputs\.pull_request_timeout_minutes \|\| 25\) \|\| \(inputs\.timeout_minutes.*pr-policy: bounded-timeout-input/);
   assert.match(workflow, /public_and_fork_hosted && \(github\.event\.repository\.private == false \|\| github\.event\.pull_request\.head\.repo\.fork\)/);
   assert.match(workflow, /max-parallel: \$\{\{ inputs\.max_parallel \|\| 256 \}\}/);
   assert.match(workflow, /serialize_scenario && format\('molecule-/);
@@ -152,10 +157,13 @@ test('extra Molecule environment accepts non-secret KEY=VALUE lines without shel
 
 test('Galaxy cache and Ansible search paths share the configured Ansible home', () => {
   const homeStep = workflow.split('- name: Set Ansible home\n')[1]?.split('\n      - name: Set up Python')[0] ?? '';
+  assert.match(inputDeclaration('molecule_roles_path'), /type: string[\s\S]*?default: ""/);
   assert.match(homeStep, /id: ansible-home/);
   assert.match(homeStep, /shared\) ansible_home="\$HOME\/\.ansible"/);
   assert.match(homeStep, /runner_temp\) ansible_home="\$RUNNER_TEMP\/ansible-home"/);
-  assert.match(homeStep, /echo "ANSIBLE_HOME=\$ansible_home"[\s\S]*?echo "ANSIBLE_ROLES_PATH=\$ansible_home\/roles"[\s\S]*?echo "ANSIBLE_COLLECTIONS_PATH=\$ansible_home\/collections"\n\s+\} >> "\$GITHUB_ENV"/);
+  assert.match(homeStep, /MOLECULE_ROLES_PATH: \$\{\{ inputs\.molecule_roles_path \}\}/);
+  assert.match(homeStep, /roles_path="\$ansible_home\/roles"[\s\S]*?realpath -m -- "\$workspace\/\$MOLECULE_ROLES_PATH"[\s\S]*?molecule_roles_path must stay within the caller repository/);
+  assert.match(homeStep, /echo "ANSIBLE_HOME=\$ansible_home"[\s\S]*?printf 'ANSIBLE_ROLES_PATH=%s\\n' "\$roles_path"[\s\S]*?echo "ANSIBLE_COLLECTIONS_PATH=\$ansible_home\/collections"\n\s+\} >> "\$GITHUB_ENV"/);
   assert.match(homeStep, /echo "ansible_home=\$ansible_home" >> "\$GITHUB_OUTPUT"/);
 
   const cacheStep = workflow.split('- name: Cache Ansible Galaxy content\n')[1]?.split('\n      - name: Install Ansible Galaxy requirements')[0] ?? '';

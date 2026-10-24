@@ -24,8 +24,25 @@ SHA = re.compile(r"@[0-9a-fA-F]{40}$")
 VERSION_COMMENT = re.compile(r"#\s*v\d+(?:\.\d+)*\b")
 # A documented exception on the timeout line raises the pull-request cap; the reason is required.
 TIMEOUT_EXCEPTION = re.compile(r"#\s*pr-policy:\s*timeout-exception\s+\S")
+TIMEOUT_BOUNDED_INPUT_EXCEPTION = re.compile(r"#\s*pr-policy:\s*bounded-timeout-input\s+\S")
 TIMEOUT_LIMIT = 5
 TIMEOUT_EXCEPTION_LIMIT = 25
+TIMEOUT_BOUNDED_INPUT_LIMIT = 360
+TIMEOUT_BOUNDED_INPUT_EXPRESSION = re.compile(
+    r"^\$\{\{\s*github\.event_name\s*==\s*'pull_request'\s*&&\s*"
+    r"\(\s*inputs\.(?P<input>pull_request_(?:discover_)?timeout_minutes)\s*>\s*"
+    r"(?P<upper>\d+)\s*&&\s*(?P<upper_value>\d+)\s*\|\|\s*"
+    r"inputs\.(?P=input)\s*>\s*0\s*&&\s*inputs\.(?P=input)\s*\|\|\s*"
+    r"(?P<default>\d+)\s*\)\s*\|\|\s*(?P<fallback>.+?)\s*\}\}$"
+)
+BOUNDED_PR_TIMEOUTS = {
+    "pull_request_discover_timeout_minutes": (15, "inputs.discover_timeout_minutes"),
+    "pull_request_timeout_minutes": (
+        25,
+        "(inputs.timeout_minutes < fromJSON(inputs.scenario_timeout_floors)[matrix.scenario] "
+        "&& fromJSON(inputs.scenario_timeout_floors)[matrix.scenario] || inputs.timeout_minutes)",
+    ),
+}
 
 
 def scalar(node: Node | None) -> str | None:
@@ -94,7 +111,12 @@ def excludes_pull_request(condition: str | None) -> bool:
     return bool(re.search(r"github\.event_name\s*!=\s*['\"]pull_request['\"]", condition))
 
 
-def timeout_is_valid(node: Node | None, limit: float = TIMEOUT_LIMIT) -> bool:
+def timeout_is_valid(
+    node: Node | None,
+    limit: float = TIMEOUT_LIMIT,
+    *,
+    allow_bounded_input: bool = False,
+) -> bool:
     if isinstance(node, ScalarNode) and node.tag in {
         "tag:yaml.org,2002:int",
         "tag:yaml.org,2002:float",
@@ -108,7 +130,21 @@ def timeout_is_valid(node: Node | None, limit: float = TIMEOUT_LIMIT) -> bool:
     if value is None:
         return False
     match = TIMEOUT_EXPRESSION.fullmatch(value)
-    return bool(match and float(match.group(1)) <= limit)
+    if match:
+        return float(match.group(1)) <= limit
+
+    bounded = TIMEOUT_BOUNDED_INPUT_EXPRESSION.fullmatch(value)
+    if not allow_bounded_input or not bounded:
+        return False
+    expected = BOUNDED_PR_TIMEOUTS.get(bounded.group("input"))
+    if expected is None:
+        return False
+    return (
+        int(bounded.group("upper")) == TIMEOUT_BOUNDED_INPUT_LIMIT
+        and int(bounded.group("upper_value")) == TIMEOUT_BOUNDED_INPUT_LIMIT
+        and int(bounded.group("default")) == expected[0]
+        and bounded.group("fallback").strip() == expected[1]
+    )
 
 
 def walk_uses(node: Node, seen: set[int] | None = None):
@@ -150,9 +186,13 @@ def analyze(path: Path, source: str) -> list[tuple[int, str, str]]:
                 continue
             timeout_node = get(job_node, "timeout-minutes")
             timeout_line = first_line(timeout_node or job_key)
-            excepted = timeout_node is not None and bool(TIMEOUT_EXCEPTION.search(lines[timeout_line - 1]))
+            timeout_comment = lines[timeout_line - 1]
+            excepted = timeout_node is not None and bool(TIMEOUT_EXCEPTION.search(timeout_comment))
+            bounded_input = timeout_node is not None and bool(
+                TIMEOUT_BOUNDED_INPUT_EXCEPTION.search(timeout_comment)
+            )
             limit = TIMEOUT_EXCEPTION_LIMIT if excepted else TIMEOUT_LIMIT
-            if not timeout_is_valid(timeout_node, limit):
+            if not timeout_is_valid(timeout_node, limit, allow_bounded_input=bounded_input):
                 violations.append(
                     (
                         timeout_line,
