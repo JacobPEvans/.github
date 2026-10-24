@@ -533,6 +533,7 @@ jobs:
           persist-credentials: false
 
       - name: Set Ansible home
+        id: ansible-home
         env:
           ANSIBLE_HOME_MODE: ${{ inputs.ansible_home_mode }}
         run: |
@@ -542,7 +543,12 @@ jobs:
             *) echo "unsupported ansible_home_mode" >&2; exit 1 ;;
           esac
           mkdir -p "$ansible_home/collections" "$ansible_home/roles"
-          echo "ANSIBLE_HOME=$ansible_home" >> "$GITHUB_ENV"
+          {
+            echo "ANSIBLE_HOME=$ansible_home"
+            echo "ANSIBLE_ROLES_PATH=$ansible_home/roles"
+            echo "ANSIBLE_COLLECTIONS_PATH=$ansible_home/collections"
+          } >> "$GITHUB_ENV"
+          echo "ansible_home=$ansible_home" >> "$GITHUB_OUTPUT"
 
       - name: Set up Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
@@ -586,8 +592,8 @@ jobs:
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: |
-            ${{ env.ANSIBLE_HOME }}/collections
-            ${{ env.ANSIBLE_HOME }}/roles
+            ${{ steps.ansible-home.outputs.ansible_home }}/collections
+            ${{ steps.ansible-home.outputs.ansible_home }}/roles
           key: ${{ inputs.galaxy_cache_prefix }}${{ runner.os }}-${{ hashFiles('requirements.yml') }}
           restore-keys: ${{ inputs.galaxy_cache_restore_prefix }}
 
