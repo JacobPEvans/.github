@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.29.0](https://github.com/JacobPEvans/.github/compare/v1.28.4...v1.29.0) (2026-10-24)
+
+
+### Features
+
+* add reusable Molecule workflow ([ff99e0c](https://github.com/JacobPEvans/.github/commit/ff99e0c8ff1871205067619b9094307f4d161219))
+* Merge pull request [#88](https://github.com/JacobPEvans/.github/issues/88) from JacobPEvans/feat/molecule-central ([ff99e0c](https://github.com/JacobPEvans/.github/commit/ff99e0c8ff1871205067619b9094307f4d161219))
+
 ## [1.28.4](https://github.com/JacobPEvans/.github/compare/v1.28.3...v1.28.4) (2026-10-24)
 
 
