@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.29.2](https://github.com/JacobPEvans/.github/compare/v1.29.1...v1.29.2) (2026-10-24)
+
+
+### Bug Fixes
+
+* align Galaxy paths with configured Ansible home ([f369c8b](https://github.com/JacobPEvans/.github/commit/f369c8bbf9a076b9b7d5ce1baee78a4a2b965b06))
+
 ## [1.29.1](https://github.com/JacobPEvans/.github/compare/v1.29.0...v1.29.1) (2026-10-24)
 
 
