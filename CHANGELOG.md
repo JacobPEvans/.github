@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.33.1](https://github.com/JacobPEvans/.github/compare/v1.33.0...v1.33.1) (2026-10-24)
+
+
+### Reverts
+
+* remove disclosure gate from shared CI ([#117](https://github.com/JacobPEvans/.github/issues/117)) ([7dd2d04](https://github.com/JacobPEvans/.github/commit/7dd2d04149cbb12f654f36348c8245541a6e59c1))
+
+
+### CI
+
+* **release:** release revert commits ([#118](https://github.com/JacobPEvans/.github/issues/118)) ([597d0db](https://github.com/JacobPEvans/.github/commit/597d0db12bf4da9be14231c188a4f28fe5e8c05d))
+
 ## [1.33.0](https://github.com/JacobPEvans/.github/compare/v1.32.3...v1.33.0) (2026-10-24)
 
 
