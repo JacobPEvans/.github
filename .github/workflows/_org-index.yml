@@ -24,21 +24,22 @@ jobs:
   regenerate:
     name: Regenerate repository index
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: ${{ github.event_name == 'pull_request' && 5 || 15 }}
     concurrency:
       group: org-index-${{ github.repository }}
       cancel-in-progress: false
     permissions: {}
     steps:
+      # Public scope reads with github.token; only the members index needs to list private repositories.
       - name: Mint organization read token
         id: org-read-token
+        if: inputs.visibility_scope == 'all'
         uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3
         with:
           client-id: ${{ vars.GH_ACTION_RELEASE_PLEASE_APP_ID }}
           private-key: ${{ secrets.GH_ACTION_RELEASE_PLEASE_PRIVATE_KEY }}
-          owner: ${{ github.repository_owner }}
+          owner: ${{ github.repository_owner }} # zizmor: ignore[github-app] read-only metadata across the org is the members index's input
           permission-metadata: read
-          permission-organization-custom-properties: read
 
       - name: Mint caller repository write token
         id: write-token
@@ -60,7 +61,7 @@ jobs:
 
       - name: Read repository metadata and render indexes
         env:
-          GH_TOKEN: ${{ steps.org-read-token.outputs.token }}
+          GH_TOKEN: ${{ steps.org-read-token.outputs.token || github.token }}
           ORG: ${{ github.repository_owner }}
           SCOPE: ${{ inputs.visibility_scope }}
           OUTPUT_PATH: ${{ inputs.output_path }}
@@ -77,16 +78,12 @@ jobs:
               ;;
           esac
 
-          gh repo list "$ORG" --limit 1000 --json name,description,repositoryTopics,visibility,isArchived,url \
-            > "$RUNNER_TEMP/repos.raw.json"
-          jq --arg scope "$SCOPE" \
-            '[.[] | select($scope == "all" or .visibility == "PUBLIC")]' \
-            "$RUNNER_TEMP/repos.raw.json" > "$RUNNER_TEMP/repos.json"
-          gh api --paginate "orgs/$ORG/properties/values" --jq '
-            .[] | {
-              name: .repository_name,
-              family: ([.properties[]? | select(.property_name == "family") | .value][0] // "")
-            }' | jq -s '.' > "$RUNNER_TEMP/families.json"
+          gh api --paginate "orgs/$ORG/repos?type=$SCOPE&per_page=100" --jq '.[] | {
+              name, description, url: .html_url, isArchived: .archived,
+              repositoryTopics: [.topics[]? | {name: .}],
+              family: (.custom_properties.family // "")
+            }' | jq -s '.' > "$RUNNER_TEMP/repos.json"
+          jq '[.[] | {name, family}]' "$RUNNER_TEMP/repos.json" > "$RUNNER_TEMP/families.json"
 
           jq -n --arg org "$ORG" \
             --slurpfile repos "$RUNNER_TEMP/repos.json" \
