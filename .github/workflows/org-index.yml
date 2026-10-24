@@ -1,0 +1,17 @@
+name: Organization Index
+
+on:
+  schedule:
+    - cron: "17 8 * * 1"
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  org-index:
+    permissions: {}
+    uses: JacobPEvans/.github/.github/workflows/_org-index.yml@v1
+    with:
+      visibility_scope: public
+    secrets:
+      GH_ACTION_RELEASE_PLEASE_PRIVATE_KEY: ${{ secrets.GH_ACTION_RELEASE_PLEASE_PRIVATE_KEY }}

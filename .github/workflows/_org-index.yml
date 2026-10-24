@@ -1,0 +1,206 @@
+# Reusable: regenerate an organization's repository index and llms.txt.
+name: _org-index
+
+on:
+  workflow_call:
+    inputs:
+      visibility_scope:
+        description: Include public repositories only, or all repositories visible to the App.
+        type: string
+        required: false
+        default: public
+      output_path:
+        description: Markdown file that receives the generated index between markers.
+        type: string
+        required: false
+        default: profile/README.md
+    secrets:
+      GH_ACTION_RELEASE_PLEASE_PRIVATE_KEY:
+        required: true
+
+permissions: {}
+
+jobs:
+  regenerate:
+    name: Regenerate repository index
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    concurrency:
+      group: org-index-${{ github.repository }}
+      cancel-in-progress: false
+    permissions: {}
+    steps:
+      - name: Mint organization read token
+        id: org-read-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3
+        with:
+          client-id: ${{ vars.GH_ACTION_RELEASE_PLEASE_APP_ID }}
+          private-key: ${{ secrets.GH_ACTION_RELEASE_PLEASE_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          permission-metadata: read
+          permission-organization-custom-properties: read
+
+      - name: Mint caller repository write token
+        id: write-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3
+        with:
+          client-id: ${{ vars.GH_ACTION_RELEASE_PLEASE_APP_ID }}
+          private-key: ${{ secrets.GH_ACTION_RELEASE_PLEASE_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.event.repository.name }}
+          permission-contents: write
+          permission-pull-requests: write
+
+      - name: Check out the default branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          token: ${{ steps.write-token.outputs.token }}
+          fetch-depth: 0
+
+      - name: Read repository metadata and render indexes
+        env:
+          GH_TOKEN: ${{ steps.org-read-token.outputs.token }}
+          ORG: ${{ github.repository_owner }}
+          SCOPE: ${{ inputs.visibility_scope }}
+          OUTPUT_PATH: ${{ inputs.output_path }}
+        run: |
+          set -euo pipefail
+          case "$SCOPE" in
+            public|all) ;;
+            *) echo "visibility_scope must be public or all" >&2; exit 1 ;;
+          esac
+          case "$OUTPUT_PATH" in
+            ""|/*|..|../*|*/../*|*/..|llms.txt|.git|.git/*|-*|*/)
+              echo "output_path must be a repository-relative path other than llms.txt" >&2
+              exit 1
+              ;;
+          esac
+
+          gh repo list "$ORG" --limit 1000 --json name,description,repositoryTopics,visibility,isArchived,url \
+            > "$RUNNER_TEMP/repos.raw.json"
+          jq --arg scope "$SCOPE" \
+            '[.[] | select($scope == "all" or .visibility == "PUBLIC")]' \
+            "$RUNNER_TEMP/repos.raw.json" > "$RUNNER_TEMP/repos.json"
+          gh api --paginate "orgs/$ORG/properties/values" --jq '
+            .[] | {
+              name: .repository_name,
+              family: ([.properties[]? | select(.property_name == "family") | .value][0] // "")
+            }' | jq -s '.' > "$RUNNER_TEMP/families.json"
+
+          jq -n --arg org "$ORG" \
+            --slurpfile repos "$RUNNER_TEMP/repos.json" \
+            --slurpfile families "$RUNNER_TEMP/families.json" '
+            def cell:
+              tostring | gsub("[\\r\\n|]"; " ")
+              | gsub("&"; "&amp;") | gsub("<"; "&lt;") | gsub(">"; "&gt;");
+            def table($items):
+              "| Repository | Description | Topics |\n| --- | --- | --- |\n" +
+              ($items | map(
+                "| [\(.name)](\(.url)) | \(((.description // "—") | cell)) | " +
+                "\((((.repositoryTopics // []) | map(.name) | join(", ")) | cell)) |"
+              ) | join("\n"));
+            def groups($items):
+              $items | group_by(.family) | map(
+                "### \(.[0].family | cell)\n\n" + table(.)
+              ) | join("\n\n");
+            ($families[0] | map({key: .name, value: .family}) | from_entries) as $family_by_repo |
+            ($repos[0]
+              | map(. + {
+                  family: (if ($family_by_repo[.name] // "") == ""
+                    then "Other" else $family_by_repo[.name] end)
+                })
+              | sort_by((.family | ascii_downcase), (.name | ascii_downcase))) as $all |
+            ($all | map(select(.isArchived | not))) as $active |
+            ($all | map(select(.isArchived))) as $archived |
+            {
+              markdown:
+                "## Repositories\n\n" +
+                (if ($active | length) > 0 then groups($active) else "_No repositories._" end) +
+                "\n\n<details>\n<summary>Archived repositories (\($archived | length))</summary>\n\n" +
+                (if ($archived | length) > 0 then groups($archived) else "_No archived repositories._" end) +
+                "\n\n</details>",
+              llms:
+                "# \($org)\n\nRepository index for the \($org) GitHub organization.\n\n## Repositories\n\n" +
+                ($all | map("- [\(.name)](\(.url)): \(((.description // "") | cell))") | join("\n"))
+            }
+          ' > "$RUNNER_TEMP/rendered.json"
+          jq -r '.markdown' "$RUNNER_TEMP/rendered.json" > "$RUNNER_TEMP/org-index.md"
+          jq -r '.llms' "$RUNNER_TEMP/rendered.json" > llms.txt
+
+          mkdir -p -- "$(dirname -- "$OUTPUT_PATH")"
+          if [[ ! -f "$OUTPUT_PATH" ]]; then
+            printf '<!-- org-index:start -->\n<!-- org-index:end -->\n' > "$OUTPUT_PATH"
+          fi
+          start='<!-- org-index:start -->'
+          end='<!-- org-index:end -->'
+          starts=$(grep -Fxc -- "$start" "$OUTPUT_PATH" || true)
+          ends=$(grep -Fxc -- "$end" "$OUTPUT_PATH" || true)
+          if [[ "$starts" == 0 && "$ends" == 0 ]]; then
+            [[ ! -s "$OUTPUT_PATH" ]] || printf '\n' >> "$OUTPUT_PATH"
+            printf '%s\n%s\n' "$start" "$end" >> "$OUTPUT_PATH"
+          elif [[ "$starts" != 1 || "$ends" != 1 ]]; then
+            echo "output_path must contain exactly one pair of org-index markers" >&2
+            exit 1
+          fi
+          start_line=$(grep -Fn -- "$start" "$OUTPUT_PATH" | cut -d: -f1)
+          end_line=$(grep -Fn -- "$end" "$OUTPUT_PATH" | cut -d: -f1)
+          if (( start_line >= end_line )); then
+            echo "org-index markers are out of order" >&2
+            exit 1
+          fi
+          awk -v replacement="$RUNNER_TEMP/org-index.md" '
+            BEGIN {
+              while ((getline line < replacement) > 0) body = body line "\n"
+              close(replacement)
+            }
+            $0 == "<!-- org-index:start -->" { print; printf "%s", body; inside = 1; next }
+            $0 == "<!-- org-index:end -->" { inside = 0; print; next }
+            !inside { print }
+          ' "$OUTPUT_PATH" > "$RUNNER_TEMP/profile.md"
+          mv "$RUNNER_TEMP/profile.md" "$OUTPUT_PATH"
+
+      - name: Get GitHub App bot identity
+        id: app-user
+        env:
+          GH_TOKEN: ${{ steps.write-token.outputs.token }}
+          APP_SLUG: ${{ steps.write-token.outputs.app-slug }}
+        run: echo "user-id=$(gh api "/users/${APP_SLUG}[bot]" --jq .id)" >> "$GITHUB_OUTPUT"
+
+      - name: Open or update the index pull request
+        env:
+          GH_TOKEN: ${{ steps.write-token.outputs.token }}
+          APP_SLUG: ${{ steps.write-token.outputs.app-slug }}
+          APP_USER_ID: ${{ steps.app-user.outputs.user-id }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          OUTPUT_PATH: ${{ inputs.output_path }}
+        run: |
+          set -euo pipefail
+          git add -- "$OUTPUT_PATH" llms.txt
+          if git diff --cached --quiet; then
+            echo "::notice::Repository index content is unchanged."
+            exit 0
+          fi
+
+          branch=automation/org-index
+          git switch --create "$branch"
+          git config user.name "${APP_SLUG}[bot]"
+          git config user.email "${APP_USER_ID}+${APP_SLUG}[bot]@users.noreply.github.com"
+          git commit -m 'chore(index): regenerate org index'
+
+          remote_sha=$(git ls-remote origin "refs/heads/$branch" | cut -f1)
+          if [[ -n "$remote_sha" ]]; then
+            git push --force-with-lease="refs/heads/$branch:$remote_sha" origin "$branch"
+          else
+            git push origin "$branch"
+          fi
+          pr=$(gh pr list --head "$branch" --state open --json number --jq '.[0].number // empty')
+          if [[ -n "$pr" ]]; then
+            gh pr edit "$pr" --base "$DEFAULT_BRANCH" \
+              --title 'chore(index): regenerate org index' \
+              --body 'Regenerate the organization repository index and llms.txt.'
+          else
+            gh pr create --base "$DEFAULT_BRANCH" --head "$branch" \
+              --title 'chore(index): regenerate org index' \
+              --body 'Regenerate the organization repository index and llms.txt.'
+          fi
