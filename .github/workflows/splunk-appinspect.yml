@@ -10,7 +10,7 @@ permissions:
 jobs:
   appinspect:
     name: AppInspect
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 25 # pr-policy: timeout-exception AppInspect includes dependency installation and static checks
     steps:
       - name: Checkout target repo
@@ -21,7 +21,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
-          python-version: "3.13"
+          python-version: "3.15"
 
       - name: Detect Splunk app
         id: app
@@ -111,7 +111,7 @@ jobs:
 
       - name: Upload AppInspect report
         if: always() && steps.app.outputs.is_app == 'true'
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: appinspect-report
           path: appinspect.json
