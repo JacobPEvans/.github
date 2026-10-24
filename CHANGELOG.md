@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.33.0](https://github.com/JacobPEvans/.github/compare/v1.32.3...v1.33.0) (2026-10-24)
+
+
+### Features
+
+* add disclosure gate to shared CI ([#85](https://github.com/JacobPEvans/.github/issues/85)) ([bc5a654](https://github.com/JacobPEvans/.github/commit/bc5a654597335d41f2b3ffefefbdaa55a3a0caef))
+
 ## [1.32.3](https://github.com/JacobPEvans/.github/compare/v1.32.2...v1.32.3) (2026-10-24)
 
 
