@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.29.4](https://github.com/JacobPEvans/.github/compare/v1.29.3...v1.29.4) (2026-10-24)
+
+
+### Bug Fixes
+
+* **renovate:** track annotated Packer plugin pins ([#98](https://github.com/JacobPEvans/.github/issues/98)) ([2bae387](https://github.com/JacobPEvans/.github/commit/2bae38704c373fcbf3847c8f8679d95b57960be1))
+
 ## [1.29.3](https://github.com/JacobPEvans/.github/compare/v1.29.2...v1.29.3) (2026-10-24)
 
 
