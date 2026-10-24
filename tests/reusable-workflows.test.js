@@ -10,8 +10,10 @@ const readWorkflow = (name) => readFileSync(`${workflowsDir}${name}`, 'utf8');
 const workflows = readdirSync(workflowsDir).filter((name) => name.endsWith('.yml'));
 const reusables = workflows.filter((name) => /^ {2}workflow_call:/m.test(readWorkflow(name)));
 
-test('the scan finds the shared gate among the reusable workflows', () => {
-  assert.ok(reusables.includes('_ci-gate.yml'), `reusables found: ${reusables.join(', ')}`);
+test('the scan finds the shared gate and Cribl pack validator among the reusable workflows', () => {
+  for (const name of ['_ci-gate.yml', '_cribl-pack-validate.yml']) {
+    assert.ok(reusables.includes(name), `reusables found: ${reusables.join(', ')}`);
+  }
 });
 
 // The top-level concurrency block of a workflow, or null when it has none.
