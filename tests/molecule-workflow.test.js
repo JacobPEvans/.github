@@ -105,8 +105,8 @@ test('scenario discovery, runner selection, matrix scheduling, and timeouts are 
   assert.match(workflow, /scenario_timeout_floors\)\[matrix\.scenario\]/);
   assert.match(inputDeclaration('pull_request_discover_timeout_minutes'), /type: number[\s\S]*?default: 15/);
   assert.match(inputDeclaration('pull_request_timeout_minutes'), /type: number[\s\S]*?default: 25/);
-  assert.match(workflow, /github\.event_name == 'pull_request' && inputs\.pull_request_discover_timeout_minutes \|\| inputs\.discover_timeout_minutes.*pr-policy: timeout-exception/);
-  assert.match(workflow, /github\.event_name == 'pull_request' && inputs\.pull_request_timeout_minutes \|\| \(inputs\.timeout_minutes.*pr-policy: timeout-exception/);
+  assert.match(workflow, /github\.event_name == 'pull_request' && \(inputs\.pull_request_discover_timeout_minutes > 360 && 360 \|\| inputs\.pull_request_discover_timeout_minutes > 0 && inputs\.pull_request_discover_timeout_minutes \|\| 15\) \|\| inputs\.discover_timeout_minutes.*pr-policy: bounded-timeout-input/);
+  assert.match(workflow, /github\.event_name == 'pull_request' && \(inputs\.pull_request_timeout_minutes > 360 && 360 \|\| inputs\.pull_request_timeout_minutes > 0 && inputs\.pull_request_timeout_minutes \|\| 25\) \|\| \(inputs\.timeout_minutes.*pr-policy: bounded-timeout-input/);
   assert.match(workflow, /public_and_fork_hosted && \(github\.event\.repository\.private == false \|\| github\.event\.pull_request\.head\.repo\.fork\)/);
   assert.match(workflow, /max-parallel: \$\{\{ inputs\.max_parallel \|\| 256 \}\}/);
   assert.match(workflow, /serialize_scenario && format\('molecule-/);

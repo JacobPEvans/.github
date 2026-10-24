@@ -272,7 +272,7 @@ jobs:
   discover:
     name: Select Molecule scenarios
     runs-on: ${{ inputs.discover_runner }}
-    timeout-minutes: ${{ github.event_name == 'pull_request' && inputs.pull_request_discover_timeout_minutes || inputs.discover_timeout_minutes }} # pr-policy: timeout-exception caller discovery includes validation scripts
+    timeout-minutes: ${{ github.event_name == 'pull_request' && (inputs.pull_request_discover_timeout_minutes > 360 && 360 || inputs.pull_request_discover_timeout_minutes > 0 && inputs.pull_request_discover_timeout_minutes || 15) || inputs.discover_timeout_minutes }} # pr-policy: bounded-timeout-input caller PR timeout capped at 360 minutes
     permissions:
       contents: read
     outputs:
@@ -561,7 +561,7 @@ jobs:
     needs: discover
     if: ${{ needs.discover.outputs.has_scenarios == 'true' }}
     runs-on: ${{ inputs.public_and_fork_hosted && (github.event.repository.private == false || github.event.pull_request.head.repo.fork) && 'ubuntu-latest' || inputs.runner_label }}
-    timeout-minutes: ${{ github.event_name == 'pull_request' && inputs.pull_request_timeout_minutes || (inputs.timeout_minutes < fromJSON(inputs.scenario_timeout_floors)[matrix.scenario] && fromJSON(inputs.scenario_timeout_floors)[matrix.scenario] || inputs.timeout_minutes) }} # pr-policy: timeout-exception scenario runtime varies by caller and runner
+    timeout-minutes: ${{ github.event_name == 'pull_request' && (inputs.pull_request_timeout_minutes > 360 && 360 || inputs.pull_request_timeout_minutes > 0 && inputs.pull_request_timeout_minutes || 25) || (inputs.timeout_minutes < fromJSON(inputs.scenario_timeout_floors)[matrix.scenario] && fromJSON(inputs.scenario_timeout_floors)[matrix.scenario] || inputs.timeout_minutes) }} # pr-policy: bounded-timeout-input caller PR timeout capped at 360 minutes
     permissions:
       contents: read
     concurrency:

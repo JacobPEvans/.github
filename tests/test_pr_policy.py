@@ -67,6 +67,39 @@ jobs:
         lines = [line for line, rule, _ in pr_policy.analyze(Path("exception.yml"), source) if rule == "timeout-minutes"]
         self.assertEqual([8, 11], lines)
 
+    def test_bounded_caller_timeout_inputs_allow_long_pr_jobs_with_a_360_minute_cap(self):
+        source = """\
+name: bounded-inputs
+on: workflow_call
+jobs:
+  discover:
+    timeout-minutes: ${{ github.event_name == 'pull_request' && (inputs.pull_request_discover_timeout_minutes > 360 && 360 || inputs.pull_request_discover_timeout_minutes > 0 && inputs.pull_request_discover_timeout_minutes || 15) || inputs.discover_timeout_minutes }} # pr-policy: bounded-timeout-input caller PR timeout capped at 360 minutes
+    steps: []
+  test:
+    timeout-minutes: ${{ github.event_name == 'pull_request' && (inputs.pull_request_timeout_minutes > 360 && 360 || inputs.pull_request_timeout_minutes > 0 && inputs.pull_request_timeout_minutes || 25) || (inputs.timeout_minutes < fromJSON(inputs.scenario_timeout_floors)[matrix.scenario] && fromJSON(inputs.scenario_timeout_floors)[matrix.scenario] || inputs.timeout_minutes) }} # pr-policy: bounded-timeout-input caller PR timeout capped at 360 minutes
+    steps: []
+"""
+        self.assertEqual([], pr_policy.analyze(Path("bounded-inputs.yml"), source))
+
+    def test_bounded_caller_timeout_input_rejects_a_higher_cap_and_unknown_input(self):
+        source = """\
+name: invalid-bounded-input
+on: workflow_call
+jobs:
+  too_high:
+    timeout-minutes: ${{ github.event_name == 'pull_request' && (inputs.pull_request_timeout_minutes > 480 && 480 || inputs.pull_request_timeout_minutes > 0 && inputs.pull_request_timeout_minutes || 25) || inputs.timeout_minutes }} # pr-policy: bounded-timeout-input caller PR timeout
+    steps: []
+  unknown:
+    timeout-minutes: ${{ github.event_name == 'pull_request' && (inputs.custom_timeout_minutes > 360 && 360 || inputs.custom_timeout_minutes > 0 && inputs.custom_timeout_minutes || 25) || inputs.timeout_minutes }} # pr-policy: bounded-timeout-input caller PR timeout
+    steps: []
+"""
+        lines = [
+            line
+            for line, rule, _ in pr_policy.analyze(Path("invalid-bounded-input.yml"), source)
+            if rule == "timeout-minutes"
+        ]
+        self.assertEqual([6, 9], lines)
+
     def test_reports_timeout_depth_and_ref_violations(self):
         source = """\
 name: invalid
