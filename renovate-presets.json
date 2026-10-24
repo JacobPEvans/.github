@@ -78,7 +78,8 @@
       "description": "Track annotated version pins in Nix files; hashes are updated separately.",
       "customType": "regex",
       "managerFilePatterns": [
-        "/\\.nix$/"
+        "/\\.nix$/",
+        "/\\.sh$/"
       ],
       "matchStrings": [
         "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)(?: versioning=(?<versioning>\\S+))?\\s+\\S+\\s*=\\s*\"(?<currentValue>[^\"]+)\""
