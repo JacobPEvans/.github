@@ -39,6 +39,7 @@
     ".github/aw/**"
   ],
   "minimumReleaseAge": "7 days",
+  "prCreation": "not-pending",
   "timezone": "America/Indiana/Indianapolis",
   "schedule": [
     "* 0-5 * * 6"
