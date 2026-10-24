@@ -32,4 +32,4 @@ if [[ -z "${ACTIONLINT_BIN:-}" ]]; then
   ACTIONLINT_BIN="${scratch}/actionlint"
 fi
 
-"$ACTIONLINT_BIN" -ignore "$IGNORE"
+"$ACTIONLINT_BIN" -config-file .gh-shared/.github/actionlint.yaml -ignore "$IGNORE"
