@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.32.0](https://github.com/JacobPEvans/.github/compare/v1.31.0...v1.32.0) (2026-10-24)
+
+
+### Features
+
+* **renovate:** track annotated GitHub flake input tag pins in Nix files ([#108](https://github.com/JacobPEvans/.github/issues/108)) ([e7d8c1b](https://github.com/JacobPEvans/.github/commit/e7d8c1b88596fb578eeb490d56d6835c7bc8a18b))
+
 ## [1.31.0](https://github.com/JacobPEvans/.github/compare/v1.30.1...v1.31.0) (2026-10-24)
 
 
