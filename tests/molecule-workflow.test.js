@@ -105,6 +105,20 @@ test('Galaxy cache, installation, and refresh controls cover caller modes', () =
   assert.match(workflow, /git\+https:\/\/github\.com\/dryvist\/homelab-contracts\.git#\/ansible\/,v5/);
 });
 
+test('Galaxy cache and Ansible search paths share the configured Ansible home', () => {
+  const homeStep = workflow.split('- name: Set Ansible home\n')[1]?.split('\n      - name: Set up Python')[0] ?? '';
+  assert.match(homeStep, /id: ansible-home/);
+  assert.match(homeStep, /shared\) ansible_home="\$HOME\/\.ansible"/);
+  assert.match(homeStep, /runner_temp\) ansible_home="\$RUNNER_TEMP\/ansible-home"/);
+  assert.match(homeStep, /echo "ANSIBLE_HOME=\$ansible_home"[\s\S]*?echo "ANSIBLE_ROLES_PATH=\$ansible_home\/roles"[\s\S]*?echo "ANSIBLE_COLLECTIONS_PATH=\$ansible_home\/collections"\n\s+\} >> "\$GITHUB_ENV"/);
+  assert.match(homeStep, /echo "ansible_home=\$ansible_home" >> "\$GITHUB_OUTPUT"/);
+
+  const cacheStep = workflow.split('- name: Cache Ansible Galaxy content\n')[1]?.split('\n      - name: Install Ansible Galaxy requirements')[0] ?? '';
+  assert.match(cacheStep, /\$\{\{ steps\.ansible-home\.outputs\.ansible_home \}\}\/collections/);
+  assert.match(cacheStep, /\$\{\{ steps\.ansible-home\.outputs\.ansible_home \}\}\/roles/);
+  assert.doesNotMatch(cacheStep, /\$\{\{\s*env\.ANSIBLE_HOME/);
+});
+
 test('Doppler output stays out of the job environment and only configured keys are mapped', () => {
   assert.match(workflow, /DOPPLER_TOKEN:\n[\s\S]*?required: false/);
   assert.match(workflow, /HOMARR_GITHUB_TOKEN:\n[\s\S]*?required: false/);
