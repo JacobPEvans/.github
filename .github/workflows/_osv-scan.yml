@@ -60,7 +60,7 @@ jobs:
         run: |
           set -euo pipefail
           # renovate: datasource=github-releases depName=google/osv-scanner
-          OSV_SCANNER_VERSION="v2.6.0"
+          OSV_SCANNER_VERSION="v2.7.0"
           case "$(uname -s)" in
             Linux) os=linux ;;
             Darwin) os=darwin ;;

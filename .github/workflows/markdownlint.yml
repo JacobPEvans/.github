@@ -24,7 +24,7 @@ concurrency:
 jobs:
   markdownlint:
     name: Lint
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: ${{ github.event_name == 'pull_request' && 5 || 30 }}
     steps:
       - name: Checkout target repo
