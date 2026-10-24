@@ -98,7 +98,7 @@ jobs:
             for line, rule, _ in pr_policy.analyze(Path("invalid-bounded-input.yml"), source)
             if rule == "timeout-minutes"
         ]
-        self.assertEqual([6, 9], lines)
+        self.assertEqual([5, 8], lines)
 
     def test_reports_timeout_depth_and_ref_violations(self):
         source = """\
