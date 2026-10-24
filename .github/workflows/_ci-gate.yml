@@ -1026,7 +1026,9 @@ jobs:
           repository: JacobPEvans/.github
           ref: ${{ job.workflow_sha }}
           path: .gh-shared
-          sparse-checkout: scripts/ci-gate-workflow-lint.sh
+          sparse-checkout: |
+            .github/actionlint.yaml
+            scripts/ci-gate-workflow-lint.sh
           sparse-checkout-cone-mode: false
       - name: Lint caller workflows with the pinned actionlint
         run: bash .gh-shared/scripts/ci-gate-workflow-lint.sh
