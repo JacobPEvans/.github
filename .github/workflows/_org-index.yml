@@ -111,15 +111,17 @@ jobs:
             ($all | map(select(.isArchived | not))) as $active |
             ($all | map(select(.isArchived))) as $archived |
             {
-              markdown:
+              markdown: (
                 "## Repositories\n\n" +
                 (if ($active | length) > 0 then groups($active) else "_No repositories._" end) +
                 "\n\n<details>\n<summary>Archived repositories (\($archived | length))</summary>\n\n" +
                 (if ($archived | length) > 0 then groups($archived) else "_No archived repositories._" end) +
-                "\n\n</details>",
-              llms:
+                "\n\n</details>"
+              ),
+              llms: (
                 "# \($org)\n\nRepository index for the \($org) GitHub organization.\n\n## Repositories\n\n" +
                 ($all | map("- [\(.name)](\(.url)): \(((.description // "") | cell))") | join("\n"))
+              )
             }
           ' > "$RUNNER_TEMP/rendered.json"
           jq -r '.markdown' "$RUNNER_TEMP/rendered.json" > "$RUNNER_TEMP/org-index.md"
