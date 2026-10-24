@@ -26,6 +26,7 @@ test('the Molecule reusable declares the approved input contract with workflow-c
     'scenario_name_profile',
     'scenario_require_molecule_yml',
     'preflight_command',
+    'static_checks',
     'discover_runner',
     'runner_label',
     'public_and_fork_hosted',
@@ -42,6 +43,7 @@ test('the Molecule reusable declares the approved input contract with workflow-c
     'galaxy_cache_restore_prefix',
     'galaxy_install_mode',
     'galaxy_install_script',
+    'galaxy_force_install',
     'galaxy_retry_attempts',
     'galaxy_retry_wait_seconds',
     'galaxy_step_timeout_minutes',
@@ -54,6 +56,8 @@ test('the Molecule reusable declares the approved input contract with workflow-c
     'docker_prune',
     'nix_scenarios',
     'molecule_args',
+    'pre_steps_script',
+    'extra_env',
     'molecule_workdir_mode',
     'molecule_scenario_arg',
     'instance_suffix',
@@ -69,7 +73,16 @@ test('the Molecule reusable declares the approved input contract with workflow-c
     assert.match(declaration, /^        type: (boolean|number|string)$/m, `${name} has a workflow-call type`);
   }
 
-  for (const name of ['scenarios', 'scenario_timeout_floors', 'requirements_files', 'nix_scenarios', 'test_secret_env_map']) {
+  for (const name of [
+    'scenarios',
+    'scenario_timeout_floors',
+    'requirements_files',
+    'nix_scenarios',
+    'test_secret_env_map',
+    'static_checks',
+    'pre_steps_script',
+    'extra_env',
+  ]) {
     const declaration = inputDeclaration(name);
     assert.match(declaration, /^        type: string$/m, `${name} carries JSON in a string input`);
   }
@@ -103,6 +116,38 @@ test('Galaxy cache, installation, and refresh controls cover caller modes', () =
   assert.match(workflow, /galaxy_refresh_contracts_v5 == 'on_cache_hit'/);
   assert.match(workflow, /galaxy_refresh_contracts_v5 == 'always'/);
   assert.match(workflow, /git\+https:\/\/github\.com\/dryvist\/homelab-contracts\.git#\/ansible\/,v5/);
+  assert.match(inputDeclaration('galaxy_force_install'), /type: boolean[\s\S]*?default: false/);
+  assert.match(workflow, /inputs\.galaxy_force_install/);
+  assert.match(workflow, /GALAXY_FORCE_INSTALL: \$\{\{ inputs\.galaxy_force_install \}\}/);
+  assert.match(workflow, /ansible-galaxy install -r requirements\.yml --force/);
+});
+
+test('optional static checks run once in discovery and pre-Molecule scripts are caller-relative', () => {
+  assert.match(inputDeclaration('static_checks'), /default: ""/);
+  const staticChecks = workflow.split('- name: Run caller static checks\n')[1]?.split('\n      - name: Discover scenario directories')[0] ?? '';
+  assert.match(staticChecks, /if: \$\{\{ inputs\.static_checks != '' \}\}/);
+  assert.match(staticChecks, /bash -euo pipefail -c "\$command"/);
+
+  assert.match(inputDeclaration('pre_steps_script'), /default: ""/);
+  const preSteps = workflow.split('- name: Run caller pre-Molecule script\n')[1]?.split('\n      - name: Expose additional non-secret Molecule environment')[0] ?? '';
+  assert.match(preSteps, /PRE_STEPS_SCRIPT: \$\{\{ inputs\.pre_steps_script \}\}/);
+  assert.match(preSteps, /script\.is_relative_to\(root\)/);
+  assert.match(preSteps, /bash "\$PRE_STEPS_SCRIPT" "\$MOLECULE_SCENARIO"/);
+});
+
+test('extra Molecule environment accepts non-secret KEY=VALUE lines without shell evaluation', () => {
+  assert.match(inputDeclaration('extra_env'), /default: ""/);
+  const extraEnv = workflow.split('- name: Expose additional non-secret Molecule environment\n')[1]?.split('\n      - name: Fetch secrets from Doppler')[0] ?? '';
+  assert.match(extraEnv, /EXTRA_ENV: \$\{\{ inputs\.extra_env \}\}/);
+  assert.match(extraEnv, /line\.split\("=", 1\)/);
+  assert.match(extraEnv, /name\.startswith\(\("GITHUB_", "RUNNER_"\)\)/);
+  assert.match(extraEnv, /env_file\.write\(f"\{name\}=\{value\}\\n"\)/);
+  assert.doesNotMatch(extraEnv, /eval|bash -c/);
+  assert.ok(
+    workflow.indexOf('- name: Expose additional non-secret Molecule environment')
+      < workflow.indexOf('- name: Expose selected secrets to Molecule'),
+    'mapped secrets are staged after optional non-secret environment values',
+  );
 });
 
 test('Galaxy cache and Ansible search paths share the configured Ansible home', () => {
