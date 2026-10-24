@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.32.1](https://github.com/JacobPEvans/.github/compare/v1.32.0...v1.32.1) (2026-10-24)
+
+
+### Bug Fixes
+
+* **renovate:** hold PR creation until status checks complete ([#107](https://github.com/JacobPEvans/.github/issues/107)) ([00e84b8](https://github.com/JacobPEvans/.github/commit/00e84b8daa96cf6fcde9b541e63e3af57cb72ba2))
+
 ## [1.32.0](https://github.com/JacobPEvans/.github/compare/v1.31.0...v1.32.0) (2026-10-24)
 
 
