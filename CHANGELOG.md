@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.32.2](https://github.com/JacobPEvans/.github/compare/v1.32.1...v1.32.2) (2026-10-24)
+
+
+### CI
+
+* set shared Galaxy retry wait by default ([#112](https://github.com/JacobPEvans/.github/issues/112)) ([a618d35](https://github.com/JacobPEvans/.github/commit/a618d350c6a8d69af479595a6377ccf9d9c2930c))
+* use shared actionlint runner config ([#111](https://github.com/JacobPEvans/.github/issues/111)) ([d4406ba](https://github.com/JacobPEvans/.github/commit/d4406ba2165f60a262291946fd5d89c5357ecc3f))
+
 ## [1.32.1](https://github.com/JacobPEvans/.github/compare/v1.32.0...v1.32.1) (2026-10-24)
 
 
