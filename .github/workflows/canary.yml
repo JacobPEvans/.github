@@ -88,6 +88,10 @@ jobs:
       pull-requests: read
       actions: write
     uses: ./.github/workflows/_ci-gate.yml
+    secrets:
+      GITLEAKS_PRIVATE_CONFIG: ${{ secrets.GITLEAKS_PRIVATE_CONFIG }}
+      GITLEAKS_LICENSE_KEY: ${{ secrets.GITLEAKS_LICENSE_KEY }}
+      DISCLOSURE_DENYLIST: ${{ secrets.DISCLOSURE_DENYLIST }}
     with:
       filters: |
         ansible:
@@ -106,6 +110,10 @@ jobs:
       pull-requests: read
       actions: write
     uses: ./.github/workflows/_ci-gate.yml
+    secrets:
+      GITLEAKS_PRIVATE_CONFIG: ${{ secrets.GITLEAKS_PRIVATE_CONFIG }}
+      GITLEAKS_LICENSE_KEY: ${{ secrets.GITLEAKS_LICENSE_KEY }}
+      DISCLOSURE_DENYLIST: ${{ secrets.DISCLOSURE_DENYLIST }}
     with:
       filters: |
         nix:
@@ -123,6 +131,10 @@ jobs:
       pull-requests: read
       actions: write
     uses: ./.github/workflows/_ci-gate.yml
+    secrets:
+      GITLEAKS_PRIVATE_CONFIG: ${{ secrets.GITLEAKS_PRIVATE_CONFIG }}
+      GITLEAKS_LICENSE_KEY: ${{ secrets.GITLEAKS_LICENSE_KEY }}
+      DISCLOSURE_DENYLIST: ${{ secrets.DISCLOSURE_DENYLIST }}
     with:
       # The gate exports no `terraform` output, so `extra` mirrors the same
       # pattern and gives the summary a change-detection value to read.
@@ -147,6 +159,10 @@ jobs:
       pull-requests: read
       actions: write
     uses: ./.github/workflows/_ci-gate.yml
+    secrets:
+      GITLEAKS_PRIVATE_CONFIG: ${{ secrets.GITLEAKS_PRIVATE_CONFIG }}
+      GITLEAKS_LICENSE_KEY: ${{ secrets.GITLEAKS_LICENSE_KEY }}
+      DISCLOSURE_DENYLIST: ${{ secrets.DISCLOSURE_DENYLIST }}
     with:
       filters: |
         python:
@@ -164,6 +180,10 @@ jobs:
       pull-requests: read
       actions: write
     uses: ./.github/workflows/_ci-gate.yml
+    secrets:
+      GITLEAKS_PRIVATE_CONFIG: ${{ secrets.GITLEAKS_PRIVATE_CONFIG }}
+      GITLEAKS_LICENSE_KEY: ${{ secrets.GITLEAKS_LICENSE_KEY }}
+      DISCLOSURE_DENYLIST: ${{ secrets.DISCLOSURE_DENYLIST }}
     with:
       filters: |
         markdown:
