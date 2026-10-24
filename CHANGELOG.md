@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.29.3](https://github.com/JacobPEvans/.github/compare/v1.29.2...v1.29.3) (2026-10-24)
+
+
+### Bug Fixes
+
+* capture extractVersion in Renovate annotations ([04e52a4](https://github.com/JacobPEvans/.github/commit/04e52a4b112225e4ab2fe4c64d498b12287d4a0b))
+
 ## [1.29.2](https://github.com/JacobPEvans/.github/compare/v1.29.1...v1.29.2) (2026-10-24)
 
 
