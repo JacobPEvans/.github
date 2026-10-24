@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.30.0](https://github.com/JacobPEvans/.github/compare/v1.29.4...v1.30.0) (2026-10-24)
+
+
+### Features
+
+* add caller controls to Molecule workflow ([#100](https://github.com/JacobPEvans/.github/issues/100)) ([efc2069](https://github.com/JacobPEvans/.github/commit/efc2069151a8f1bfd1fdcb2be330787b273f4a7b))
+
 ## [1.29.4](https://github.com/JacobPEvans/.github/compare/v1.29.3...v1.29.4) (2026-10-24)
 
 
