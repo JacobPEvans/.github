@@ -114,9 +114,8 @@ jobs:
               markdown: (
                 "## Repositories\n\n" +
                 (if ($active | length) > 0 then groups($active) else "_No repositories._" end) +
-                "\n\n<details>\n<summary>Archived repositories (\($archived | length))</summary>\n\n" +
-                (if ($archived | length) > 0 then groups($archived) else "_No archived repositories._" end) +
-                "\n\n</details>"
+                "\n\n## Archived repositories (\($archived | length))\n\n" +
+                (if ($archived | length) > 0 then groups($archived) else "_No archived repositories._" end)
               ),
               llms: (
                 "# \($org)\n\nRepository index for the \($org) GitHub organization.\n\n## Repositories\n\n" +
