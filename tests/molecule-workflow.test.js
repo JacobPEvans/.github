@@ -87,6 +87,8 @@ test('scenario discovery, runner selection, matrix scheduling, and timeouts are 
   assert.match(workflow, /scenario_discovery == 'repo_script'/);
   assert.match(workflow, /caller_supplied/);
   assert.match(workflow, /scenario_timeout_floors\)\[matrix\.scenario\]/);
+  assert.match(workflow, /github\.event_name == 'pull_request' && 15 \|\| inputs\.discover_timeout_minutes.*pr-policy: timeout-exception/);
+  assert.match(workflow, /github\.event_name == 'pull_request' && 25 \|\| \(inputs\.timeout_minutes.*pr-policy: timeout-exception/);
   assert.match(workflow, /public_and_fork_hosted && \(github\.event\.repository\.private == false \|\| github\.event\.pull_request\.head\.repo\.fork\)/);
   assert.match(workflow, /max-parallel: \$\{\{ inputs\.max_parallel \|\| 256 \}\}/);
   assert.match(workflow, /serialize_scenario && format\('molecule-/);
