@@ -83,7 +83,8 @@
         "/\\.sh$/"
       ],
       "matchStrings": [
-        "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)(?: versioning=(?<versioning>\\S+))?\\s+\\S+\\s*=\\s*\"(?<currentValue>[^\"]+)\""
+        "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)(?: versioning=(?<versioning>\\S+))?\\s+\\S+\\s*=\\s*\"(?<currentValue>[^\"]+)\"",
+        "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)(?: versioning=(?<versioning>\\S+))?[^\\n]*\\n(?:\\s*#[^\\n]*\\n|\\s*[\\w\\-]+\\s*=\\s*\\{[^\\n]*\\n)*\\s*url\\s*=\\s*\"github:[^/\\s\"]+/[^/?\\s\"]+(?:/|\\?ref=)(?<currentValue>v?[0-9][^\"\\s]*)\";"
       ],
       "versioningTemplate": "{{#if versioning}}{{{versioning}}}{{else}}semver-coerced{{/if}}"
     },
