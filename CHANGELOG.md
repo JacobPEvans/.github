@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.34.2](https://github.com/JacobPEvans/.github/compare/v1.34.1...v1.34.2) (2026-10-24)
+
+
+### Bug Fixes
+
+* **org-index:** render archived repos under a plain heading ([#125](https://github.com/JacobPEvans/.github/issues/125)) ([15cd1f0](https://github.com/JacobPEvans/.github/commit/15cd1f00c3469a8be25aca21b68609649aa987f9))
+
 ## [1.34.1](https://github.com/JacobPEvans/.github/compare/v1.34.0...v1.34.1) (2026-10-24)
 
 
