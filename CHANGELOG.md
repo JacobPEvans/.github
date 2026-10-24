@@ -1,5 +1,106 @@
 # Changelog
 
+## [1.32.3](https://github.com/JacobPEvans/.github/compare/v1.32.2...v1.32.3) (2026-10-24)
+
+
+### CI
+
+* leave Markdown and YAML to their linters ([#114](https://github.com/JacobPEvans/.github/issues/114)) ([4b33cb9](https://github.com/JacobPEvans/.github/commit/4b33cb981354a20324ea85a04f0b5dd0ecc55c80))
+
+## [1.32.2](https://github.com/JacobPEvans/.github/compare/v1.32.1...v1.32.2) (2026-10-24)
+
+
+### CI
+
+* set shared Galaxy retry wait by default ([#112](https://github.com/JacobPEvans/.github/issues/112)) ([a618d35](https://github.com/JacobPEvans/.github/commit/a618d350c6a8d69af479595a6377ccf9d9c2930c))
+* use shared actionlint runner config ([#111](https://github.com/JacobPEvans/.github/issues/111)) ([d4406ba](https://github.com/JacobPEvans/.github/commit/d4406ba2165f60a262291946fd5d89c5357ecc3f))
+
+## [1.32.1](https://github.com/JacobPEvans/.github/compare/v1.32.0...v1.32.1) (2026-10-24)
+
+
+### Bug Fixes
+
+* **renovate:** hold PR creation until status checks complete ([#107](https://github.com/JacobPEvans/.github/issues/107)) ([00e84b8](https://github.com/JacobPEvans/.github/commit/00e84b8daa96cf6fcde9b541e63e3af57cb72ba2))
+
+## [1.32.0](https://github.com/JacobPEvans/.github/compare/v1.31.0...v1.32.0) (2026-10-24)
+
+
+### Features
+
+* **renovate:** track annotated GitHub flake input tag pins in Nix files ([#108](https://github.com/JacobPEvans/.github/issues/108)) ([e7d8c1b](https://github.com/JacobPEvans/.github/commit/e7d8c1b88596fb578eeb490d56d6835c7bc8a18b))
+
+## [1.31.0](https://github.com/JacobPEvans/.github/compare/v1.30.1...v1.31.0) (2026-10-24)
+
+
+### Features
+
+* add optional flake lock freshness gate ([060bc08](https://github.com/JacobPEvans/.github/commit/060bc08faad5d82b06a64d95f642a8ad5b6891bf))
+
+## [1.30.1](https://github.com/JacobPEvans/.github/compare/v1.30.0...v1.30.1) (2026-10-24)
+
+
+### Bug Fixes
+
+* expose Molecule PR timeouts and role path controls ([#102](https://github.com/JacobPEvans/.github/issues/102)) ([ef7bc85](https://github.com/JacobPEvans/.github/commit/ef7bc85dd496aa81baad55db22fec5413990f1cc))
+
+## [1.30.0](https://github.com/JacobPEvans/.github/compare/v1.29.4...v1.30.0) (2026-10-24)
+
+
+### Features
+
+* add caller controls to Molecule workflow ([#100](https://github.com/JacobPEvans/.github/issues/100)) ([efc2069](https://github.com/JacobPEvans/.github/commit/efc2069151a8f1bfd1fdcb2be330787b273f4a7b))
+
+## [1.29.4](https://github.com/JacobPEvans/.github/compare/v1.29.3...v1.29.4) (2026-10-24)
+
+
+### Bug Fixes
+
+* **renovate:** track annotated Packer plugin pins ([#98](https://github.com/JacobPEvans/.github/issues/98)) ([2bae387](https://github.com/JacobPEvans/.github/commit/2bae38704c373fcbf3847c8f8679d95b57960be1))
+
+## [1.29.3](https://github.com/JacobPEvans/.github/compare/v1.29.2...v1.29.3) (2026-10-24)
+
+
+### Bug Fixes
+
+* capture extractVersion in Renovate annotations ([04e52a4](https://github.com/JacobPEvans/.github/commit/04e52a4b112225e4ab2fe4c64d498b12287d4a0b))
+
+## [1.29.2](https://github.com/JacobPEvans/.github/compare/v1.29.1...v1.29.2) (2026-10-24)
+
+
+### Bug Fixes
+
+* align Galaxy paths with configured Ansible home ([f369c8b](https://github.com/JacobPEvans/.github/commit/f369c8bbf9a076b9b7d5ce1baee78a4a2b965b06))
+
+## [1.29.1](https://github.com/JacobPEvans/.github/compare/v1.29.0...v1.29.1) (2026-10-24)
+
+
+### Bug Fixes
+
+* escape regex metacharacters in CI gate test ([63fc37c](https://github.com/JacobPEvans/.github/commit/63fc37cad52a90970b6b9f362c9f85ca3ccf0460))
+
+## [1.29.0](https://github.com/JacobPEvans/.github/compare/v1.28.4...v1.29.0) (2026-10-24)
+
+
+### Features
+
+* add reusable Molecule workflow ([ff99e0c](https://github.com/JacobPEvans/.github/commit/ff99e0c8ff1871205067619b9094307f4d161219))
+* Merge pull request [#88](https://github.com/JacobPEvans/.github/issues/88) from JacobPEvans/feat/molecule-central ([ff99e0c](https://github.com/JacobPEvans/.github/commit/ff99e0c8ff1871205067619b9094307f4d161219))
+
+## [1.28.4](https://github.com/JacobPEvans/.github/compare/v1.28.3...v1.28.4) (2026-10-24)
+
+
+### Bug Fixes
+
+* **ci:** Merge pull request [#87](https://github.com/JacobPEvans/.github/issues/87) from JacobPEvans/fix/restore-cribl-pack-validate ([088ce44](https://github.com/JacobPEvans/.github/commit/088ce446d813133ce5af0f23fb0f62c8c789fd8a))
+* **ci:** restore reusable Cribl pack validation ([088ce44](https://github.com/JacobPEvans/.github/commit/088ce446d813133ce5af0f23fb0f62c8c789fd8a))
+
+## [1.28.3](https://github.com/JacobPEvans/.github/compare/v1.28.2...v1.28.3) (2026-10-24)
+
+
+### Bug Fixes
+
+* **renovate:** cover annotated shell pins in shared manager ([#86](https://github.com/JacobPEvans/.github/issues/86)) ([9a41d5b](https://github.com/JacobPEvans/.github/commit/9a41d5b1608dfe0ffe5501794de77914292b63ed))
+
 ## [1.28.2](https://github.com/JacobPEvans/.github/compare/v1.28.1...v1.28.2) (2026-10-23)
 
 

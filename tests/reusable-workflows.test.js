@@ -10,8 +10,10 @@ const readWorkflow = (name) => readFileSync(`${workflowsDir}${name}`, 'utf8');
 const workflows = readdirSync(workflowsDir).filter((name) => name.endsWith('.yml'));
 const reusables = workflows.filter((name) => /^ {2}workflow_call:/m.test(readWorkflow(name)));
 
-test('the scan finds the shared gate among the reusable workflows', () => {
-  assert.ok(reusables.includes('_ci-gate.yml'), `reusables found: ${reusables.join(', ')}`);
+test('the scan finds the shared gate and Cribl pack validator among the reusable workflows', () => {
+  for (const name of ['_ci-gate.yml', '_cribl-pack-validate.yml']) {
+    assert.ok(reusables.includes(name), `reusables found: ${reusables.join(', ')}`);
+  }
 });
 
 // The top-level concurrency block of a workflow, or null when it has none.
@@ -60,4 +62,18 @@ test('ansible_lint_args is declared on the gate and forwarded to lint_args', () 
   const gate = readWorkflow('_ci-gate.yml');
   assert.match(gate, /^ {6}ansible_lint_args:$/m);
   assert.match(gate, /^ {6}lint_args: \$\{\{ inputs\.ansible_lint_args \}\}$/m);
+});
+
+test('flake lock freshness is optional and included in the merge gate', () => {
+  const gate = readWorkflow('_ci-gate.yml');
+  assert.match(
+    gate,
+    /^      flake_lock_max_age_days:\n(?:        .*\n)*?        type: number\n(?:        .*\n)*?        default: 0$/m,
+  );
+  assert.match(
+    gate,
+    /^  flake-lock-fresh:\n    name: Flake Lock Fresh\n    if: \$\{\{ inputs\.flake_lock_max_age_days > 0 \}\}\n    permissions:\n      contents: read\n    uses: dryvist\/\.github\/\.github\/workflows\/_flake-lock-fresh\.yml@[0-9a-f]{40} # PR #426 merge commit\n    with:\n      max_age_days: \$\{\{ inputs\.flake_lock_max_age_days \}\}$/m,
+  );
+  assert.match(gate, /^    needs: \[.*\bflake-lock-fresh\b.*\]$/m);
+  assert.match(gate, /^          CI_GATE_ALLOWED_SKIPS: >-\n(?:^            .*\n)*?^            .*flake-lock-fresh/m);
 });

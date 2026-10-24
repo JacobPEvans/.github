@@ -18,7 +18,11 @@
       "!**/.direnv",
       "!**/default",
       "!**/data/samples",
-      "!**/tests/fixtures"
+      "!**/tests/fixtures",
+      // Markdown and YAML belong to markdownlint and yamllint.
+      "!**/*.md",
+      "!**/*.yml",
+      "!**/*.yaml"
     ]
   },
   "formatter": {

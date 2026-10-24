@@ -53,7 +53,7 @@ jobs:
     if: >-
       github.event_name == 'pull_request' ||
       startsWith(github.event.head_commit.message, 'chore(main): release ')
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: ${{ github.event_name == 'pull_request' && 5 || 30 }}
     permissions:
       contents: read
@@ -226,7 +226,7 @@ jobs:
     needs: [scope]
     if: needs.scope.outputs.run == 'true'
     name: Template Callers
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: ${{ github.event_name == 'pull_request' && 5 || 30 }}
     permissions:
       contents: read
@@ -256,7 +256,7 @@ jobs:
     if: >-
       always() && (github.event_name == 'pull_request' ||
       startsWith(github.event.head_commit.message, 'chore(main): release '))
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: ${{ github.event_name == 'pull_request' && 5 || 30 }}
     permissions: {}
     steps:
@@ -331,7 +331,7 @@ jobs:
       needs.docs.result == 'success' && needs.docs.outputs.markdown == 'true' &&
       needs.ansible-direct.result == 'success' &&
       needs.template-callers.result == 'success'
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: ${{ github.event_name == 'pull_request' && 5 || 30 }}
     permissions:
       contents: write
@@ -343,7 +343,7 @@ jobs:
       # The tag push needs the workflows permission, which github.token can never hold.
       - name: Mint the App token
         id: app-token
-        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3
         with:
           client-id: ${{ vars.GH_ACTION_RELEASE_PLEASE_APP_ID }}
           private-key: ${{ secrets.GH_ACTION_RELEASE_PLEASE_PRIVATE_KEY }}

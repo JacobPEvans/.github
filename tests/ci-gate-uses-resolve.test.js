@@ -64,7 +64,7 @@ test('a dryvist ref outside the public shared repos is not checked, only noticed
   const run = runInCaller(`jobs:\n  a:\n    uses: ${ref}\n`, {}, { PIN_POLICY_MODE: 'warn' });
 
   assert.equal(run.status, 0, run.stdout + run.stderr);
-  assert.match(run.stdout, new RegExp(`::notice::not checked \\(${ref.replace(/[./]/g, '\\$&')}\\)`));
+  assert.match(run.stdout, new RegExp(`::notice::not checked \\(${ref.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\)`));
   assert.doesNotMatch(run.stdout, /::error/);
 });
 
