@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.32.3](https://github.com/JacobPEvans/.github/compare/v1.32.2...v1.32.3) (2026-10-24)
+
+
+### CI
+
+* leave Markdown and YAML to their linters ([#114](https://github.com/JacobPEvans/.github/issues/114)) ([4b33cb9](https://github.com/JacobPEvans/.github/commit/4b33cb981354a20324ea85a04f0b5dd0ecc55c80))
+
 ## [1.32.2](https://github.com/JacobPEvans/.github/compare/v1.32.1...v1.32.2) (2026-10-24)
 
 
