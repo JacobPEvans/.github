@@ -11,6 +11,7 @@ on:
       - 'tests/**'
       - '.github/workflows/_ci-gate.yml'
       - '.github/workflows/_ansible-ci.yml'
+      - '.github/workflows/_cribl-pack-validate.yml'
       - '.github/workflows/renovate-config-validate.yml'
       - '.github/workflows/_renovate-annotations.yml'
       - 'scripts/check-renovate-annotations.sh'
