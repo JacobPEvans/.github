@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.34.1](https://github.com/JacobPEvans/.github/compare/v1.34.0...v1.34.1) (2026-10-24)
+
+
+### Bug Fixes
+
+* **org-index:** parenthesize the rendered object values ([#122](https://github.com/JacobPEvans/.github/issues/122)) ([a91de2c](https://github.com/JacobPEvans/.github/commit/a91de2cf147e76542642a76faa8f19390079e677))
+
 ## [1.34.0](https://github.com/JacobPEvans/.github/compare/v1.33.1...v1.34.0) (2026-10-24)
 
 
