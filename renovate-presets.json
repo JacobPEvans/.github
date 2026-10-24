@@ -203,7 +203,7 @@
         "/(^|/)requirements\\.ya?ml$/"
       ],
       "matchStrings": [
-        "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+) currentValue=(?<currentValue>\\S+)[^\\n]*\\n(?:[^\\n]*\\n)*?\\s*version:\\s*[\"']?(?<currentDigest>[0-9a-fA-F]{40})[\"']?"
+        "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+) currentValue=(?<currentValue>\\S+)(?: extractVersion=(?<extractVersion>\\S+))?[^\\n]*\\n(?:[^\\n]*\\n)*?\\s*version:\\s*[\"']?(?<currentDigest>[0-9a-fA-F]{40})[\"']?"
       ]
     },
     {
@@ -226,6 +226,8 @@
         "/\\.ya?ml$/"
       ],
       "matchStrings": [
+        "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)(?: versioning=(?<versioning>\\S+))? currentValue=(?<currentValue>\\S+)(?: extractVersion=(?<extractVersion>\\S+))?[^\\n]*\\n(?:\\s*#[^\\n]*\\n)*\\s*[\\w.\\-]+\\s*:\\s*[\"']?(?<currentDigest>[0-9a-fA-F]{40})[\"']?[^\\n]*",
+        "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)(?: versioning=(?<versioning>\\S+))? currentValue=(?<currentValue>\\S+)(?: extractVersion=(?<extractVersion>\\S+))?[^\\n]*\\n(?:\\s*#[^\\n]*\\n)*\\s*[\\w.\\-]+\\s*=\\s*[\"']?(?<currentDigest>[0-9a-fA-F]{40})[\"']?[^\\n]*",
         "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)(?: versioning=(?<versioning>\\S+))?[^\\n]*\\n(?:\\s*#[^\\n]*\\n)*\\s*[\\w.\\-]+\\s*:\\s*[\"']?(?<currentDigest>[0-9a-fA-F]{40})[\"']?[^\\n]*#\\s*(?<currentValue>v?\\d+\\.\\d+\\.\\d+[^\\s\"']*)",
         "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)(?: versioning=(?<versioning>\\S+))?[^\\n]*\\n(?:\\s*#[^\\n]*\\n)*\\s*[\\w.\\-]+\\s*=\\s*[\"']?(?<currentDigest>[0-9a-fA-F]{40})[\"']?[^\\n]*#\\s*(?<currentValue>v?\\d+\\.\\d+\\.\\d+[^\\s\"']*)"
       ],
