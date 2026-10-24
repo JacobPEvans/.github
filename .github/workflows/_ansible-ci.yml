@@ -265,7 +265,7 @@ jobs:
       # then the repo's own ansible.cfg roles_path (if any), then Galaxy roles.
       - name: Set Ansible roles path
         run: echo "ANSIBLE_ROLES_PATH=$GITHUB_WORKSPACE/roles:$(sed -n 's/^[[:space:]]*roles_path[[:space:]]*=[[:space:]]*\(.*[^[:space:]]\)[[:space:]]*$/\1:/p' ansible.cfg 2>/dev/null | head -n 1)$HOME/.ansible/roles" >> "$GITHUB_ENV"
-      - uses: ansible/ansible-lint@e7f397ad6dfa20d274afa17cd7bbedd84ed136f5 # v26
+      - uses: ansible/ansible-lint@9bce2bfb8f4a984e6b13767bc0d6bf0a49492164 # v26
         with:
           args: ${{ inputs.lint_args }}
 

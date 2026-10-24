@@ -8,7 +8,7 @@ permissions: {}
 jobs:
   policy:
     name: Workflow Policy
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 2
     permissions:
       contents: read
@@ -56,7 +56,7 @@ jobs:
   pr-title:
     name: PR Title
     if: ${{ contains(fromJSON('["opened", "edited", "synchronize", "reopened"]'), github.event.action) }}
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 5
     permissions:
       contents: read
