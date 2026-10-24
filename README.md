@@ -4,6 +4,45 @@ Reusable GitHub workflows for generic CI, releases, linting, validation, and rep
 
 AI review and agent automation workflows live in [JacobPEvans/.github-ai](https://github.com/JacobPEvans/.github-ai).
 
+## Reusable workflows
+
+| Workflow | Purpose | Inputs |
+| --- | --- | --- |
+| [`_org-index.yml`](.github/workflows/_org-index.yml) | Org index and `llms.txt`. | `visibility_scope`, `output_path`. |
+
+`visibility_scope` accepts `public` or `all`; `output_path` defaults to
+`profile/README.md`.
+
+The caller needs the `GH_ACTION_RELEASE_PLEASE_PRIVATE_KEY` secret and the
+`GH_ACTION_RELEASE_PLEASE_APP_ID` organization variable. The App needs contents
+and pull request write on the caller repository, plus repository metadata read
+for `visibility_scope: all`. Public scope lists repositories with the workflow
+token. All scope mints an organization read token. Both open the index pull
+request with a caller-repository token.
+
+`JacobPEvans/.github` calls this workflow weekly and on manual dispatch with
+`visibility_scope: public`. For `JacobPEvans/.github-private`, the caller is:
+
+```yaml
+name: Organization Index
+
+on:
+  schedule:
+    - cron: "17 8 * * 1"
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  org-index:
+    permissions: {}
+    uses: JacobPEvans/.github/.github/workflows/_org-index.yml@v1
+    with:
+      visibility_scope: all
+    secrets:
+      GH_ACTION_RELEASE_PLEASE_PRIVATE_KEY: ${{ secrets.GH_ACTION_RELEASE_PLEASE_PRIVATE_KEY }}
+```
+
 ## Molecule reusable workflow
 
 Callers of `.github/workflows/_molecule.yml` can set `galaxy_force_install` to
