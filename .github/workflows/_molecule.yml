@@ -3,7 +3,7 @@
 # Runs Molecule scenarios from the caller repository. Scenario filters,
 # required gates, and caller-local checks stay in the caller. This workflow
 # provides explicit controls for discovery, runners, dependencies, Galaxy,
-# runtime isolation, and narrowly mapped test secrets.
+# caller checks and setup, runtime isolation, and narrowly mapped test secrets.
 #
 # The test command is intentionally fixed: `molecule test -s
 # "$MOLECULE_SCENARIO"`, with optional Molecule arguments appended as argv.
@@ -46,6 +46,11 @@ on:
         default: false
       preflight_command:
         description: Optional argv-style preflight command, split without a shell, run in the caller checkout.
+        type: string
+        required: false
+        default: ""
+      static_checks:
+        description: Optional newline-separated shell commands run once in the scenario discovery job.
         type: string
         required: false
         default: ""
@@ -129,6 +134,11 @@ on:
         type: string
         required: false
         default: scripts/install_galaxy_requirements.py
+      galaxy_force_install:
+        description: Run built-in requirements installation on cache hits and pass --force.
+        type: boolean
+        required: false
+        default: false
       galaxy_retry_attempts:
         description: Maximum attempts for Galaxy installation.
         type: number
@@ -185,6 +195,16 @@ on:
         default: "[]"
       molecule_args:
         description: Optional Molecule argv appended to the fixed test invocation.
+        type: string
+        required: false
+        default: ""
+      pre_steps_script:
+        description: Optional caller-repository script run before each scenario; receives the scenario as its first argument.
+        type: string
+        required: false
+        default: ""
+      extra_env:
+        description: Optional newline-separated KEY=VALUE entries for non-secret Molecule environment variables.
         type: string
         required: false
         default: ""
@@ -265,6 +285,17 @@ jobs:
               sys.exit("preflight_command must contain at least one argv item")
           subprocess.run(command, check=True)
           PY
+
+      - name: Run caller static checks
+        if: ${{ inputs.static_checks != '' }}
+        env:
+          STATIC_CHECKS: ${{ inputs.static_checks }}
+        run: |
+          set -euo pipefail
+          while IFS= read -r command || [[ -n "$command" ]]; do
+            [[ -z "$command" ]] && continue
+            bash -euo pipefail -c "$command"
+          done <<< "$STATIC_CHECKS"
 
       - name: Discover scenario directories
         id: directories
@@ -598,7 +629,7 @@ jobs:
           restore-keys: ${{ inputs.galaxy_cache_restore_prefix }}
 
       - name: Install Ansible Galaxy requirements
-        if: ${{ inputs.galaxy_install_mode == 'collections_only' || !inputs.galaxy_cache_enabled || steps.galaxy-cache.outputs.cache-hit != 'true' }}
+        if: ${{ inputs.galaxy_install_mode == 'collections_only' || inputs.galaxy_force_install || !inputs.galaxy_cache_enabled || steps.galaxy-cache.outputs.cache-hit != 'true' }}
         uses: nick-fields/retry@ad984534de44a9489a53aefd81eb77f87c70dc60 # v4.0.0
         with:
           max_attempts: ${{ inputs.galaxy_retry_attempts }}
@@ -612,7 +643,11 @@ jobs:
             case "$GALAXY_INSTALL_MODE" in
               requirements)
                 if [[ -f requirements.yml ]]; then
-                  ansible-galaxy install -r requirements.yml
+                  if [[ "$GALAXY_FORCE_INSTALL" == true ]]; then
+                    ansible-galaxy install -r requirements.yml --force
+                  else
+                    ansible-galaxy install -r requirements.yml
+                  fi
                 else
                   echo "::notice::no requirements.yml, nothing to install"
                 fi
@@ -631,6 +666,7 @@ jobs:
         env:
           GALAXY_INSTALL_MODE: ${{ inputs.galaxy_install_mode }}
           GALAXY_INSTALL_SCRIPT: ${{ inputs.galaxy_install_script }}
+          GALAXY_FORCE_INSTALL: ${{ inputs.galaxy_force_install }}
           GALAXY_SERVER_TIMEOUT_SECONDS: ${{ inputs.galaxy_server_timeout_seconds }}
 
       - name: Refresh homelab-contracts v5
@@ -652,6 +688,75 @@ jobs:
         if: ${{ inputs.docker_prune }}
         run: docker system prune --force --volumes
         continue-on-error: true
+
+      - name: Run caller pre-Molecule script
+        if: ${{ inputs.pre_steps_script != '' }}
+        env:
+          PRE_STEPS_SCRIPT: ${{ inputs.pre_steps_script }}
+          MOLECULE_SCENARIO: ${{ inputs.molecule_scenario_arg == 'matrix' && matrix.scenario || inputs.molecule_scenario_arg }}
+        run: |
+          python3 - <<'PY'
+          import os
+          import sys
+          from pathlib import Path
+
+          root = Path.cwd().resolve()
+          script = Path(os.environ["PRE_STEPS_SCRIPT"])
+          if script.is_absolute() or ".." in script.parts:
+              sys.exit("pre_steps_script must be a caller-repository relative path")
+          script = (root / script).resolve()
+          if not script.is_relative_to(root) or not script.is_file():
+              sys.exit("pre_steps_script must name a file inside the caller repository")
+          PY
+          bash "$PRE_STEPS_SCRIPT" "$MOLECULE_SCENARIO"
+
+      - name: Expose additional non-secret Molecule environment
+        if: ${{ inputs.extra_env != '' }}
+        env:
+          EXTRA_ENV: ${{ inputs.extra_env }}
+        run: |
+          python3 - <<'PY'
+          import os
+          import re
+          import sys
+
+          valid_name = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+          reserved = {
+              "ANSIBLE_COLLECTIONS_PATH",
+              "ANSIBLE_FORCE_COLOR",
+              "ANSIBLE_HOME",
+              "ANSIBLE_ROLES_PATH",
+              "CI_INSTANCE_SUFFIX",
+              "DOCKER_TIMEOUT",
+              "DOCKER_TIMEOUT_SECONDS",
+              "HOMARR_GITHUB_TOKEN",
+              "MOLECULE_ARGS",
+              "MOLECULE_EPHEMERAL_DIRECTORY",
+              "MOLECULE_SCENARIO",
+              "PY_COLORS",
+          }
+          values = []
+          seen = set()
+          for line_number, line in enumerate(os.environ["EXTRA_ENV"].splitlines(), 1):
+              if not line.strip():
+                  continue
+              if "=" not in line:
+                  sys.exit(f"extra_env line {line_number} must use KEY=VALUE")
+              name, value = line.split("=", 1)
+              if (
+                  not valid_name.fullmatch(name)
+                  or name.startswith(("GITHUB_", "RUNNER_"))
+                  or name in reserved
+                  or name in seen
+              ):
+                  sys.exit(f"extra_env line {line_number} has an invalid, reserved, or duplicate name")
+              seen.add(name)
+              values.append((name, value))
+
+          with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as env_file:
+              for name, value in values:
+                  env_file.write(f"{name}={value}\n")
+          PY
 
       - name: Fetch secrets from Doppler
         id: doppler
