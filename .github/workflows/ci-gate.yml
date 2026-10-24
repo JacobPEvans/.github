@@ -30,10 +30,6 @@ jobs:
       # validation (startup_failure).
       actions: write
     uses: ./.github/workflows/_ci-gate.yml
-    secrets:
-      GITLEAKS_PRIVATE_CONFIG: ${{ secrets.GITLEAKS_PRIVATE_CONFIG }}
-      GITLEAKS_LICENSE_KEY: ${{ secrets.GITLEAKS_LICENSE_KEY }}
-      DISCLOSURE_DENYLIST: ${{ secrets.DISCLOSURE_DENYLIST }}
     with:
       nix_validate: true
       workflow_lint: true
