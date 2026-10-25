@@ -7,14 +7,49 @@
   "extends": [
     "local>JacobPEvans/.github"
   ],
+  "gomod": {
+    "enabled": true
+  },
   "nix": {
     "enabled": true
   },
   "lockFileMaintenance": {
     "enabled": true,
     "automerge": true,
-    "minimumReleaseAge": null,
     "updateNotScheduled": false,
     "groupName": "Nix lock file maintenance"
-  }
+  },
+  "packageRules": [
+    {
+      "description": "Raise the Go minimum-version directive in a dedicated, review-required PR; Renovate does not bump this directive by default.",
+      "matchManagers": [
+        "gomod"
+      ],
+      "matchDepNames": [
+        "go"
+      ],
+      "matchDepTypes": [
+        "golang"
+      ],
+      "rangeStrategy": "bump",
+      "groupName": "Go toolchain",
+      "minimumReleaseAge": null,
+      "automerge": false
+    },
+    {
+      "description": "Keep exact Go toolchain directive updates with the Go toolchain PR.",
+      "matchManagers": [
+        "gomod"
+      ],
+      "matchDepNames": [
+        "go"
+      ],
+      "matchDepTypes": [
+        "toolchain"
+      ],
+      "groupName": "Go toolchain",
+      "minimumReleaseAge": null,
+      "automerge": false
+    }
+  ]
 }

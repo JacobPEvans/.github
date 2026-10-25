@@ -39,6 +39,7 @@
     ".github/aw/**"
   ],
   "minimumReleaseAge": "7 days",
+  "internalChecksFilter": "strict",
   "prCreation": "not-pending",
   "timezone": "America/Indiana/Indianapolis",
   "schedule": [
@@ -59,13 +60,12 @@
     "vulnerabilityFixStrategy": "highest"
   },
   "lockFileMaintenance": {
-    "description": "Lock-file maintenance runs in the Saturday 00:00-05:59 America/Indiana/Indianapolis window and auto-merges after required checks pass. Package managers select versions, so release-age filtering does not apply. updateNotScheduled:false prevents intervening head refreshes.",
+    "description": "Lock-file maintenance runs in the Saturday 00:00-05:59 America/Indiana/Indianapolis window and auto-merges after required checks pass. Renovate cannot apply minimumReleaseAge to lock-file maintenance; npm and Terraform lock maintenance are disabled below because their package-manager guard or exact provider pins must stay authoritative. updateNotScheduled:false prevents intervening head refreshes.",
     "enabled": true,
     "schedule": [
       "* 0-5 * * 6"
     ],
     "automerge": true,
-    "minimumReleaseAge": null,
     "updateNotScheduled": false
   },
   "nix": {
@@ -517,6 +517,26 @@
         "major"
       ],
       "automerge": false
+    },
+    {
+      "description": "Do not run npm lock-file maintenance: Renovate cannot enforce minimumReleaseAge for that update type, so package-manager guardrails must remain authoritative.",
+      "matchManagers": [
+        "npm"
+      ],
+      "matchUpdateTypes": [
+        "lockFileMaintenance"
+      ],
+      "enabled": false
+    },
+    {
+      "description": "Do not run Terraform lock-file maintenance: provider pins and their lock entries must be updated together by ordinary provider updates.",
+      "matchManagers": [
+        "terraform"
+      ],
+      "matchUpdateTypes": [
+        "lockFileMaintenance"
+      ],
+      "enabled": false
     }
   ],
   "updateNotScheduled": false
