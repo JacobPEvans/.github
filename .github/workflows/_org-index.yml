@@ -158,6 +158,11 @@ jobs:
           ' "$OUTPUT_PATH" > "$RUNNER_TEMP/profile.md"
           mv "$RUNNER_TEMP/profile.md" "$OUTPUT_PATH"
 
+      - name: Lint the generated repository index
+        uses: DavidAnson/markdownlint-cli2-action@21c1be1b93ad9ed58fa840aacc3f279cde2a72ff # v24
+        with:
+          globs: ${{ inputs.output_path }}
+
       - name: Get GitHub App bot identity
         id: app-user
         env:
