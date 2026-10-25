@@ -8,8 +8,10 @@ on:
     paths:
       - '.github/scripts/**'
       - 'scripts/ci-gate-aggregate.mts'
+      - 'scripts/flake-lock-fresh.sh'
       - 'tests/**'
       - '.github/workflows/_ci-gate.yml'
+      - '.github/workflows/_flake-lock-fresh.yml'
       - '.github/workflows/_ansible-ci.yml'
       - '.github/workflows/_cribl-pack-validate.yml'
       - '.github/workflows/renovate-config-validate.yml'
