@@ -24,3 +24,14 @@ test('PR Auto-Merge skips develop-to-main promotions on git-flow repos', () => {
   assert.equal(guards, 5, 'every arming step skips develop-to-main promotions');
   assert.ok(!workflow.includes('base.ref == github.event.repository.default_branch'));
 });
+
+test('PR Auto-Merge arms a merge commit into main on git-flow repos and a squash elsewhere', () => {
+  const step = workflow.match(/- name: Enable auto-merge\n([\s\S]*?)(?=\n      - name: )/);
+  assert.ok(step, 'Enable auto-merge step exists');
+  const body = step[1].replace(/\s+/g, ' ');
+  assert.ok(body.includes(
+    "(github.event.pull_request.base.ref == 'main' && github.event.repository.default_branch != 'main') && '--merge' || '--squash'",
+  ));
+  assert.ok(body.includes('gh pr merge "$PR" --auto "$METHOD"'));
+  assert.ok(!body.includes('--auto --squash'), 'the method is never hard-coded');
+});
