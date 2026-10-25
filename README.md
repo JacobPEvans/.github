@@ -8,6 +8,7 @@ AI review and agent automation workflows live in [JacobPEvans/.github-ai](https:
 
 | Workflow | Purpose | Inputs |
 | --- | --- | --- |
+| [`_flake-lock-fresh.yml`](.github/workflows/_flake-lock-fresh.yml) | Check owned flake inputs and optionally age-check root GitHub inputs. | `runner_label`, `max_age_days`. |
 | [`_org-index.yml`](.github/workflows/_org-index.yml) | Org index and `llms.txt`. | `visibility_scope`, `output_path`. |
 
 `visibility_scope` accepts `public` or `all`; `output_path` defaults to
