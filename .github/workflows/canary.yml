@@ -44,9 +44,9 @@ concurrency:
 permissions: {}
 
 jobs:
-  # On a pull request the stacks run unless every changed file is Markdown
-  # outside .github/ and tests/canary/ (agentic-workflow imports and canary
-  # fixtures are consumed as code).
+  # On a pull request the stacks run unless every changed file is Markdown or
+  # the generated llms.txt outside .github/ and tests/canary/ (agentic-workflow
+  # imports and canary fixtures are consumed as code).
   # A release commit push always runs them.
   scope:
     name: Scope
@@ -71,6 +71,7 @@ jobs:
               - '**'
               - '!**/*.md'
               - '!**/*.mdx'
+              - '!llms.txt'
             github_md:
               - '.github/**/*.md'
             fixtures:
