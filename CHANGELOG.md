@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.36.1](https://github.com/JacobPEvans/.github/compare/v1.36.0...v1.36.1) (2026-10-25)
+
+
+### Bug Fixes
+
+* **pr-automerge:** arm a merge commit for pull requests into main on git-flow repos ([#134](https://github.com/JacobPEvans/.github/issues/134)) ([1f83995](https://github.com/JacobPEvans/.github/commit/1f839957b4678385e87a8b20f1ef6736219d1f4d))
+
 ## [1.36.0](https://github.com/JacobPEvans/.github/compare/v1.35.0...v1.36.0) (2026-10-25)
 
 
