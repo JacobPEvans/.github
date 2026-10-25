@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.36.0](https://github.com/JacobPEvans/.github/compare/v1.35.0...v1.36.0) (2026-10-25)
+
+
+### Features
+
+* **renovate:** track annotated image pins in Molecule scenarios ([#132](https://github.com/JacobPEvans/.github/issues/132)) ([268828a](https://github.com/JacobPEvans/.github/commit/268828a7e50ed7a8b2c90c1dac5337198cfec2b1))
+
 ## [1.35.0](https://github.com/JacobPEvans/.github/compare/v1.34.3...v1.35.0) (2026-10-25)
 
 
