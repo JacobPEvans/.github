@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.35.0](https://github.com/JacobPEvans/.github/compare/v1.34.3...v1.35.0) (2026-10-25)
+
+
+### Features
+
+* **flake-lock-fresh:** host the owned-input freshness workflow here ([#130](https://github.com/JacobPEvans/.github/issues/130)) ([cd5927b](https://github.com/JacobPEvans/.github/commit/cd5927b85fe9fc672b97865c5b58984e6c33317f))
+
 ## [1.34.3](https://github.com/JacobPEvans/.github/compare/v1.34.2...v1.34.3) (2026-10-25)
 
 
