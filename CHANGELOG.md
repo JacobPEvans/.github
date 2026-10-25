@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.34.3](https://github.com/JacobPEvans/.github/compare/v1.34.2...v1.34.3) (2026-10-25)
+
+
+### Bug Fixes
+
+* **org-index:** lint generated index output and scope Canary ([#128](https://github.com/JacobPEvans/.github/issues/128)) ([0d4fc6d](https://github.com/JacobPEvans/.github/commit/0d4fc6d3dc7ce8baf129ae2e72126229e432d5bd))
+* **renovate:** stop lock maintenance that bypasses release-age and exact pins ([#127](https://github.com/JacobPEvans/.github/issues/127)) ([b8aa2a9](https://github.com/JacobPEvans/.github/commit/b8aa2a9a4acccdec2c1c3ca3c273a1280123de32))
+
 ## [1.34.2](https://github.com/JacobPEvans/.github/compare/v1.34.1...v1.34.2) (2026-10-24)
 
 
