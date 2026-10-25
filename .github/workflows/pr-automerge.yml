@@ -1,7 +1,7 @@
 # PR Auto-Merge
 #
 # Injected into every repository as an organization required workflow. It turns
-# on native auto-merge (squash) for pull requests opened by the session bot when
+# on native auto-merge for pull requests opened by the session bot when
 # they open, reopen or leave draft. Pull requests from other authors are left to
 # their own merge policy.
 #
@@ -24,7 +24,9 @@
 # The merge is armed with the release App's token, not github.token, so the
 # resulting push still triggers the base branch's workflows. Without the App
 # variable and secret the job warns and succeeds, so a missing org setting never
-# blocks a PR. A repository that does not allow squash merges fails the job.
+# blocks a PR. A pull request into main on a git-flow repository (default branch
+# not main) arms a merge commit; every other pull request arms a squash. A
+# repository that does not allow the chosen method fails the job.
 name: PR Auto-Merge
 
 on:
@@ -119,7 +121,11 @@ jobs:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           GH_REPO: ${{ github.repository }}
           PR: ${{ github.event.pull_request.number }}
-        run: gh pr merge "$PR" --auto --squash
+          # main on a git-flow repo (default branch is not main) allows only merge commits.
+          METHOD: >-
+            ${{ (github.event.pull_request.base.ref == 'main' && github.event.repository.default_branch != 'main')
+            && '--merge' || '--squash' }}
+        run: gh pr merge "$PR" --auto "$METHOD"
       - name: Turn auto-merge off for a held PR
         if: ${{ steps.state.outputs.state == 'held,armed' && steps.app-token.outputs.token != '' }}
         env:
