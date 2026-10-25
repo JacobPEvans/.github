@@ -113,6 +113,17 @@
       "datasourceTemplate": "docker"
     },
     {
+      "description": "Track annotated Docker image pins (tag and sha256 digest) in Molecule scenario molecule.yml files, plain or folded image values.",
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/(^|/)molecule/[^/]+/molecule\\.ya?ml$/"
+      ],
+      "matchStrings": [
+        "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)\\s+image:\\s*(?:>-\\s*\\n\\s+)?[^\\s@]+:(?<currentValue>[^:@\\s]+)@(?<currentDigest>sha256:[A-Fa-f0-9]{64})"
+      ],
+      "versioningTemplate": "docker"
+    },
+    {
       "description": "Track annotated version pins in Ansible YAML files, .env.example files and shell (.sh) files.",
       "customType": "regex",
       "managerFilePatterns": [

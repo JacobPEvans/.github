@@ -58,3 +58,34 @@ test('Nix repos raise Go directives in a dedicated review-required PR', () => {
     assert.equal(rule.automerge, false);
   }
 });
+
+test('Molecule scenario image annotations track the annotated tag and digest', () => {
+  const manager = preset.customManagers.find((m) => m.managerFilePatterns?.some((p) => p.includes('molecule')));
+  assert.ok(manager, 'missing Molecule image customManager');
+  assert.equal(manager.versioningTemplate, 'docker');
+
+  const pathRegex = new RegExp(manager.managerFilePatterns[0].slice(1, -1));
+  assert.ok(pathRegex.test('molecule/openbao/molecule.yml'));
+  assert.ok(!pathRegex.test('molecule/openbao/converge.yml'));
+
+  const matchRegex = new RegExp(manager.matchStrings[0]);
+  const digest = '0123456789abcdef'.repeat(4);
+  const image = 'registry.example.com/team/image';
+  const plain = `    # renovate: datasource=docker depName=${image}\n    image: ${image}:1.2.3@sha256:${digest}\n`;
+  const folded = `    # renovate: datasource=docker depName=${image}\n    image: >-\n      ${image}:1.2.4@sha256:${digest}\n`;
+  const unannotated = `    image: ${image}:1.2.3@sha256:${digest}\n`;
+  const portRegistry = `    # renovate: datasource=docker depName=${image}\n    image: registry.example.com:5000/team/image:1.2.5@sha256:${digest}\n`;
+
+  const plainMatch = matchRegex.exec(plain);
+  assert.equal(plainMatch.groups.datasource, 'docker');
+  assert.equal(plainMatch.groups.depName, image);
+  assert.equal(plainMatch.groups.currentValue, '1.2.3');
+  assert.equal(plainMatch.groups.currentDigest, `sha256:${digest}`);
+
+  const foldedMatch = matchRegex.exec(folded);
+  assert.equal(foldedMatch.groups.currentValue, '1.2.4');
+  assert.equal(foldedMatch.groups.currentDigest, `sha256:${digest}`);
+
+  assert.equal(matchRegex.exec(unannotated), null);
+  assert.equal(matchRegex.exec(portRegistry).groups.currentValue, '1.2.5');
+});
