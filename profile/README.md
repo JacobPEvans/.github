@@ -248,3 +248,20 @@ current owners.
 </p>
 
 <p align="center"><em>One front door. Read the docs first.</em></p>
+
+<!-- org-index:start -->
+## Repositories
+
+### Other
+
+| Repository | Description | Topics |
+| --- | --- | --- |
+| [.github](https://github.com/JacobPEvans/.github) | Enterprise-central reusable workflows, Renovate preset and CI policy | github-actions, reusable-workflows |
+| [.github-ai](https://github.com/JacobPEvans/.github-ai) | Enterprise-central AI workflows: PR-Agent review and agent automation | ai, github-actions, reusable-workflows |
+| [jpe-ai-voice](https://github.com/JacobPEvans/jpe-ai-voice) | Personal writing voice guide and Vale style for AI agents | ai-agents, vale, writing |
+| [tofu-aws-bedrock](https://github.com/JacobPEvans/tofu-aws-bedrock) | Deploy an AI-powered assistant with a public API endpoint using AWS Bedrock and Terraform. No authentication required—just send text via curl and get intelligent responses back. | ai, api, aws, aws-lambda, bedrock, devops, generative-ai, infrastructure-as-code, lambda, llm, opentofu, serverless, terraform, terragrunt |
+
+## Archived repositories (0)
+
+_No archived repositories._
+<!-- org-index:end -->
