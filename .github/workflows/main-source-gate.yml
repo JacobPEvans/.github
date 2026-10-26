@@ -14,6 +14,8 @@ concurrency:
 jobs:
   main-source-gate:
     name: Main Source Gate
+    # The host repo is trunk and is not a target of the ruleset.
+    if: github.repository != 'JacobPEvans/.github'
     runs-on: ubuntu-26.04
     timeout-minutes: 2
     permissions: {}

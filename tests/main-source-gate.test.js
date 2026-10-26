@@ -54,6 +54,13 @@ test('workflow is a standalone, least-permission pull request check', () => {
   assert.doesNotMatch(gateScript, /\$\{\{/);
 });
 
+test('host repository is skipped by the job-level guard', () => {
+  assert.match(
+    workflow,
+    /^  main-source-gate:\n    name: Main Source Gate\n    # The host repo is trunk and is not a target of the ruleset\.\n    if: github\.repository != 'JacobPEvans\/\.github'$/m,
+  );
+});
+
 const decisions = [
   ['develop passes', {}, 0],
   ['hotfix/foo passes', { HEAD_REF: 'hotfix/foo' }, 0],

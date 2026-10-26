@@ -46,8 +46,9 @@ jobs:
 
 ## Required workflow
 
-[`main-source-gate.yml`](.github/workflows/main-source-gate.yml) requires pull requests targeting `main` to use
-`develop` or `hotfix/<name>` from the same repository.
+[`main-source-gate.yml`](.github/workflows/main-source-gate.yml) requires pull requests targeting `main` in
+ruleset-targeted repositories to use `develop` or `hotfix/<name>` from the same repository. The host repository
+uses trunk flow and is not a ruleset target, so the workflow skips it.
 
 ## Molecule reusable workflow
 
