@@ -44,6 +44,11 @@ jobs:
       GH_ACTION_RELEASE_PLEASE_PRIVATE_KEY: ${{ secrets.GH_ACTION_RELEASE_PLEASE_PRIVATE_KEY }}
 ```
 
+## Required workflow
+
+[`main-source-gate.yml`](.github/workflows/main-source-gate.yml) requires pull requests targeting `main` to use
+`develop` or `hotfix/<name>` from the same repository.
+
 ## Molecule reusable workflow
 
 Callers of `.github/workflows/_molecule.yml` can set `galaxy_force_install` to
