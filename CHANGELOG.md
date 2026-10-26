@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.37.0](https://github.com/JacobPEvans/.github/compare/v1.36.1...v1.37.0) (2026-10-26)
+
+
+### Features
+
+* **workflows:** add main source gate ([#136](https://github.com/JacobPEvans/.github/issues/136)) ([e1ba9a2](https://github.com/JacobPEvans/.github/commit/e1ba9a2105874c47be585cd94002ce2a77079975))
+
 ## [1.36.1](https://github.com/JacobPEvans/.github/compare/v1.36.0...v1.36.1) (2026-10-25)
 
 
