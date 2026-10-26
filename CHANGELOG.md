@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.37.1](https://github.com/JacobPEvans/.github/compare/v1.37.0...v1.37.1) (2026-10-26)
+
+
+### Bug Fixes
+
+* **workflows:** skip the main source gate in its host repository ([#138](https://github.com/JacobPEvans/.github/issues/138)) ([f797e02](https://github.com/JacobPEvans/.github/commit/f797e02783c90ceb88be3d3828f0d95b6f6e5703))
+
 ## [1.37.0](https://github.com/JacobPEvans/.github/compare/v1.36.1...v1.37.0) (2026-10-26)
 
 
