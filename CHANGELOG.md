@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.40.0](https://github.com/JacobPEvans/.github/compare/v1.39.0...v1.40.0) (2026-10-28)
+
+
+### Features
+
+* **disclosure-gate:** seed the allowlist with public pack identifiers ([#144](https://github.com/JacobPEvans/.github/issues/144)) ([ce4650f](https://github.com/JacobPEvans/.github/commit/ce4650f39559b54dea2f92cfc1a6a986765251a1))
+
 ## [1.39.0](https://github.com/JacobPEvans/.github/compare/v1.38.0...v1.39.0) (2026-10-28)
 
 
