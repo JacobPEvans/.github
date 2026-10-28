@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.37.2](https://github.com/JacobPEvans/.github/compare/v1.37.1...v1.37.2) (2026-10-28)
+
+
+### Bug Fixes
+
+* **org-index:** lint with shared limits and render empty topics as a dash ([#140](https://github.com/JacobPEvans/.github/issues/140)) ([5c1a112](https://github.com/JacobPEvans/.github/commit/5c1a112c1d49d0e255b27695eba78407a9ae8073))
+
 ## [1.37.1](https://github.com/JacobPEvans/.github/compare/v1.37.0...v1.37.1) (2026-10-26)
 
 
