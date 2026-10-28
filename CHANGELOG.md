@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.38.0](https://github.com/JacobPEvans/.github/compare/v1.37.2...v1.38.0) (2026-10-28)
+
+
+### Features
+
+* **disclosure-gate:** exempt allowlisted identifiers from the diff scan ([#142](https://github.com/JacobPEvans/.github/issues/142)) ([9abb445](https://github.com/JacobPEvans/.github/commit/9abb4456197fa2837d094ae2055dfb3f13450639))
+
 ## [1.37.2](https://github.com/JacobPEvans/.github/compare/v1.37.1...v1.37.2) (2026-10-28)
 
 
