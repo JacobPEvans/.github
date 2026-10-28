@@ -132,9 +132,20 @@ scan_added() {
   rm -f "$content" "$numbers"
 }
 
+# The allowlist file is not scanned in the repository that owns it. Its entries are
+# public identifiers, reviewed in the change that adds them, and a change to it could
+# not pass the scan otherwise. The skip is keyed on that repository, so a file at the
+# same path in any other repository is scanned like every other. Title and body are
+# always scanned.
+ALLOWLIST_HOME_REPO="JacobPEvans/.github"
+ALLOWLIST_HOME_PATH="scripts/disclosure-denylist-allowlist.txt"
+
 if git rev-parse -q --verify "$BASE_REF" >/dev/null; then
   while IFS= read -r f; do
     [[ -n "$f" ]] || continue
+    if [[ "${GITHUB_REPOSITORY:-}" == "$ALLOWLIST_HOME_REPO" && "$f" == "$ALLOWLIST_HOME_PATH" ]]; then
+      continue
+    fi
     scan_added "$f"
   done < <(git diff --name-only --diff-filter=d "$BASE_REF"...HEAD -- . 2>/dev/null || true)
 else
