@@ -1,0 +1,4 @@
+# Public identifiers exempt from the disclosure denylist scan of added diff lines.
+# One exact identifier per line; blank lines and #-comments are skipped. Matching
+# is case-insensitive and applies only to a whole token. PR titles and bodies are
+# never exempt.
