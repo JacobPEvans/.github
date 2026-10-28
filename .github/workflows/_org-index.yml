@@ -95,7 +95,7 @@ jobs:
               "| Repository | Description | Topics |\n| --- | --- | --- |\n" +
               ($items | map(
                 "| [\(.name)](\(.url)) | \(((.description // "—") | cell)) | " +
-                "\((((.repositoryTopics // []) | map(.name) | join(", ")) | cell)) |"
+                "\((((.repositoryTopics // []) | map(.name) | join(", ")) | if . == "" then "—" else . end | cell)) |"
               ) | join("\n"));
             def groups($items):
               $items | group_by(.family) | map(
@@ -158,9 +158,14 @@ jobs:
           ' "$OUTPUT_PATH" > "$RUNNER_TEMP/profile.md"
           mv "$RUNNER_TEMP/profile.md" "$OUTPUT_PATH"
 
+      # The caller repo may have no markdownlint config, so lint with the shared limits here.
+      - name: Write the repository index lint config
+        run: printf 'config:\n  MD013:\n    line_length: 160\n    tables: true\n    strict: true\n' > "$RUNNER_TEMP/org-index.markdownlint-cli2.yaml"
+
       - name: Lint the generated repository index
         uses: DavidAnson/markdownlint-cli2-action@21c1be1b93ad9ed58fa840aacc3f279cde2a72ff # v24
         with:
+          config: ${{ runner.temp }}/org-index.markdownlint-cli2.yaml
           globs: ${{ inputs.output_path }}
 
       - name: Get GitHub App bot identity
