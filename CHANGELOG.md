@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.39.0](https://github.com/JacobPEvans/.github/compare/v1.38.0...v1.39.0) (2026-10-28)
+
+
+### Features
+
+* **disclosure-gate:** skip the allowlist file in its home repository ([#145](https://github.com/JacobPEvans/.github/issues/145)) ([ddc1650](https://github.com/JacobPEvans/.github/commit/ddc165023dd321ef179fc498fc086087c1b141b8))
+
 ## [1.38.0](https://github.com/JacobPEvans/.github/compare/v1.37.2...v1.38.0) (2026-10-28)
 
 
