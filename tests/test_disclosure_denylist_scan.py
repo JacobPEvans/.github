@@ -253,14 +253,16 @@ class DisclosureDenylistScanTest(unittest.TestCase):
         self.assertNotIn("ANOTHER-TERM", result.stdout + result.stderr)
 
     def test_identifier_is_removed_only_as_a_whole_token(self):
-        """A listed identifier glued to a letter, digit, `_` or `-` stays in place.
+        """A listed identifier glued to a word stays in place; a bounded one is removed.
 
-        Line 1 joins it with `_`, line 2 with `-`: the term still hits on both.
-        Line 3 bounds it with `/`, so it is removed and the line is clean.
+        Line 1 joins it with `_`, line 2 with `-` then a capital letter, line 3 with
+        `-` then a lowercase letter: the term still hits on all three. Line 4 bounds it
+        with `/`, so it is removed and the line is clean.
         """
         (self.repo / "notes.txt").write_text(
             "CRIBL_ANOTHER-TERM-PACK_CONF\n"
             "ANOTHER-TERM-PACK-V2\n"
+            "ANOTHER-TERM-PACK-x\n"
             "dir/ANOTHER-TERM-PACK/conf.yml\n"
         )
         run_git(self.repo, "add", "-A")
@@ -268,7 +270,26 @@ class DisclosureDenylistScanTest(unittest.TestCase):
 
         result = self._run(allowlist=self._allowlist("ANOTHER-TERM-PACK\n"))
         self.assertEqual(result.returncode, 1)
-        self.assertEqual(result.stdout.split(), ["notes.txt:1", "notes.txt:2"])
+        self.assertEqual(
+            result.stdout.split(), ["notes.txt:1", "notes.txt:2", "notes.txt:3"]
+        )
+
+    def test_version_suffix_after_identifier_is_removed(self):
+        """`<id>-` then a digit is a version suffix, so the identifier is removed.
+
+        The released asset name `<id>-0.1.0.crbl` clears; the term hits without the
+        allowlist.
+        """
+        (self.repo / "notes.txt").write_text(
+            "asset ANOTHER-TERM-PACK-0.1.0.crbl here\n"
+            "ANOTHER-TERM-PACK-2\n"
+        )
+        run_git(self.repo, "add", "-A")
+        run_git(self.repo, "commit", "-q", "-m", "version suffix")
+
+        self.assertEqual(self._run().returncode, 1, "term hits without the allowlist")
+        result = self._run(allowlist=self._allowlist("ANOTHER-TERM-PACK\n"))
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
     def test_allowlist_entries_match_literally(self):
         (self.repo / "notes.txt").write_text("uses ANOTHER-TERM-PACK here\n")

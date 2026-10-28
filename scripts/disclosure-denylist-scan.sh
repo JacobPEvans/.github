@@ -14,8 +14,10 @@
 #   [allowlist-file] — optional; one exact public identifier per line (same comment
 #                     rules). Each is removed, case-insensitively, from the added diff
 #                     lines before the denylist is matched, but only where it stands
-#                     alone as a whole token: a letter, digit, `_` or `-` touching it
-#                     keeps it in place. Title and body are never allowlisted.
+#                     alone as a whole token: a letter, digit or `_` touching it, or a
+#                     `-` before it or followed by a letter or `_`, keeps it in place.
+#                     A `-` followed by a digit (a version suffix) does not. Title and
+#                     body are never allowlisted.
 #
 # Reads PR_TITLE / PR_BODY / PR_AUTHOR from the environment (may be unset outside
 # a PR). For a Renovate PR (renovate[bot], or jacobpevans-release-please[bot] for
@@ -113,11 +115,12 @@ scan_added() {
   '
   # Each whole-token occurrence of an allowlisted identifier becomes a space, so its
   # neighbours keep their token boundaries and no line is dropped: `numbers` stays
-  # aligned with `content`. An occurrence touching a letter, digit, `_` or `-` is not a
-  # whole token and stays, so a term joined to an identifier still hits.
+  # aligned with `content`. An occurrence that is not a whole token stays, so a term
+  # joined to an identifier still hits. A `-` then a digit is a version suffix and does
+  # not join the identifier to a word.
   while IFS= read -r id; do
     [[ -n "$id" ]] || continue
-    ALLOW_ID="$id" perl -pi -e 's/(?<![A-Za-z0-9_-])\Q$ENV{ALLOW_ID}\E(?![A-Za-z0-9_-])/ /gi' "$content"
+    ALLOW_ID="$id" perl -pi -e 's/(?<![A-Za-z0-9_-])\Q$ENV{ALLOW_ID}\E(?![A-Za-z0-9_]|-[A-Za-z_])/ /gi' "$content"
   done < "$ALLOW_IDS"
   while IFS=: read -r n _; do
     [[ -n "$n" ]] || continue
