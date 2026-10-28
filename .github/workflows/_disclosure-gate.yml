@@ -10,9 +10,11 @@
 #   - "disclosure-denylist" — a fixed-string scan against the org
 #     DISCLOSURE_DENYLIST secret (one term per line), run by
 #     scripts/disclosure-denylist-scan.sh over the PR diff plus the PR title
-#     and body. A hit prints only `path:line`, never the matched term or
-#     line content — the denylist itself is sensitive, so a verbose catch
-#     would re-leak exactly what it caught.
+#     and body. Identifiers listed in scripts/disclosure-denylist-allowlist.txt
+#     are removed from the diff text before matching, as whole tokens only; the
+#     title and body are always scanned in full. A hit prints only `path:line`, never the matched
+#     term or line content — the denylist itself is sensitive, so a verbose
+#     catch would re-leak exactly what it caught.
 #
 # Kept separate from _ci-gate.yml so the two secrets these jobs need stay
 # scoped to this workflow, not the whole gate surface.
@@ -92,6 +94,7 @@ jobs:
           path: .gh-shared
           sparse-checkout: |
             scripts/disclosure-denylist-scan.sh
+            scripts/disclosure-denylist-allowlist.txt
           sparse-checkout-cone-mode: false
           persist-credentials: false
 
@@ -114,4 +117,5 @@ jobs:
           set -euo pipefail
           base="${BASE_SHA:-HEAD~1}"
           bash .gh-shared/scripts/disclosure-denylist-scan.sh \
-            "$RUNNER_TEMP/denylist.txt" "$base"
+            "$RUNNER_TEMP/denylist.txt" "$base" \
+            .gh-shared/scripts/disclosure-denylist-allowlist.txt

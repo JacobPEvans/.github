@@ -8,9 +8,16 @@
 # the matched term, never the line content. Printing either would re-leak
 # the very thing the scan exists to catch.
 #
-# Usage: disclosure-denylist-scan.sh <denylist-file> <base-ref>
+# Usage: disclosure-denylist-scan.sh <denylist-file> <base-ref> [allowlist-file]
 #   <denylist-file> — one fixed string per line (blank lines / #-comments skipped)
 #   <base-ref>      — git ref to diff against; only lines added since it are scanned
+#   [allowlist-file] — optional; one exact public identifier per line (same comment
+#                     rules). Each is removed, case-insensitively, from the added diff
+#                     lines before the denylist is matched, but only where it stands
+#                     alone as a whole token: a letter, digit or `_` touching it, or a
+#                     `-` before it or followed by a letter or `_`, keeps it in place.
+#                     A `-` followed by a digit (a version suffix) does not. Title and
+#                     body are never allowlisted.
 #
 # Reads PR_TITLE / PR_BODY / PR_AUTHOR from the environment (may be unset outside
 # a PR). For a Renovate PR (renovate[bot], or jacobpevans-release-please[bot] for
@@ -20,15 +27,20 @@
 # Exit codes:
 #   0 — no hits
 #   1 — one or more hits (see stdout for path:line)
-#   2 — instrument error (missing/empty denylist file, bad base ref)
+#   2 — instrument error (missing/empty denylist file, missing allowlist file, bad base ref)
 
 set -euo pipefail
 
-DENYLIST_FILE="${1:?usage: disclosure-denylist-scan.sh <denylist-file> <base-ref>}"
-BASE_REF="${2:?usage: disclosure-denylist-scan.sh <denylist-file> <base-ref>}"
+DENYLIST_FILE="${1:?usage: disclosure-denylist-scan.sh <denylist-file> <base-ref> [allowlist-file]}"
+BASE_REF="${2:?usage: disclosure-denylist-scan.sh <denylist-file> <base-ref> [allowlist-file]}"
+ALLOWLIST_FILE="${3:-}"
 
 if [[ ! -s "$DENYLIST_FILE" ]]; then
   echo "::error::denylist file missing or empty: $DENYLIST_FILE" >&2
+  exit 2
+fi
+if [[ -n "$ALLOWLIST_FILE" && ! -f "$ALLOWLIST_FILE" ]]; then
+  echo "::error::allowlist file missing: $ALLOWLIST_FILE" >&2
   exit 2
 fi
 
@@ -54,6 +66,13 @@ if [[ ! -s "$PATTERNS_FILE" ]]; then
   exit 2
 fi
 
+# Allowlisted identifiers, stripped the same way. With no allowlist argument the
+# list stays empty and nothing is removed.
+ALLOW_IDS="$(mktemp)"
+if [[ -n "$ALLOWLIST_FILE" ]]; then
+  grep -vE '^[[:space:]]*(#|$)' "$ALLOWLIST_FILE" > "$ALLOW_IDS" || true
+fi
+
 # Patterns are matched with `grep -w`, which bounds each one to a whole token so
 # a denylisted identifier no longer fires inside an unrelated word. `grep -w`
 # counts underscore as a word character, so underscores are normalized to spaces
@@ -62,7 +81,7 @@ fi
 # whose measured result on 102 real PR bodies was 0% false positives with full
 # recall on every hard identifier leak in that corpus.
 BOUNDED_PATTERNS="$(mktemp)"
-trap 'rm -f "$PATTERNS_FILE" "$BOUNDED_PATTERNS"' EXIT
+trap 'rm -f "$PATTERNS_FILE" "$BOUNDED_PATTERNS" "$ALLOW_IDS"' EXIT
 tr '_' ' ' < "$PATTERNS_FILE" > "$BOUNDED_PATTERNS"
 
 hits=0
@@ -94,6 +113,15 @@ scan_added() {
     !inhunk { next }
     /^\+/ { print substr($0, 2) > c; print line > l; line++ }
   '
+  # Each whole-token occurrence of an allowlisted identifier becomes a space, so its
+  # neighbours keep their token boundaries and no line is dropped: `numbers` stays
+  # aligned with `content`. An occurrence that is not a whole token stays, so a term
+  # joined to an identifier still hits. A `-` then a digit is a version suffix and does
+  # not join the identifier to a word.
+  while IFS= read -r id; do
+    [[ -n "$id" ]] || continue
+    ALLOW_ID="$id" perl -pi -e 's/(?<![A-Za-z0-9_-])\Q$ENV{ALLOW_ID}\E(?![A-Za-z0-9_]|-[A-Za-z_])/ /gi' "$content"
+  done < "$ALLOW_IDS"
   while IFS=: read -r n _; do
     [[ -n "$n" ]] || continue
     echo "${f}:$(sed -n "${n}p" "$numbers")"
