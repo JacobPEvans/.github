@@ -313,6 +313,50 @@ class DisclosureDenylistScanTest(unittest.TestCase):
         result = self._run(allowlist=self.tmp / "nope.txt")
         self.assertEqual(result.returncode, 2)
 
+    HOME_REPO = "JacobPEvans/.github"
+    HOME_ALLOWLIST = "scripts/disclosure-denylist-allowlist.txt"
+
+    def _commit_file(self, path, text, message):
+        target = self.repo / path
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(text)
+        run_git(self.repo, "add", "-A")
+        run_git(self.repo, "commit", "-q", "-m", message)
+
+    def test_allowlist_file_is_skipped_in_its_home_repository(self):
+        """The allowlist file is not scanned where it is owned, and is scanned elsewhere.
+
+        The same term at the same path hits in any other repository.
+        """
+        self._commit_file(self.HOME_ALLOWLIST, "ANOTHER-TERM\n", "home allowlist")
+
+        home = self._run(env_extra={"GITHUB_REPOSITORY": self.HOME_REPO})
+        self.assertEqual(home.returncode, 0, home.stdout + home.stderr)
+
+        other = self._run(env_extra={"GITHUB_REPOSITORY": "acme/elsewhere"})
+        self.assertEqual(other.returncode, 1)
+        self.assertIn(f"{self.HOME_ALLOWLIST}:1", other.stdout)
+
+    def test_skip_is_limited_to_the_allowlist_path(self):
+        self._commit_file(self.HOME_ALLOWLIST, "plain text\n", "home allowlist")
+        self._commit_file("notes.txt", "ANOTHER-TERM here\n", "other file")
+
+        result = self._run(env_extra={"GITHUB_REPOSITORY": self.HOME_REPO})
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(result.stdout.split(), ["notes.txt:1"])
+
+    def test_title_and_body_are_scanned_in_the_home_repository(self):
+        self._commit_file(self.HOME_ALLOWLIST, "ANOTHER-TERM\n", "home allowlist")
+
+        result = self._run(env_extra={
+            "GITHUB_REPOSITORY": self.HOME_REPO,
+            "PR_TITLE": "fix ANOTHER-TERM wiring",
+            "PR_BODY": "see ANOTHER-TERM",
+        })
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(result.stdout.split(), ["PR", "title:1", "PR", "body:1"])
+        self.assertNotIn("ANOTHER-TERM", result.stdout + result.stderr)
+
     def test_missing_denylist_is_instrument_error(self):
         result = subprocess.run(
             ["bash", str(SCRIPT), str(self.tmp / "nope.txt"), self.base_sha],
