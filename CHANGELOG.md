@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.40.2](https://github.com/JacobPEvans/.github/compare/v1.40.1...v1.40.2) (2026-10-29)
+
+
+### Bug Fixes
+
+* **org-index:** render the generated index within the lint limits ([#150](https://github.com/JacobPEvans/.github/issues/150)) ([4416ffd](https://github.com/JacobPEvans/.github/commit/4416ffd544c0e699b178f8b03bd5aa06f0ef81b0))
+
 ## [1.40.1](https://github.com/JacobPEvans/.github/compare/v1.40.0...v1.40.1) (2026-10-29)
 
 
