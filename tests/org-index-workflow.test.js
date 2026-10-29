@@ -7,6 +7,19 @@ const workflow = readFileSync(
   'utf8',
 );
 
+test('the rendered index stays within the lint limits by construction', () => {
+  const render = workflow.slice(
+    workflow.indexOf('      - name: Read repository metadata and render indexes'),
+    workflow.indexOf('      - name: Write the repository index lint config'),
+  );
+
+  assert.match(render, /def wrap\(\$width\)/, 'long descriptions must be wrapped onto continuation lines');
+  assert.match(render, /wrap\(156\)/, 'wrapping must stay under the 160 column lint limit');
+  assert.doesNotMatch(render, /\| Repository \| Description \| Topics \|/, 'table rows cannot be wrapped');
+  assert.match(render, /groups\(\$archived; " \(archived\)"\)/, 'archived group headings must not repeat the active ones');
+  assert.match(render, /printf '# %s\\n\\n<!-- org-index:start -->/, 'a new profile file must start with a top-level heading');
+});
+
 test('generated README is linted before the index pull request is opened or updated', () => {
   const lintStep = workflow.indexOf('      - name: Lint the generated repository index');
   const pullRequestStep = workflow.indexOf('      - name: Open or update the index pull request');
