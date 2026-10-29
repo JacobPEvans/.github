@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.40.1](https://github.com/JacobPEvans/.github/compare/v1.40.0...v1.40.1) (2026-10-29)
+
+
+### Bug Fixes
+
+* **org-index:** sign the index commit through the GitHub API ([#148](https://github.com/JacobPEvans/.github/issues/148)) ([a425c4b](https://github.com/JacobPEvans/.github/commit/a425c4ba1ea60584651b31e68d0bc7ab964ff591))
+
 ## [1.40.0](https://github.com/JacobPEvans/.github/compare/v1.39.0...v1.40.0) (2026-10-28)
 
 
