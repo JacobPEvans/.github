@@ -19,3 +19,27 @@ test('generated README is linted before the index pull request is opened or upda
   assert.match(lintConfig, /uses: DavidAnson\/markdownlint-cli2-action@/);
   assert.match(lintConfig, /globs: \$\{\{ inputs\.output_path \}\}/);
 });
+
+test('changed indexes use a GitHub-signed GraphQL commit after resetting the branch to the default head', () => {
+  const commitStep = workflow.slice(workflow.indexOf('      - name: Open or update the index pull request'));
+  const noDiff = commitStep.indexOf('git diff --cached --quiet');
+  const updateRef = commitStep.indexOf('gh api --method PATCH');
+  const createCommit = commitStep.indexOf('createCommitOnBranch');
+
+  assert.notEqual(noDiff, -1, 'the no-diff short-circuit must remain');
+  assert.ok(noDiff < updateRef, 'unchanged indexes must exit before updating the automation branch');
+  assert.ok(updateRef < createCommit, 'the automation branch must be reset before adding the signed commit');
+  assert.match(commitStep, /head_oid=\$\(git rev-parse "\$DEFAULT_BRANCH"\)/);
+  assert.match(commitStep, /gh api --method PATCH .*git\/refs\/\$branch_ref/);
+  assert.match(commitStep, /gh api --method POST .*git\/refs/);
+  assert.match(commitStep, /expectedHeadOid: \$head_oid/);
+  assert.match(commitStep, /signature \{ isValid wasSignedByGitHub \}/);
+  assert.match(commitStep, /GraphQL commit was not verified as GitHub-signed/);
+  assert.match(commitStep, /base64 -w0 < "\$OUTPUT_PATH"/);
+  assert.match(commitStep, /base64 -w0 < llms\.txt/);
+  assert.match(commitStep, /message: \{ headline: "chore\(index\): regenerate org index" \}/);
+  assert.doesNotMatch(commitStep, /\bgit commit\b|\bgit push\b/);
+  assert.match(commitStep, /gh pr list --head "\$branch"/);
+  assert.match(commitStep, /gh pr edit "\$pr" --base "\$DEFAULT_BRANCH"/);
+  assert.match(commitStep, /gh pr create --base "\$DEFAULT_BRANCH" --head "\$branch"/);
+});
