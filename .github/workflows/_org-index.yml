@@ -91,15 +91,23 @@ jobs:
             def cell:
               tostring | gsub("[\\r\\n|]"; " ")
               | gsub("&"; "&amp;") | gsub("<"; "&lt;") | gsub(">"; "&gt;");
-            def table($items):
-              "| Repository | Description | Topics |\n| --- | --- | --- |\n" +
-              ($items | map(
-                "| [\(.name)](\(.url)) | \(((.description // "—") | cell)) | " +
-                "\((((.repositoryTopics // []) | map(.name) | join(", ")) | if . == "" then "—" else . end | cell)) |"
-              ) | join("\n"));
-            def groups($items):
+            def wrap($width):
+              split(" ") | map(select(length > 0))
+              | reduce .[] as $word ([];
+                  if length > 0 and (.[-1] | length) + ($word | length) + 1 <= $width
+                  then .[-1] += " " + $word
+                  else . + [$word] end)
+              | join("\n  ");
+            def item:
+              "- " + (
+                "[\(.name)](\(.url)): \((.description // "—") | cell)" +
+                ((.repositoryTopics // []) | map(.name) | if length > 0 then " (topics: \(join(", ") | cell))" else "" end)
+                | wrap(156)
+              );
+            def table($items): $items | map(item) | join("\n");
+            def groups($items; $suffix):
               $items | group_by(.family) | map(
-                "### \(.[0].family | cell)\n\n" + table(.)
+                "### \(.[0].family | cell)\($suffix)\n\n" + table(.)
               ) | join("\n\n");
             ($families[0] | map({key: .name, value: .family}) | from_entries) as $family_by_repo |
             ($repos[0]
@@ -113,9 +121,9 @@ jobs:
             {
               markdown: (
                 "## Repositories\n\n" +
-                (if ($active | length) > 0 then groups($active) else "_No repositories._" end) +
+                (if ($active | length) > 0 then groups($active; "") else "_No repositories._" end) +
                 "\n\n## Archived repositories (\($archived | length))\n\n" +
-                (if ($archived | length) > 0 then groups($archived) else "_No archived repositories._" end)
+                (if ($archived | length) > 0 then groups($archived; " (archived)") else "_No archived repositories._" end)
               ),
               llms: (
                 "# \($org)\n\nRepository index for the \($org) GitHub organization.\n\n## Repositories\n\n" +
@@ -128,7 +136,7 @@ jobs:
 
           mkdir -p -- "$(dirname -- "$OUTPUT_PATH")"
           if [[ ! -f "$OUTPUT_PATH" ]]; then
-            printf '<!-- org-index:start -->\n<!-- org-index:end -->\n' > "$OUTPUT_PATH"
+            printf '# %s\n\n<!-- org-index:start -->\n<!-- org-index:end -->\n' "$ORG" > "$OUTPUT_PATH"
           fi
           start='<!-- org-index:start -->'
           end='<!-- org-index:end -->'
