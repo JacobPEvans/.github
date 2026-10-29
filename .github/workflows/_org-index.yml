@@ -175,40 +175,64 @@ jobs:
           config: ${{ runner.temp }}/org-index.markdownlint-cli2.yaml
           globs: ${{ inputs.output_path }}
 
-      - name: Get GitHub App bot identity
-        id: app-user
-        env:
-          GH_TOKEN: ${{ steps.write-token.outputs.token }}
-          APP_SLUG: ${{ steps.write-token.outputs.app-slug }}
-        run: echo "user-id=$(gh api "/users/${APP_SLUG}[bot]" --jq .id)" >> "$GITHUB_OUTPUT"
-
       - name: Open or update the index pull request
         env:
           GH_TOKEN: ${{ steps.write-token.outputs.token }}
-          APP_SLUG: ${{ steps.write-token.outputs.app-slug }}
-          APP_USER_ID: ${{ steps.app-user.outputs.user-id }}
           DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
           OUTPUT_PATH: ${{ inputs.output_path }}
         run: |
           set -euo pipefail
+          branch=automation/org-index
           git add -- "$OUTPUT_PATH" llms.txt
           if git diff --cached --quiet; then
             echo "::notice::Repository index content is unchanged."
             exit 0
           fi
-
-          branch=automation/org-index
-          git switch --create "$branch"
-          git config user.name "${APP_SLUG}[bot]"
-          git config user.email "${APP_USER_ID}+${APP_SLUG}[bot]@users.noreply.github.com"
-          git commit -m 'chore(index): regenerate org index'
-
-          remote_sha=$(git ls-remote origin "refs/heads/$branch" | cut -f1)
-          if [[ -n "$remote_sha" ]]; then
-            git push --force-with-lease="refs/heads/$branch:$remote_sha" origin "$branch"
+          head_oid=$(git rev-parse "$DEFAULT_BRANCH")
+          branch_ref="heads/$branch"
+          if gh api "repos/$GITHUB_REPOSITORY/git/ref/$branch_ref" >/dev/null 2>&1; then
+            gh api --method PATCH "repos/$GITHUB_REPOSITORY/git/refs/$branch_ref" \
+              -f sha="$head_oid" -F force=true >/dev/null
           else
-            git push origin "$branch"
+            gh api --method POST "repos/$GITHUB_REPOSITORY/git/refs" \
+              -f "ref=refs/heads/$branch" -f "sha=$head_oid" >/dev/null
           fi
+
+          base64 -w0 < "$OUTPUT_PATH" > "$RUNNER_TEMP/org-index.md.base64"
+          base64 -w0 < llms.txt > "$RUNNER_TEMP/llms.txt.base64"
+          commit_oid=$(jq -n \
+            --arg repository "$GITHUB_REPOSITORY" \
+            --arg branch "$branch" \
+            --arg head_oid "$head_oid" \
+            --arg output_path "$OUTPUT_PATH" \
+            --rawfile output_contents "$RUNNER_TEMP/org-index.md.base64" \
+            --rawfile llms_contents "$RUNNER_TEMP/llms.txt.base64" '
+            {
+              query: ("mutation($input: CreateCommitOnBranchInput!) { createCommitOnBranch(input: $input) { commit { oid " +
+                "signature { isValid wasSignedByGitHub } } } }"),
+              variables: {
+                input: {
+                  branch: { repositoryNameWithOwner: $repository, branchName: $branch },
+                  expectedHeadOid: $head_oid,
+                  message: { headline: "chore(index): regenerate org index" },
+                  fileChanges: {
+                    additions: [
+                      { path: $output_path, contents: $output_contents },
+                      { path: "llms.txt", contents: $llms_contents }
+                    ]
+                  }
+                }
+              }
+            }
+          ' | gh api graphql --method POST --input - \
+            --jq '
+              if (.data.createCommitOnBranch.commit.signature.isValid == true
+                and .data.createCommitOnBranch.commit.signature.wasSignedByGitHub == true)
+              then .data.createCommitOnBranch.commit.oid
+              else error("GraphQL commit was not verified as GitHub-signed") end
+            ')
+          echo "::notice::Created GitHub-signed index commit $commit_oid on $branch."
+
           pr=$(gh pr list --head "$branch" --state open --json number --jq '.[0].number // empty')
           if [[ -n "$pr" ]]; then
             gh pr edit "$pr" --base "$DEFAULT_BRANCH" \
