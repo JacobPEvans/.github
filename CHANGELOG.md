@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.40.3](https://github.com/JacobPEvans/.github/compare/v1.40.2...v1.40.3) (2026-10-30)
+
+
+### Bug Fixes
+
+* **org-index:** lint only the generated index block ([#152](https://github.com/JacobPEvans/.github/issues/152)) ([3ea3ba9](https://github.com/JacobPEvans/.github/commit/3ea3ba92ff8b9a6e60b06f35ddf4b884abc81abe))
+
 ## [1.40.2](https://github.com/JacobPEvans/.github/compare/v1.40.1...v1.40.2) (2026-10-29)
 
 
