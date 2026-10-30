@@ -30,7 +30,8 @@ test('generated README is linted before the index pull request is opened or upda
 
   const lintConfig = workflow.slice(lintStep, pullRequestStep);
   assert.match(lintConfig, /uses: DavidAnson\/markdownlint-cli2-action@/);
-  assert.match(lintConfig, /globs: \$\{\{ inputs\.output_path \}\}/);
+  assert.match(workflow, /cp "\$RUNNER_TEMP\/org-index\.md" org-index\.lint\.md/);
+  assert.match(lintConfig, /globs: org-index\.lint\.md/);
 });
 
 test('changed indexes use a GitHub-signed GraphQL commit after resetting the branch to the default head', () => {
