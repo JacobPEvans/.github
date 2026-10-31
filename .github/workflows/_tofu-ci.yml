@@ -87,7 +87,7 @@ jobs:
           # Pinned: an unpinned tflint release once turned every PR red with
           # no change to any repo.
           # renovate: datasource=github-releases depName=terraform-linters/tflint
-          tflint_version: v0.64.0
+          tflint_version: v0.65.0
 
       - name: tflint
         if: ${{ inputs.tflint }}

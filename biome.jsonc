@@ -2,7 +2,7 @@
   // dryvist canonical Biome config — single source of truth for the org.
   // Pack repos copy this at scaffold time; Renovate keeps copies in sync.
   // Schema: https://biomejs.dev/reference/configuration/
-  "$schema": "https://biomejs.dev/schemas/2.5.15/schema.json",
+  "$schema": "https://biomejs.dev/schemas/2.6.2/schema.json",
   "vcs": {
     "enabled": true,
     "clientKind": "git",

@@ -33,7 +33,7 @@ jobs:
     runs-on: ubuntu-26.04
     timeout-minutes: ${{ github.event_name == 'pull_request' && 5 || 30 }}
     env:
-      RENOVATE_VERSION: "44.166.0"
+      RENOVATE_VERSION: "44.181.1"
       RENOVATE_CONFIG_FILE: ${{ inputs.config_file }}
     steps:
       - name: Checkout

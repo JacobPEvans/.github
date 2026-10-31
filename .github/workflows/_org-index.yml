@@ -23,7 +23,7 @@ permissions: {}
 jobs:
   regenerate:
     name: Regenerate repository index
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: ${{ github.event_name == 'pull_request' && 5 || 15 }}
     concurrency:
       group: org-index-${{ github.repository }}
@@ -34,7 +34,7 @@ jobs:
       - name: Mint organization read token
         id: org-read-token
         if: inputs.visibility_scope == 'all'
-        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3
         with:
           client-id: ${{ vars.GH_ACTION_RELEASE_PLEASE_APP_ID }}
           private-key: ${{ secrets.GH_ACTION_RELEASE_PLEASE_PRIVATE_KEY }}
@@ -43,7 +43,7 @@ jobs:
 
       - name: Mint caller repository write token
         id: write-token
-        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3
         with:
           client-id: ${{ vars.GH_ACTION_RELEASE_PLEASE_APP_ID }}
           private-key: ${{ secrets.GH_ACTION_RELEASE_PLEASE_PRIVATE_KEY }}

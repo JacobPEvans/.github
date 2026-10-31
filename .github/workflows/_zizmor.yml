@@ -36,7 +36,7 @@ jobs:
       - name: Install uv
         # TODO: switch to @v8 (major-moving) once Astral publishes that tag;
         # only v8.x.x full tags exist today, so this pins the latest full v8.
-        uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
 
       # zizmor runs centrally against the org's canonical policy, fetched here —
       # the consumer never copies zizmor.yml.
