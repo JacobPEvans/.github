@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.40.4](https://github.com/JacobPEvans/.github/compare/v1.40.3...v1.40.4) (2026-11-01)
+
+
+### Bug Fixes
+
+* **ci:** pass the job token to TFLint plugin setup ([#155](https://github.com/JacobPEvans/.github/issues/155)) ([fd24c96](https://github.com/JacobPEvans/.github/commit/fd24c967c9e3f4bf2bc6b7a7028d4301a24b1dca))
+
 ## [1.40.3](https://github.com/JacobPEvans/.github/compare/v1.40.2...v1.40.3) (2026-10-30)
 
 
