@@ -92,6 +92,7 @@ jobs:
       - name: tflint
         if: ${{ inputs.tflint }}
         env:
+          GITHUB_TOKEN: ${{ github.token }}
           DIRS: ${{ inputs.working_directories }}
         run: |
           config="$GITHUB_WORKSPACE/.tflint.hcl"
