@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.42.0](https://github.com/JacobPEvans/.github/compare/v1.41.0...v1.42.0) (2026-11-02)
+
+
+### Features
+
+* **promotion-pr:** add weekly develop-to-main promotion PR workflow ([#159](https://github.com/JacobPEvans/.github/issues/159)) ([1f2415a](https://github.com/JacobPEvans/.github/commit/1f2415a8129c7a5626b491bc774552ab31e84fec))
+
 ## [1.41.0](https://github.com/JacobPEvans/.github/compare/v1.40.4...v1.41.0) (2026-11-02)
 
 
