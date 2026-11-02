@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.41.0](https://github.com/JacobPEvans/.github/compare/v1.40.4...v1.41.0) (2026-11-02)
+
+
+### Features
+
+* **renovate:** open each major update in its own PR ([#157](https://github.com/JacobPEvans/.github/issues/157)) ([cda9d27](https://github.com/JacobPEvans/.github/commit/cda9d276d5d1cb91533319ee25d27fa95338a2cf))
+
 ## [1.40.4](https://github.com/JacobPEvans/.github/compare/v1.40.3...v1.40.4) (2026-11-01)
 
 
