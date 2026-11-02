@@ -10,6 +10,7 @@ AI review and agent automation workflows live in [JacobPEvans/.github-ai](https:
 | --- | --- | --- |
 | [`_flake-lock-fresh.yml`](.github/workflows/_flake-lock-fresh.yml) | Owned flake-input pins; optional GitHub input age. | `runner_label`, `max_age_days`. |
 | [`_org-index.yml`](.github/workflows/_org-index.yml) | Org index and `llms.txt`. | `visibility_scope`, `output_path`. |
+| [`_promotion-pr.yml`](.github/workflows/_promotion-pr.yml) | Weekly `develop` to `main` promotion pull request. | None. |
 
 `visibility_scope` accepts `public` or `all`; `output_path` defaults to
 `profile/README.md`.
@@ -40,6 +41,28 @@ jobs:
     uses: JacobPEvans/.github/.github/workflows/_org-index.yml@v1
     with:
       visibility_scope: all
+    secrets:
+      GH_ACTION_RELEASE_PLEASE_PRIVATE_KEY: ${{ secrets.GH_ACTION_RELEASE_PLEASE_PRIVATE_KEY }}
+```
+
+`_promotion-pr.yml` opens a pull request from `develop` into `main` on a git-flow repository when `develop` has
+commits that `main` lacks and no promotion pull request is open. The pull request is titled
+`release: promote develop to main`, carries the `release:in-progress` label, and never enables auto-merge.
+
+The caller needs the `GH_ACTION_RELEASE_PLEASE_PRIVATE_KEY` secret and the `GH_ACTION_RELEASE_PLEASE_APP_ID`
+organization variable. The App needs contents read and pull request write on the caller repository. Callers
+pinned to `@v1` resolve this workflow once a release moves the `v1` tag to a commit that contains it. A git-flow
+repository calls it weekly with:
+
+```yaml
+name: Weekly Promotion PR
+on:
+  schedule:
+    - cron: "13 7 * * 6"
+permissions: {}
+jobs:
+  promotion-pr:
+    uses: JacobPEvans/.github/.github/workflows/_promotion-pr.yml@v1
     secrets:
       GH_ACTION_RELEASE_PLEASE_PRIVATE_KEY: ${{ secrets.GH_ACTION_RELEASE_PLEASE_PRIVATE_KEY }}
 ```
