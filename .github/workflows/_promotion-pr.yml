@@ -1,0 +1,76 @@
+# Reusable: weekly develop-to-main promotion pull request.
+#
+# Opens a pull request from develop into main when develop has commits that main
+# does not and no open promotion pull request exists. The pull request carries the
+# release:in-progress label that _release-freeze.yml reads. Auto-merge is never
+# enabled.
+#
+# The pull request is opened with the release GitHub App token, not github.token,
+# so the pull_request workflows run on it.
+#
+# Caller shape:
+#   on:
+#     schedule:
+#       - cron: "13 7 * * 6"
+#   permissions: {}
+#   jobs:
+#     promotion-pr:
+#       uses: JacobPEvans/.github/.github/workflows/_promotion-pr.yml@v1
+#       secrets:
+#         GH_ACTION_RELEASE_PLEASE_PRIVATE_KEY: ${{ secrets.GH_ACTION_RELEASE_PLEASE_PRIVATE_KEY }}
+name: _promotion-pr
+
+on:
+  workflow_call:
+    secrets:
+      GH_ACTION_RELEASE_PLEASE_PRIVATE_KEY:
+        required: true
+
+permissions: {}
+
+concurrency:
+  group: promotion-pr-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  promotion-pr:
+    name: Open promotion pull request
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions: {}
+    steps:
+      - name: Mint caller repository token
+        id: token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3
+        with:
+          client-id: ${{ vars.GH_ACTION_RELEASE_PLEASE_APP_ID }}
+          private-key: ${{ secrets.GH_ACTION_RELEASE_PLEASE_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.event.repository.name }}
+          permission-contents: read
+          permission-pull-requests: write
+
+      - name: Open the promotion pull request
+        env:
+          GH_TOKEN: ${{ steps.token.outputs.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          existing=$(gh pr list --repo "$GH_REPO" --base main --head develop \
+            --state open --json number --jq '.[0].number // empty')
+          if [[ -n "$existing" ]]; then
+            echo "::notice::Promotion pull request #$existing is already open."
+            exit 0
+          fi
+
+          ahead=$(gh api "repos/$GH_REPO/compare/main...develop" --jq '.ahead_by')
+          if [[ "$ahead" == "0" ]]; then
+            echo "::notice::develop has no commits ahead of main."
+            exit 0
+          fi
+
+          gh pr create --repo "$GH_REPO" --base main --head develop \
+            --title 'release: promote develop to main' \
+            --label release:in-progress \
+            --body 'Merges develop into main.'
