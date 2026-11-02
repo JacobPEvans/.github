@@ -2,11 +2,11 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "description": [
     "Single Renovate policy master for JacobPEvans and dryvist repositories. It extends no other repository's config; dryvist/.github re-exports these presets as pass-throughs.",
-    "Every update opens in one grouped PR per repository on Saturday 00:00-05:59 America/Indiana/Indianapolis time; security updates open at any time.",
+    "Minor, patch and digest updates open in one grouped PR per repository and each major update opens its own PR, on Saturday 00:00-05:59 America/Indiana/Indianapolis time; security updates open at any time.",
     "Seven-day stabilization for minor, patch and digest updates, no hold for first-party packages, 30 days for other majors. Renovate merges directly (platformAutomerge false). Shared custom managers live here; Nix support is enabled by the dedicated Nix preset."
   ],
   "extends": [
-    "group:all"
+    "group:allNonMajor"
   ],
   "platformAutomerge": false,
   "baseBranchPatterns": [
@@ -255,6 +255,16 @@
     ]
   },
   "packageRules": [
+    {
+      "description": "Keep digest and pin updates in the shared non-major PR; group:allNonMajor groups only minor and patch.",
+      "matchUpdateTypes": [
+        "digest",
+        "pin",
+        "pinDigest"
+      ],
+      "groupName": "all non-major dependencies",
+      "groupSlug": "all-minor-patch"
+    },
     {
       "description": "Skip gh-aw generated files managed by their workflow.",
       "matchFileNames": [

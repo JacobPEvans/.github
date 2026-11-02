@@ -1,7 +1,19 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "description": "One grouped dependency PR per repository. renovate-presets already extends group:all; kept for consumers that extend this preset.",
+  "description": "One grouped non-major dependency PR per repository; each major opens its own PR. renovate-presets already extends group:allNonMajor; kept for consumers that extend this preset.",
   "extends": [
-    "group:all"
+    "group:allNonMajor"
+  ],
+  "packageRules": [
+    {
+      "description": "Keep digest and pin updates in the shared non-major PR; group:allNonMajor groups only minor and patch.",
+      "matchUpdateTypes": [
+        "digest",
+        "pin",
+        "pinDigest"
+      ],
+      "groupName": "all non-major dependencies",
+      "groupSlug": "all-minor-patch"
+    }
   ]
 }

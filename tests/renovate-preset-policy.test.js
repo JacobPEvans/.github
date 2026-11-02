@@ -25,6 +25,22 @@ test('npm updates respect the seven-day release age and avoid unsafe lock mainte
   assert.equal(npmLockRule.enabled, false);
 });
 
+test('majors never ride in the grouped PR', () => {
+  const grouping = JSON.parse(readFileSync('renovate-grouping.json', 'utf8'));
+  for (const config of [preset, grouping]) {
+    assert.ok(config.extends.includes('group:allNonMajor'));
+    assert.ok(!config.extends.includes('group:all'));
+    const digestRule = findRule(
+      config,
+      (rule) => rule.matchUpdateTypes?.includes('digest') && rule.matchUpdateTypes?.includes('pinDigest'),
+      'group digest and pin updates with the non-major PR',
+    );
+    assert.deepEqual(digestRule.matchUpdateTypes, ['digest', 'pin', 'pinDigest']);
+    assert.equal(digestRule.groupName, 'all non-major dependencies');
+    assert.equal(digestRule.groupSlug, 'all-minor-patch');
+  }
+});
+
 test('Terraform lock maintenance cannot move provider locks past declared pins', () => {
   const terraformLockRule = findRule(
     preset,
