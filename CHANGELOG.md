@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.44.0](https://github.com/JacobPEvans/.github/compare/v1.43.0...v1.44.0) (2026-11-03)
+
+
+### Features
+
+* allow gated targeted applies ([#163](https://github.com/JacobPEvans/.github/issues/163)) ([0199c66](https://github.com/JacobPEvans/.github/commit/0199c66816f696299de555a8a682ab3e611bf046))
+
 ## [1.43.0](https://github.com/JacobPEvans/.github/compare/v1.42.0...v1.43.0) (2026-11-03)
 
 
