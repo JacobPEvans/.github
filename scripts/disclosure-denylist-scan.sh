@@ -24,10 +24,18 @@
 # the self-hosted run in renovate.yml), the body's `### Release Notes` section (up
 # to `### Configuration`) is skipped: it is upstream changelog text copied verbatim.
 #
+# Vendored paths: a repository may commit `.disclosure-vendored` at its root, one
+# directory prefix per line (same comment rules), naming trees copied verbatim from a
+# third party. Added lines under a listed prefix are not scanned. The list is read from
+# the BASE ref, so a change cannot exempt its own new paths, and the list file itself
+# is always scanned. A root entry (`.`, `/`, empty after `./`), an absolute path or a
+# `..` segment is an instrument error. Title and body are always scanned.
+#
 # Exit codes:
 #   0 — no hits
 #   1 — one or more hits (see stdout for path:line)
-#   2 — instrument error (missing/empty denylist file, missing allowlist file, bad base ref)
+#   2 — instrument error (missing/empty denylist file, missing allowlist file, bad base ref,
+#       invalid vendored entry)
 
 set -euo pipefail
 
@@ -141,8 +149,22 @@ ALLOWLIST_HOME_REPO="JacobPEvans/.github"
 ALLOWLIST_HOME_PATH="scripts/disclosure-denylist-allowlist.txt"
 
 if git rev-parse -q --verify "$BASE_REF" >/dev/null; then
+  vendored=()
+  while IFS= read -r entry; do
+    entry="${entry#"${entry%%[![:space:]]*}"}"; entry="${entry%"${entry##*[![:space:]]}"}"
+    while [[ "$entry" == ./* ]]; do entry="${entry#./}"; done
+    if [[ -z "$entry" || "$entry" == "." || "$entry" == /* || "/$entry/" == */../* ]]; then
+      echo "::error::.disclosure-vendored: root, absolute or '..' entry is not allowed" >&2
+      exit 2
+    fi
+    [[ "$entry" == */ ]] || entry="${entry}/"
+    vendored+=("$entry")
+  done < <(git show "$BASE_REF:.disclosure-vendored" 2>/dev/null | grep -vE '^[[:space:]]*(#|$)' || true)
   while IFS= read -r f; do
     [[ -n "$f" ]] || continue
+    for prefix in "${vendored[@]+"${vendored[@]}"}"; do
+      [[ "$f" == "$prefix"* ]] && continue 2
+    done
     if [[ "${GITHUB_REPOSITORY:-}" == "$ALLOWLIST_HOME_REPO" && "$f" == "$ALLOWLIST_HOME_PATH" ]]; then
       continue
     fi
