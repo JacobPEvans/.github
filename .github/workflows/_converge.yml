@@ -50,6 +50,20 @@ on:
           for target terrakube-apply.
         type: string
         default: ""
+      terrakube_targeted_template_id:
+        description: >-
+          UUID of the plan -> approval -> apply (targeted) job template. Used
+          only when target_addrs is set, and required with it.
+        type: string
+        default: ""
+      target_addrs:
+        description: >-
+          Optional resource addresses for target terrakube-apply, separated by
+          newlines or commas. When set, the job uses
+          terrakube_targeted_template_id and carries them as targetAddrs.
+          Empty runs the whole workspace.
+        type: string
+        default: ""
       infra_repo:
         description: >-
           owner/repo of the infrastructure root terrakube-apply checks out
@@ -266,6 +280,8 @@ jobs:
           TERRAKUBE_ORG_ID: ${{ inputs.terrakube_org_id }}
           TERRAKUBE_WORKSPACE_ID: ${{ inputs.target_ref }}
           TERRAKUBE_TEMPLATE_ID: ${{ inputs.terrakube_template_id }}
+          TERRAKUBE_TARGETED_TEMPLATE_ID: ${{ inputs.terrakube_targeted_template_id }}
+          TARGET_ADDRS: ${{ inputs.target_addrs }}
           INFRA_REPO: ${{ inputs.infra_repo }}
           WAIT_MINUTES: ${{ inputs.wait_minutes }}
         run: |

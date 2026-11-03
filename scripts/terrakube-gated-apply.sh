@@ -16,6 +16,14 @@
 #   TERRAKUBE_ORG_ID                — organization UUID
 #   TERRAKUBE_WORKSPACE_ID          — workspace UUID
 #   TERRAKUBE_TEMPLATE_ID           — plan -> approval -> apply job template UUID
+#   TERRAKUBE_TARGETED_TEMPLATE_ID  — required only when TARGET_ADDRS is set: the
+#                                      plan -> approval -> apply (targeted) template UUID
+#   TARGET_ADDRS                    — optional resource addresses, separated by
+#                                      newlines or commas. Set and non-empty: the job
+#                                      is created from TERRAKUBE_TARGETED_TEMPLATE_ID
+#                                      with these as its targetAddrs. Unset or empty:
+#                                      a whole-workspace job, as before. The zero-destroy
+#                                      gate applies to targeted runs too.
 #   INFRA_REPO                      — owner/repo of the infrastructure root, e.g.
 #                                      dryvist/tofu-proxmox
 #   ACTIONS_ID_TOKEN_REQUEST_TOKEN,
@@ -94,22 +102,38 @@ cancel_queued_jobs() {
   for id in $ids; do
     echo "cancelling queued job ${id}"
     api PATCH "/api/v1/organization/${TERRAKUBE_ORG_ID}/job/${id}" \
-      -d '{"data":{"type":"job","attributes":{"status":"cancelled"}}}' >/dev/null
+      -d "$(job_patch_body "$id" cancelled)" >/dev/null
   done
 }
 
-# Creates the plan-and-apply job, pinned to $1 (a configuration-version
-# terraformContent.tar.gz URL), using template $2. Prints the new job id.
+# Prints the job-creation body: pinned to $1 (a configuration-version
+# terraformContent.tar.gz URL), using template $2, and carrying $3 as
+# targetAddrs when $3 is a non-empty JSON array. Without $3 the body has no
+# targetAddrs key.
+build_job_body() {
+  jq -n --arg t "$2" --arg src "$1" --arg ws "$TERRAKUBE_WORKSPACE_ID" --argjson targets "${3:-null}" '
+    {data: {type: "job", attributes: {
+      templateReference: $t,
+      overrideBranch: "remote-content",
+      overrideSource: $src
+    }, relationships: {workspace: {data: {type: "workspace", id: $ws}}}}}
+    | if $targets == null then . else .data.attributes.targetAddrs = $targets end'
+}
+
+# Prints TARGET_ADDRS as a compact JSON array of its non-empty, trimmed entries,
+# split on newlines or commas. Prints nothing when TARGET_ADDRS is unset or empty.
+targets_json() {
+  [[ -n ${TARGET_ADDRS:-} ]] || return 0
+  printf '%s\n' "$TARGET_ADDRS" | tr ',' '\n' |
+    sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//' |
+    jq -R -c 'select(length > 0)' | jq -s -c .
+}
+
+# Creates the plan-and-apply job; arguments as build_job_body. Prints the new job id.
 create_job() {
-  local override_source=$1 template_id=$2
-  api POST "/api/v1/organization/${TERRAKUBE_ORG_ID}/job" -d "$(
-    jq -n --arg t "$template_id" --arg src "$override_source" --arg ws "$TERRAKUBE_WORKSPACE_ID" '
-      {data: {type: "job", attributes: {
-        templateReference: $t,
-        overrideBranch: "remote-content",
-        overrideSource: $src
-      }, relationships: {workspace: {data: {type: "workspace", id: $ws}}}}}'
-  )" | jq -r '.data.id'
+  local override_source=$1 template_id=$2 targets=${3:-}
+  api POST "/api/v1/organization/${TERRAKUBE_ORG_ID}/job" -d "$(build_job_body "$override_source" "$template_id" "$targets")" |
+    jq -r '.data.id'
 }
 
 # Polls job $1 until its Plan step has finished — status "waitingApproval"
@@ -178,9 +202,15 @@ assemble_tree() {
   }
 }
 
+# Prints the JSON:API PATCH body that sets job $1 to status $2. The job id must
+# be in the data object; the API rejects a PATCH without it.
+job_patch_body() {
+  jq -n --arg id "$1" --arg status "$2" '{data: {type: "job", id: $id, attributes: {status: $status}}}'
+}
+
 approve_job() {
   api PATCH "/api/v1/organization/${TERRAKUBE_ORG_ID}/job/$1" \
-    -d '{"data":{"type":"job","attributes":{"status":"approved"}}}' >/dev/null
+    -d "$(job_patch_body "$1" approved)" >/dev/null
 }
 
 # Polls job $1's status until it is one of the terminal states or
@@ -208,6 +238,15 @@ main() {
   : "${ACTIONS_ID_TOKEN_REQUEST_URL:?required — the job needs permissions: id-token: write}"
   : "${WAIT_MINUTES:=10}"
   WAIT_SECONDS=$((WAIT_MINUTES * 60))
+
+  local targets template_id=$TERRAKUBE_TEMPLATE_ID
+  targets=$(targets_json)
+  if [[ -n $targets ]]; then
+    : "${TERRAKUBE_TARGETED_TEMPLATE_ID:?required when TARGET_ADDRS is set}"
+    [[ $targets != '[]' ]] || { echo "::error::TARGET_ADDRS lists no resource addresses"; exit 1; }
+    template_id=$TERRAKUBE_TARGETED_TEMPLATE_ID
+    echo "targeted job, targetAddrs: ${targets}"
+  fi
 
   [[ -f .infra-ref ]] || { echo "::error::.infra-ref not found in the desired-state repository root"; exit 1; }
   local infra_ref
@@ -239,7 +278,7 @@ main() {
   }
 
   local job_id
-  job_id=$(create_job "$override_source" "$TERRAKUBE_TEMPLATE_ID")
+  job_id=$(create_job "$override_source" "$template_id" "$targets")
   echo "created job ${job_id}"
 
   local plan_status
@@ -271,11 +310,11 @@ main() {
   echo "job ${job_id} completed"
 }
 
-# --self-check: exercises gate_plan's and wait_for_plan's logic against
-# fixtures, without a runner or a real Terrakube.
+# --self-check: exercises gate_plan's, wait_for_plan's, and the job-body and
+# TARGET_ADDRS logic against fixtures, without a runner or a real Terrakube.
 if [[ ${1:-} == --self-check ]]; then
   fail=0
-  export TERRAKUBE_ORG_ID=org1 TERRAKUBE_TOKEN=fake-token
+  export TERRAKUBE_ORG_ID=org1 TERRAKUBE_TOKEN=fake-token TERRAKUBE_WORKSPACE_ID=ws1
 
   check_gate() {
     local _fixture_log=$1 want=$2
@@ -332,7 +371,48 @@ if [[ ${1:-} == --self-check ]]; then
   check_wait_for_plan failed pending failed
   check_wait_for_plan timeout pending pending pending
 
-  [[ $fail == 0 ]] && echo "self-check OK: 9 cases"
+  check_targets() {
+    local target_env=$1 want=$2 got
+    got=$(TARGET_ADDRS=$target_env targets_json)
+    [[ $got == "$want" ]] || { echo "FAIL: TARGET_ADDRS=${target_env} -> got '${got}', want '${want}'" >&2; fail=1; }
+  }
+
+  check_job_body() {
+    local target_env=$1 want=$2 got targets
+    targets=$(TARGET_ADDRS=$target_env targets_json)
+    got=$(build_job_body src1 tmpl1 "$targets" | jq -c .)
+    [[ $got == "$want" ]] || { echo "FAIL: TARGET_ADDRS=${target_env} -> got '${got}', want '${want}'" >&2; fail=1; }
+  }
+
+  check_targets "" ""
+  check_targets ' , ' '[]'
+  check_targets $'module.a.x\n module.b.y, ' '["module.a.x","module.b.y"]'
+  # Unset/empty TARGET_ADDRS: the body is exactly the whole-workspace body.
+  check_job_body "" '{"data":{"type":"job","attributes":{"templateReference":"tmpl1","overrideBranch":"remote-content","overrideSource":"src1"},"relationships":{"workspace":{"data":{"type":"workspace","id":"ws1"}}}}}'
+  check_job_body $'module.a.x\n module.b.y, ' '{"data":{"type":"job","attributes":{"templateReference":"tmpl1","overrideBranch":"remote-content","overrideSource":"src1","targetAddrs":["module.a.x","module.b.y"]},"relationships":{"workspace":{"data":{"type":"workspace","id":"ws1"}}}}}'
+
+  # Each PATCH carries the job id in its data object, as a string. The stubbed
+  # api records the body the real approve_job and cancel_queued_jobs send.
+  check_patch_bodies() {
+    local patch_body=
+    api() {
+      if [[ $1 == PATCH ]]; then
+        patch_body=$4
+      else
+        echo '{"data":[{"id":"1026","attributes":{"status":"pending"}}]}'
+      fi
+    }
+    local got
+    approve_job 1026 >/dev/null
+    got=$(printf '%s' "$patch_body" | jq -c .)
+    [[ $got == '{"data":{"type":"job","id":"1026","attributes":{"status":"approved"}}}' ]] || { echo "FAIL: approve body '${got}'" >&2; fail=1; }
+    cancel_queued_jobs >/dev/null
+    got=$(printf '%s' "$patch_body" | jq -c .)
+    [[ $got == '{"data":{"type":"job","id":"1026","attributes":{"status":"cancelled"}}}' ]] || { echo "FAIL: cancel body '${got}'" >&2; fail=1; }
+  }
+  check_patch_bodies
+
+  [[ $fail == 0 ]] && echo "self-check OK: 16 cases"
   exit $fail
 fi
 
