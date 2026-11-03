@@ -85,10 +85,7 @@ class DisclosureDenylistScanTest(unittest.TestCase):
         (self.repo / "CHANGELOG.md").write_text("old SECRET-TERM entry\n")
         run_git(self.repo, "add", "-A")
         run_git(self.repo, "commit", "-q", "-m", "history")
-        self.base_sha = subprocess.run(
-            ["git", "-C", str(self.repo), "rev-parse", "HEAD"],
-            check=True, capture_output=True, text=True,
-        ).stdout.strip()
+        self._mark_base()
         (self.repo / "CHANGELOG.md").write_text("new entry\nold SECRET-TERM entry\n")
         run_git(self.repo, "add", "-A")
         run_git(self.repo, "commit", "-q", "-m", "prepend")
@@ -363,6 +360,74 @@ class DisclosureDenylistScanTest(unittest.TestCase):
             cwd=self.repo, capture_output=True, text=True,
         )
         self.assertEqual(result.returncode, 2)
+
+    def _mark_base(self):
+        self.base_sha = subprocess.run(
+            ["git", "-C", str(self.repo), "rev-parse", "HEAD"],
+            check=True, capture_output=True, text=True,
+        ).stdout.strip()
+
+    def _vendor_base(self, text):
+        self._commit_file(".disclosure-vendored", text, "vendored list")
+        self._mark_base()
+
+    def test_vendored_prefix_on_base_is_not_scanned(self):
+        self._vendor_base("# third party\nsite/vendor/\n")
+        self._commit_file("site/vendor/lib.js", "ANOTHER-TERM inside upstream code\n", "vendor")
+
+        result = self._run()
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_vendored_entry_without_trailing_slash_is_a_directory_prefix(self):
+        self._vendor_base("./site/vendor\n")
+        self._commit_file("site/vendor/lib.js", "ANOTHER-TERM\n", "vendor")
+        self._commit_file("site/vendored.js", "ANOTHER-TERM\n", "first party")
+
+        result = self._run()
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(result.stdout.splitlines()[0], "site/vendored.js:1")
+        self.assertNotIn("site/vendor/lib.js", result.stdout)
+
+    def test_vendored_list_added_in_the_same_change_exempts_nothing(self):
+        self._commit_file(".disclosure-vendored", "site/vendor/\n", "vendored list")
+        self._commit_file("site/vendor/lib.js", "ANOTHER-TERM\n", "vendor")
+
+        result = self._run()
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("site/vendor/lib.js:1", result.stdout)
+
+    def test_files_outside_vendored_prefix_are_still_scanned(self):
+        self._vendor_base("site/vendor/\n")
+        self._commit_file("site/app.js", "ANOTHER-TERM\n", "first party")
+
+        result = self._run()
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("site/app.js:1", result.stdout)
+
+    def test_vendored_list_itself_is_scanned(self):
+        self._vendor_base("site/vendor/\n")
+        self._commit_file(".disclosure-vendored", "site/vendor/\nANOTHER-TERM/\n", "edit list")
+
+        result = self._run()
+        self.assertEqual(result.returncode, 1)
+        self.assertIn(".disclosure-vendored:2", result.stdout)
+
+    def test_vendored_does_not_cover_pr_title(self):
+        self._vendor_base("site/vendor/\n")
+
+        result = self._run({"PR_TITLE": "bump ANOTHER-TERM"})
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("PR title:1", result.stdout)
+
+    def test_root_or_escaping_vendored_entry_is_instrument_error(self):
+        for entry in (".", "/", "./", "/etc/", "../x/", "site/../../x/"):
+            with self.subTest(entry=entry):
+                self._vendor_base(entry + "\n")
+                self._commit_file("notes.txt", "ANOTHER-TERM " + entry + "\n", "change " + entry)
+
+                result = self._run()
+                self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+                self.assertEqual(result.stdout, "")
 
 
 if __name__ == "__main__":
