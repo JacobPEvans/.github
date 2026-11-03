@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.43.0](https://github.com/JacobPEvans/.github/compare/v1.42.0...v1.43.0) (2026-11-03)
+
+
+### Features
+
+* **disclosure:** exempt vendored paths listed on the base ref ([#161](https://github.com/JacobPEvans/.github/issues/161)) ([5540f68](https://github.com/JacobPEvans/.github/commit/5540f68bfc273b3969fe035e273bc75470a55b15))
+
 ## [1.42.0](https://github.com/JacobPEvans/.github/compare/v1.41.0...v1.42.0) (2026-11-02)
 
 
