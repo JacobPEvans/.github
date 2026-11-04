@@ -23,7 +23,7 @@ function tierScript() {
     .join('\n');
 }
 
-function tierOutputs({ event, base = '', head = '', productionBranch = 'main', defaultBranch = 'develop', nonDoc = 'false' }) {
+function tierOutputs({ event, base = '', head = '', productionBranch = 'main', defaultBranch = 'develop', headRepo = 'owner/repo', baseRepo = 'owner/repo', nonDoc = 'false' }) {
   const directory = mkdtempSync(join(tmpdir(), 'ci-gate-tier-'));
   const output = join(directory, 'github-output');
   try {
@@ -36,6 +36,8 @@ function tierOutputs({ event, base = '', head = '', productionBranch = 'main', d
         HEAD_REF: head,
         PRODUCTION_BRANCH: productionBranch,
         DEFAULT_BRANCH: defaultBranch,
+        HEAD_REPO: headRepo,
+        BASE_REPO: baseRepo,
         NON_DOC: nonDoc,
       },
     });
@@ -61,18 +63,36 @@ test('event, base and head choose the CI tiers', () => {
   assert.equal(chooseTier({ event: 'pull_request', base: 'main', head: 'develop', nonDoc: 'false' }), 'test_tier=lint-only');
   // A feature branch straight into the production branch does not get the full tier.
   assert.equal(chooseTier({ event: 'pull_request', base: 'main', head: 'feature/x', nonDoc: 'true' }), 'test_tier=relevance');
-  // Trunk repositories name their own production branch.
-  assert.equal(chooseTier({ event: 'pull_request', base: 'trunk', head: 'develop', productionBranch: 'trunk' }), 'test_tier=lint-only');
+  // A trunk repository (default branch trunk) gives its promotion-style pull requests the same tier.
+  assert.equal(chooseTier({ event: 'pull_request', base: 'trunk', head: 'develop', productionBranch: 'trunk', defaultBranch: 'trunk', nonDoc: 'false' }), 'test_tier=lint-only');
 });
 
 test('trunk repositories run the full tier on feature pull requests into the production branch', () => {
   const trunk = { event: 'pull_request', base: 'main', head: 'feature/x', productionBranch: 'main', defaultBranch: 'main' };
   assert.equal(chooseTier({ ...trunk, nonDoc: 'true' }), 'test_tier=full');
   assert.equal(chooseTier({ ...trunk, nonDoc: 'false' }), 'test_tier=lint-only');
+  assert.equal(tierOutputs({ ...trunk, nonDoc: 'true' }).includes('production_pr=true'), true);
+  // A trunk named something other than main gets the same rule.
+  const named = { event: 'pull_request', base: 'trunk', head: 'feature/x', productionBranch: 'trunk', defaultBranch: 'trunk' };
+  assert.equal(chooseTier({ ...named, nonDoc: 'true' }), 'test_tier=full');
+  assert.equal(tierOutputs({ ...named, nonDoc: 'true' }).includes('production_pr=true'), true);
   // Git-flow repositories keep feature pull requests into the production branch on relevance.
   assert.equal(chooseTier({ ...trunk, defaultBranch: 'develop', nonDoc: 'true' }), 'test_tier=relevance');
+  assert.equal(tierOutputs({ ...trunk, defaultBranch: 'develop', nonDoc: 'true' }).includes('production_pr=true'), false);
   // Trunk repositories still reject pull requests into other branches.
   assert.equal(chooseTier({ ...trunk, base: 'feature/y', nonDoc: 'true' }), 'test_tier=relevance');
+});
+
+test('fork pull requests never get the promotion tier, even with a develop or hotfix head name', () => {
+  const fork = { event: 'pull_request', base: 'main', productionBranch: 'main', defaultBranch: 'develop', headRepo: 'someone/fork', baseRepo: 'owner/repo', nonDoc: 'true' };
+  assert.equal(chooseTier({ ...fork, head: 'develop' }), 'test_tier=relevance');
+  assert.equal(chooseTier({ ...fork, head: 'hotfix/fix-1' }), 'test_tier=relevance');
+  assert.equal(tierOutputs({ ...fork, head: 'develop' }).includes('production_pr=true'), false);
+  // The same head name from the base repository keeps the promotion tier.
+  assert.equal(chooseTier({ ...fork, head: 'develop', headRepo: 'owner/repo' }), 'test_tier=full');
+  // A trunk repository's fork pull request into the trunk does not get the full tier either.
+  const trunkFork = { ...fork, head: 'feature/x', defaultBranch: 'main', productionBranch: 'main' };
+  assert.equal(chooseTier(trunkFork), 'test_tier=relevance');
 });
 
 test('the production_pr output marks only promotion pull requests, case-sensitively', () => {

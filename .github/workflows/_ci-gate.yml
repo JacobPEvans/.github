@@ -152,8 +152,10 @@ on:
         description: >-
           The branch releases ship from. Pull requests into it from develop or a
           hotfix/* branch run the full test tier and the Nix build, except that
-          documentation-only changes run lint only. Every other pull request runs
-          the relevance tier.
+          documentation-only changes run lint only. In a repository whose default
+          branch is this branch, pull requests from its own branches into it take
+          the same rule. Pull requests from forks, and every other pull request,
+          run the relevance tier.
         type: string
         required: false
         default: main
@@ -636,6 +638,8 @@ jobs:
           EVENT_NAME: ${{ github.event_name }}
           BASE_REF: ${{ github.base_ref }}
           HEAD_REF: ${{ github.head_ref }}
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          BASE_REPO: ${{ github.repository }}
           PRODUCTION_BRANCH: ${{ inputs.production_branch }}
           DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
           NON_DOC: ${{ steps.lockfilter.outputs.non-doc }}
@@ -675,7 +679,7 @@ jobs:
           case "$EVENT_NAME" in
             push) test_tier=full ;;
             pull_request)
-              if [[ "$BASE_REF" == "$PRODUCTION_BRANCH" && ( "$HEAD_REF" == develop || "$HEAD_REF" == hotfix/* || "$DEFAULT_BRANCH" == "$PRODUCTION_BRANCH" ) ]]; then
+              if [[ "$BASE_REF" == "$PRODUCTION_BRANCH" && "$HEAD_REPO" == "$BASE_REPO" && ( "$HEAD_REF" == develop || "$HEAD_REF" == hotfix/* || "$DEFAULT_BRANCH" == "$PRODUCTION_BRANCH" ) ]]; then
                 production_pr=true
                 if [[ "$NON_DOC" == true ]]; then
                   test_tier=full
@@ -774,9 +778,10 @@ jobs:
   # the fork-PR guard doesn't apply here.
   #
   # PR-base gate: on pull_request events the full build runs only when the PR
-  # targets the production branch from develop or a hotfix/* branch. Every other
-  # PR takes the fast path (`nix-validate`), including feature PRs into a trunk
-  # repo's default branch.
+  # targets the production branch from a same-repository develop or hotfix/*
+  # branch, or from any same-repository branch when the production branch is
+  # the default branch (trunk repos). Every other PR takes the fast path
+  # (`nix-validate`), including fork PRs.
   # The base-ref check lives in this `if:` rather than an input default
   # because workflow_call input defaults must be static — they cannot read
   # `github.base_ref`. Non-PR events (push, schedule, dispatch) keep building.
