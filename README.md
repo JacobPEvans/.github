@@ -58,7 +58,7 @@ repository calls it weekly with:
 name: Weekly Promotion PR
 on:
   schedule:
-    - cron: "13 7 * * 6"
+    - cron: "13 12 * * 6"
 permissions: {}
 jobs:
   promotion-pr:
