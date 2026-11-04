@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.44.4](https://github.com/JacobPEvans/.github/compare/v1.44.3...v1.44.4) (2026-11-04)
+
+
+### Performance
+
+* **ci-gate:** poll the queue watchdog every 10 seconds ([#172](https://github.com/JacobPEvans/.github/issues/172)) ([87805b9](https://github.com/JacobPEvans/.github/commit/87805b9fb0b29952925a8de2c378e79914f892d3))
+* **release:** run release-freeze on a hosted runner by default ([#173](https://github.com/JacobPEvans/.github/issues/173)) ([811f36b](https://github.com/JacobPEvans/.github/commit/811f36b008552fef7cf6cb580d53cf93196793bc))
+
 ## [1.44.3](https://github.com/JacobPEvans/.github/compare/v1.44.2...v1.44.3) (2026-11-04)
 
 
