@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.44.5](https://github.com/JacobPEvans/.github/compare/v1.44.4...v1.44.5) (2026-11-04)
+
+
+### Bug Fixes
+
+* **ci-gate:** run the full tier only on promotion pull requests ([#171](https://github.com/JacobPEvans/.github/issues/171)) ([91478fd](https://github.com/JacobPEvans/.github/commit/91478fddb5f32f291354880196062bfae0942adb))
+
 ## [1.44.4](https://github.com/JacobPEvans/.github/compare/v1.44.3...v1.44.4) (2026-11-04)
 
 
