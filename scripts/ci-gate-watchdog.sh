@@ -47,7 +47,7 @@ sibling_jobs() {
 # awk parses QUEUE_TIMEOUT_MINUTES so a float (e.g. 0.5) truncates to an integer
 # instead of crashing bash arithmetic, which only handles integers.
 limit_seconds=$(awk "BEGIN{printf \"%d\", $QUEUE_TIMEOUT_MINUTES * 60}")
-poll_interval=30
+poll_interval=10
 # Stop watching before the job's own timeout-minutes, so a long healthy run never
 # turns the watchdog red. $SECONDS is bash's elapsed-time builtin.
 watch_seconds=$(awk "BEGIN{printf \"%d\", ${WATCH_MAX_MINUTES:-55} * 60}")

@@ -950,9 +950,10 @@ jobs:
       - name: Poll queue, then cancel the run if jobs remain queued
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          QUEUE_TIMEOUT_MINUTES: ${{ inputs.queue_timeout_minutes }}
+          # Pull requests cancel a queued job after 3 minutes; other events keep the input.
+          QUEUE_TIMEOUT_MINUTES: ${{ github.event_name == 'pull_request' && 3 || inputs.queue_timeout_minutes }}
           # Stop watching inside this job's PR ceiling (5) so its timeout never cancels the run.
-          WATCH_MAX_MINUTES: ${{ github.event_name == 'pull_request' && 4 || 55 }}
+          WATCH_MAX_MINUTES: ${{ github.event_name == 'pull_request' && 4.5 || 55 }}
           REPO: ${{ github.repository }}
           RUN_ID: ${{ github.run_id }}
         run: bash .gh-shared/scripts/ci-gate-watchdog.sh
