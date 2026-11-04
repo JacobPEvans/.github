@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.44.2](https://github.com/JacobPEvans/.github/compare/v1.44.1...v1.44.2) (2026-11-04)
+
+
+### Bug Fixes
+
+* **pre-commit:** wait for the ansible-lint lock without busy-polling ([#167](https://github.com/JacobPEvans/.github/issues/167)) ([c82371d](https://github.com/JacobPEvans/.github/commit/c82371dcbb6516d81c58bb4e57edeba2e4d0b3ee))
+
 ## [1.44.1](https://github.com/JacobPEvans/.github/compare/v1.44.0...v1.44.1) (2026-11-04)
 
 
