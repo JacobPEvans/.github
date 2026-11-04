@@ -158,5 +158,18 @@ test('the watchdog stops watching inside its own pull_request timeout', () => {
   const workflow = readFileSync(path.join(__dirname, '../.github/workflows/_ci-gate.yml'), 'utf8');
   const job = workflow.slice(workflow.indexOf('\n  watchdog:'), workflow.indexOf('\n  uses-resolve:'));
   assert.match(job, /timeout-minutes: \$\{\{ github\.event_name == 'pull_request' && 5 \|\| 60 \}\}/);
-  assert.match(job, /WATCH_MAX_MINUTES: \$\{\{ github\.event_name == 'pull_request' && 4 \|\| 55 \}\}/);
+  assert.match(job, /WATCH_MAX_MINUTES: \$\{\{ github\.event_name == 'pull_request' && 4\.5 \|\| 55 \}\}/);
+  // The PR watch window must end before the 5-minute PR job ceiling.
+  const window = Number(job.match(/'pull_request' && (\d+(?:\.\d+)?) \|\| 55/)[1]);
+  assert.ok(window < 5, `watch window ${window} must be below the 5-minute ceiling`);
+});
+
+test('the watchdog cancels a queued pull_request run after 3 minutes', () => {
+  const workflow = readFileSync(path.join(__dirname, '../.github/workflows/_ci-gate.yml'), 'utf8');
+  const job = workflow.slice(workflow.indexOf('\n  watchdog:'), workflow.indexOf('\n  uses-resolve:'));
+  assert.match(job, /QUEUE_TIMEOUT_MINUTES: \$\{\{ github\.event_name == 'pull_request' && 3 \|\| inputs\.queue_timeout_minutes \}\}/);
+});
+
+test('the watchdog polls the queue every 10 seconds', () => {
+  assert.match(readFileSync(script, 'utf8'), /^poll_interval=10$/m);
 });
