@@ -12,6 +12,14 @@ on:
         type: string
         required: false
         default: ubuntu-24.04
+      freeze_runner_label:
+        description: >-
+          Runner label for the release-freeze status job, which only calls the
+          GitHub API. Defaults to the GitHub-hosted ubuntu-24.04 image even when
+          runner_label selects a self-hosted pool.
+        type: string
+        required: false
+        default: ubuntu-24.04
       auto-merge:
         description: >-
           Deprecated and ignored. Every release PR is set to auto-merge. The input
@@ -92,7 +100,7 @@ jobs:
     if: ${{ github.event_name == 'pull_request' }}
     uses: JacobPEvans/.github/.github/workflows/_release-freeze.yml@v1
     with:
-      runner_label: ${{ inputs.runner_label }}
+      runner_label: ${{ inputs.freeze_runner_label }}
     permissions:
       contents: read
       pull-requests: read
