@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.44.3](https://github.com/JacobPEvans/.github/compare/v1.44.2...v1.44.3) (2026-11-04)
+
+
+### Bug Fixes
+
+* **renovate:** remove prCreation gate from org preset ([#169](https://github.com/JacobPEvans/.github/issues/169)) ([231ba9e](https://github.com/JacobPEvans/.github/commit/231ba9ead13993e65308050b586b04ddb4e1cda2))
+* **renovate:** remove the not-pending PR creation gate ([874309b](https://github.com/JacobPEvans/.github/commit/874309b13fba6252b9e196a210f0e9c08eb08b1a))
+
 ## [1.44.2](https://github.com/JacobPEvans/.github/compare/v1.44.1...v1.44.2) (2026-11-04)
 
 
