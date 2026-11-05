@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.45.0](https://github.com/JacobPEvans/.github/compare/v1.44.6...v1.45.0) (2026-11-05)
+
+
+### Features
+
+* **nix-validate:** add an optional focused check shard input ([#178](https://github.com/JacobPEvans/.github/issues/178)) ([0180ab6](https://github.com/JacobPEvans/.github/commit/0180ab6bb345c2d763a262c09348cd265364ebde))
+
 ## [1.44.6](https://github.com/JacobPEvans/.github/compare/v1.44.5...v1.44.6) (2026-11-05)
 
 
