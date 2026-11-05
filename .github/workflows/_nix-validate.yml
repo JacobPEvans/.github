@@ -32,6 +32,17 @@ on:
         type: boolean
         required: false
         default: false
+      focused_checks_shard:
+        description: >-
+          Applies only when focused_checks is true; ignored otherwise. Build only
+          shard i of n of the current system's check attributes, given as "i/n"
+          with 1 <= i <= n. Shard i takes the attributes at 1-based positions i,
+          i+n, i+2n, ... of builtins.attrNames order, so shards 1/n through n/n
+          cover every check exactly once. Empty (default) builds every check in
+          one step. Each shard self-checks the count it selected.
+        type: string
+        required: false
+        default: ''
       timeout_minutes:
         description: >-
           Opt-in job timeout for a caller whose cold `nix flake check` closure
@@ -149,6 +160,7 @@ jobs:
         if: inputs.focused_checks
         env:
           ALL_SYSTEMS_FLAG: ${{ inputs.all_systems && '--all-systems' || '' }}
+          FOCUSED_CHECKS_SHARD: ${{ inputs.focused_checks_shard }}
         run: |
           # Evaluate flake outputs but build only the current system's check derivations.
           # `checks` is an optional flake output; only a missing output or system
@@ -172,6 +184,30 @@ jobs:
                 )
             '
           )"
+          if [ -n "$FOCUSED_CHECKS_SHARD" ]; then
+            # Shard i of n builds the checks at 1-based positions p with p % n == i % n.
+            # Every position falls in exactly one shard, so shards 1..n cover all checks once.
+            if ! [[ "$FOCUSED_CHECKS_SHARD" =~ ^([1-9][0-9]*)/([1-9][0-9]*)$ ]] \
+              || [ "${BASH_REMATCH[1]}" -gt "${BASH_REMATCH[2]}" ]; then
+              echo "::error::focused_checks_shard must be i/n with 1 <= i <= n, got '$FOCUSED_CHECKS_SHARD'"
+              exit 1
+            fi
+            shard_index="${BASH_REMATCH[1]}"
+            shard_count="${BASH_REMATCH[2]}"
+            total="$(printf '%s\n' "$check_names" | awk 'NF { n++ } END { print n + 0 }')"
+            check_names="$(printf '%s\n' "$check_names" | awk -v i="$shard_index" -v n="$shard_count" 'NF && NR % n == i % n')"
+            selected="$(printf '%s\n' "$check_names" | awk 'NF { n++ } END { print n + 0 }')"
+            # Self-check: the shard must hold exactly the positions i, i+n, i+2n, ... up to total.
+            expected=0
+            if [ "$shard_index" -le "$total" ]; then
+              expected=$(( (total - shard_index) / shard_count + 1 ))
+            fi
+            if [ "$selected" -ne "$expected" ]; then
+              echo "::error::shard $shard_index/$shard_count selected $selected of $total checks, expected $expected"
+              exit 1
+            fi
+            echo "Shard $shard_index/$shard_count builds $selected of $total checks."
+          fi
           if [ -n "$check_names" ]; then
             check_installables=()
             while IFS= read -r check; do
