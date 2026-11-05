@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.44.6](https://github.com/JacobPEvans/.github/compare/v1.44.5...v1.44.6) (2026-11-05)
+
+
+### CI
+
+* **nix:** cap the macOS nix store like the Linux runners ([#177](https://github.com/JacobPEvans/.github/issues/177)) ([5a629be](https://github.com/JacobPEvans/.github/commit/5a629be4aeccda157783a8a26c447041f8681d7b))
+
 ## [1.44.5](https://github.com/JacobPEvans/.github/compare/v1.44.4...v1.44.5) (2026-11-04)
 
 
