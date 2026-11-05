@@ -131,6 +131,7 @@ jobs:
           # whole flake-check closure. Kept under the 10G per-repo cache quota
           # shared with the macOS build cache.
           gc-max-store-size-linux: 6G
+          gc-max-store-size-macos: 6G
           save: ${{ github.event_name != 'pull_request' }}
 
       - name: Check flake
