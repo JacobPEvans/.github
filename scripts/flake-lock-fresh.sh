@@ -18,9 +18,6 @@
 #                                it and keeps the branch check
 #        FLAKE_LOCK_REMOTE_BASE  optional; URL prefix that <owner>/<repo>.git is read from
 #                                (default https://github.com)
-#        FIRST_PARTY_OWNERS      optional extra space-separated owners exempt from the soak gate
-#        MIN_AGE_DAYS            minimum age for all non-first-party lock nodes. 0 disables
-#                                the soak gate; values 1 and 2 are refused.
 # Only root inputs of type github are checked. The ref is original.ref, resolved as a
 # tag first and as a branch second; an input naming none resolves the repository's HEAD.
 # An owned input pinned to a revision (original.rev) fails: ours always track a ref.
@@ -34,9 +31,6 @@ lock=${1:-flake.lock}
 [ -f "$lock" ] || { echo "no $lock, nothing to check"; exit 0; }
 # The one list of owners whose flake inputs are ours. JacobPEvans redirects to dryvist.
 OWNED="dryvist JacobPEvans JacobPEvans-personal"
-# First-party owners exempt from the soak gate: OWNED, jpe-nix, any jpe-* owner and the
-# space-separated FIRST_PARTY_OWNERS a caller supplies.
-FIRST_PARTY="$OWNED jpe-nix ${FIRST_PARTY_OWNERS:-}"
 OWNERS=${OWNERS:-$OWNED}
 remote_base=${FLAKE_LOCK_REMOTE_BASE:-https://github.com}
 [ -n "${STALE_NAMES_FILE:-}" ] && : >"$STALE_NAMES_FILE"
@@ -45,23 +39,6 @@ if ! [[ $max_age_days =~ ^[0-9]+$ ]]; then
   echo "::error::MAX_AGE_DAYS must be a non-negative integer"
   exit 2
 fi
-min_age_days=${MIN_AGE_DAYS:-0}
-if ! [[ $min_age_days =~ ^[0-9]+$ ]]; then
-  echo "::error::MIN_AGE_DAYS must be a non-negative integer"
-  exit 2
-fi
-if [ "$min_age_days" -gt 0 ] && [ "$min_age_days" -lt 3 ]; then
-  echo "::error::MIN_AGE_DAYS must be 0 or at least 3"
-  exit 2
-fi
-
-is_first_party_owner() {
-  local owner=${1,,}
-  case "$owner" in
-    jpe-*) return 0 ;;
-  esac
-  [[ " ${FIRST_PARTY,,} " == *" $owner "* ]]
-}
 
 git_remote() {
   local url=$1
@@ -185,35 +162,6 @@ while IFS=$'\t' read -r name repo ref rev; do
     stale=1
   fi
 done <<<"$inputs"
-
-if [ "$min_age_days" -gt 0 ]; then
-  now=$(date -u +%s)
-  cutoff=$((now - min_age_days * 86400))
-  soak_nodes=$(jq -r '
-    .nodes | to_entries[]
-    | .key as $name | .value as $n
-    | select($n.original.owner? != null and $n.locked.lastModified? != null)
-    | [$name,
-       $n.original.owner,
-       ($n.original.repo // $n.locked.repo // ""),
-       ($n.locked.lastModified | tostring)]
-    | @tsv' "$lock")
-  while IFS=$'\t' read -r name owner repo last_modified; do
-    [ -n "$name" ] || continue
-    if is_first_party_owner "$owner"; then
-      continue
-    fi
-    if ! [[ $last_modified =~ ^[0-9]+$ ]]; then
-      echo "::warning::$name ($owner/$repo) has no numeric locked.lastModified; skipped"
-      continue
-    fi
-    if [ "$last_modified" -gt "$cutoff" ]; then
-      age_days=$(((now - last_modified) / 86400))
-      echo "::error::$name ($owner/$repo) is $age_days days old; minimum is $min_age_days days"
-      stale=1
-    fi
-  done <<<"$soak_nodes"
-fi
 
 if [ "$max_age_days" -gt 0 ]; then
   now=$(date -u +%s)
