@@ -1,4 +1,4 @@
-# Reusable: check owned flake inputs and optionally age-check root GitHub inputs.
+# Reusable: check owned flake inputs and optionally enforce a third-party lock soak.
 #
 # Checks the caller's root flake.lock with scripts/flake-lock-fresh.sh. The existing
 # owned-input policy remains enabled for every caller. Set max_age_days to additionally
@@ -32,6 +32,13 @@ on:
         type: number
         required: false
         default: 0
+      min_age_days:
+        description: >-
+          Minimum age in days for every non-first-party lock node. Defaults to 0,
+          which disables the soak gate; 1 and 2 are rejected by the script.
+        type: number
+        required: false
+        default: 0
     secrets:
       GH_APP_PRIVATE_KEY:
         required: false
@@ -48,6 +55,8 @@ jobs:
     env:
       HAS_APP_KEY: ${{ secrets.GH_APP_PRIVATE_KEY != '' }}
       MAX_AGE_DAYS: ${{ inputs.max_age_days }}
+      MIN_AGE_DAYS: ${{ inputs.min_age_days }}
+      FIRST_PARTY_OWNERS: ${{ vars.FIRST_PARTY_OWNERS }}
     steps:
       - name: Checkout flake.lock
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7

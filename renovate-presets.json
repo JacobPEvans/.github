@@ -316,11 +316,22 @@
         "JacobPEvans/**",
         "JacobPEvans-*/**",
         "dryvist/**",
+        "jpe-nix/**",
         "jpe-*/**",
         "https://github.com/JacobPEvans/**",
         "https://github.com/JacobPEvans-*/**",
         "https://github.com/dryvist/**",
+        "https://github.com/jpe-nix/**",
         "https://github.com/jpe-*/**"
+      ],
+      "automerge": true,
+      "minimumReleaseAge": "0 days"
+    },
+    {
+      "description": "Claude Code updates are an owner-approved zero-day exception once checks pass.",
+      "matchPackageNames": [
+        "anthropics/claude-code",
+        "@anthropic-ai/claude-code"
       ],
       "automerge": true,
       "minimumReleaseAge": "0 days"

@@ -1,0 +1,110 @@
+# Reusable: update a flake's root branch inputs only after a seven-day soak.
+#
+# Callers schedule this weekly at an odd minute to avoid the top-of-hour queue.
+# Repositories that opt in disable Renovate's lockFileMaintenance locally; all
+# other repositories retain their existing Renovate-only lock maintenance.
+name: _flake-soak-update
+
+on:
+  workflow_call:
+    secrets:
+      GH_ACTION_RELEASE_PLEASE_PRIVATE_KEY:
+        required: true
+    inputs:
+      min_age_days:
+        description: Minimum third-party release age in days; 7 by default and never below 3.
+        type: number
+        required: false
+        default: 7
+      flake_dir:
+        description: Repository-relative directory containing flake.lock.
+        type: string
+        required: false
+        default: .
+
+permissions: {}
+
+concurrency:
+  group: flake-soak-update-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  update:
+    name: Update soaked flake inputs
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25 # pr-policy: timeout-exception Nix install and lock update
+    permissions:
+      contents: read
+    steps:
+      # An App token, not github.token: pushes and PRs made with github.token
+      # do not trigger workflows, so the soak PR would never run its CI gate.
+      - name: Mint caller repository token
+        id: token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3
+        with:
+          client-id: ${{ vars.GH_ACTION_RELEASE_PLEASE_APP_ID }}
+          private-key: ${{ secrets.GH_ACTION_RELEASE_PLEASE_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.event.repository.name }}
+          permission-contents: write
+          permission-pull-requests: write
+
+      - name: Check out the default branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          fetch-depth: 0
+          token: ${{ steps.token.outputs.token }}
+
+      - name: Install Nix
+        uses: DeterminateSystems/determinate-nix-action@8d87e8d5e5b8a8309d4281094560f127d9a265f1 # v3
+
+      - name: Check out the soak updater
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          repository: JacobPEvans/.github
+          ref: ${{ job.workflow_sha }}
+          path: .gh-shared
+          persist-credentials: false
+          sparse-checkout: scripts/flake-soak-update.py
+          sparse-checkout-cone-mode: false
+
+      - name: Update only soaked inputs
+        env:
+          FLAKE_DIR: ${{ inputs.flake_dir }}
+          MIN_AGE_DAYS: ${{ inputs.min_age_days }}
+          FIRST_PARTY_OWNERS: ${{ vars.FIRST_PARTY_OWNERS }}
+        run: |
+          set -euo pipefail
+          python3 .gh-shared/scripts/flake-soak-update.py \
+            --min-age-days "$MIN_AGE_DAYS" "$FLAKE_DIR" | tee "$RUNNER_TEMP/flake-soak-output.md"
+          sed -n '/^| input | old rev | new rev | released |$/,$p' "$RUNNER_TEMP/flake-soak-output.md" \
+            > "$RUNNER_TEMP/flake-soak-summary.md"
+
+      - name: Open or update the flake soak pull request
+        env:
+          FLAKE_DIR: ${{ inputs.flake_dir }}
+          SUMMARY: ${{ runner.temp }}/flake-soak-summary.md
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          GH_TOKEN: ${{ steps.token.outputs.token }}
+        run: |
+          set -euo pipefail
+          branch=deps/flake-soak
+          git add -- "$FLAKE_DIR/flake.lock"
+          if git diff --cached --quiet; then
+            echo "::notice::No soaked flake input updates."
+            exit 0
+          fi
+          git switch --create "$branch"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'chore(deps): update soaked flake inputs'
+          git push --force origin "$branch"
+          pr=$(gh pr list --base "$DEFAULT_BRANCH" --head "$branch" --state open --json number --jq '.[0].number // empty')
+          if [[ -n "$pr" ]]; then
+            gh pr edit "$pr" --base "$DEFAULT_BRANCH" --title 'chore(deps): update soaked flake inputs' \
+              --body-file "$SUMMARY" --add-label dependencies
+          else
+            gh pr create --base "$DEFAULT_BRANCH" --head "$branch" --title 'chore(deps): update soaked flake inputs' \
+              --body-file "$SUMMARY" --label dependencies
+          fi
