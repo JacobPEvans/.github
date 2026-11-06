@@ -75,6 +75,35 @@ test('Nix repos raise Go directives in a dedicated review-required PR', () => {
   }
 });
 
+test('release-age exceptions are limited to first-party, vulnerability alerts, and Claude Code', () => {
+  assert.equal(preset.vulnerabilityAlerts.minimumReleaseAge, '1 day');
+
+  const firstParty = findRule(
+    preset,
+    (rule) => rule.matchPackageNames?.includes('jpe-nix/**'),
+    'first-party zero-day rule',
+  );
+  assert.equal(firstParty.minimumReleaseAge, '0 days');
+
+  const claudeCode = findRule(
+    preset,
+    (rule) => rule.matchPackageNames?.includes('@anthropic-ai/claude-code'),
+    'Claude Code zero-day exception',
+  );
+  assert.equal(claudeCode.minimumReleaseAge, '0 days');
+
+  for (const rule of preset.packageRules) {
+    if (!rule.minimumReleaseAge) continue;
+    const match = /^(\d+) days$/.exec(rule.minimumReleaseAge);
+    assert.ok(match, `unexpected minimumReleaseAge: ${rule.minimumReleaseAge}`);
+    const isFirstParty = rule === firstParty || rule.matchPackageNames?.some((name) =>
+      /^(JacobPEvans|dryvist|jpe-)/i.test(name.replace('https://github.com/', '')),
+    );
+    assert.ok(Number(match[1]) >= 3 || isFirstParty || rule === claudeCode,
+      `unapproved release-age exception in ${rule.description}`);
+  }
+});
+
 test('Molecule scenario image annotations track the annotated tag and digest', () => {
   const manager = preset.customManagers.find((m) => m.managerFilePatterns?.some((p) => p.includes('molecule')));
   assert.ok(manager, 'missing Molecule image customManager');

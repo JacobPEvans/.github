@@ -21,21 +21,25 @@ one-day stabilization hold.
 
 | Update | Stabilization | Review and merge |
 | --- | --- | --- |
-| Minor, patch, digest and pin updates | 7 days | Auto-merge after required checks pass |
-| First-party updates, including majors | None | Auto-merge after required checks pass |
+| Minor, patch, digest and pin updates | 7 days standard; never below 3 days | Auto-merge after required checks pass |
+| First-party updates, including majors | 0 days | Auto-merge after required checks pass |
+| Renovate vulnerability alerts | 1 day (owner-approved exception) | Auto-merge after required checks pass |
+| Claude Code | 0 days (owner-approved exception) | Auto-merge after required checks pass |
 | Trusted-org majors | 7 days | Auto-merge after required checks pass; the dep:review label adds the dependency review |
 | Other majors | 30 days | Auto-merge after required checks pass |
 
-First-party packages are `JacobPEvans/**`, `JacobPEvans-*/**`, `dryvist/**` and
-`jpe-*/**`. Renovate hash-pins their GitHub Actions refs, with the release tag in
+First-party packages are `JacobPEvans/**`, `JacobPEvans-*/**`, `dryvist/**`,
+`jpe-nix/**` and `jpe-*/**`. Renovate hash-pins their GitHub Actions refs, with the release tag in
 a trailing comment such as `# v1.2.3`, except `JacobPEvans/**` and
 `JacobPEvans-personal/**` reusable workflows, which ride their `@vN` major tag. A
 new major such as `v1` to `v2` opens on Saturday and auto-merges after passing
 checks. Third-party actions remain SHA-pinned with a released-version comment.
 
-Nix repositories extend `github>JacobPEvans/.github:renovate-nix`. Renovate's
-Nix manager maintains `flake.lock` in one Saturday PR per repository and
-auto-merges after required checks pass.
+Nix repositories extend `github>JacobPEvans/.github:renovate-nix`. By default,
+Renovate's Nix manager maintains `flake.lock` in one Saturday PR per repository
+and auto-merges after required checks pass. A repository that opts into the
+flake soak updater disables that local `lockFileMaintenance` and schedules the
+updater weekly at an odd minute.
 
 ## Version Pinning
 
@@ -43,7 +47,7 @@ auto-merges after required checks pass.
 | --- | --- |
 | First-party GitHub Actions and reusable workflows | Full commit SHA with a release tag comment (`# vX.Y.Z`); `@vN` is also accepted |
 | Third-party GitHub Actions | Full commit SHA with a released-version comment (`# vX.Y.Z`) |
-| Nix flake locks | Maintained by Renovate's Nix manager |
+| Nix flake locks | Renovate by default; opted-in branch inputs use the seven-day soak updater |
 | npm packages | Lower-bound (`^x.y.z`) in `package.json`; lockfile committed |
 
 The existing scanners remain in place. Renovate updates first-party and
