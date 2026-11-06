@@ -35,11 +35,10 @@ a trailing comment such as `# v1.2.3`, except `JacobPEvans/**` and
 new major such as `v1` to `v2` opens on Saturday and auto-merges after passing
 checks. Third-party actions remain SHA-pinned with a released-version comment.
 
-Nix repositories extend `github>JacobPEvans/.github:renovate-nix`. By default,
-Renovate's Nix manager maintains `flake.lock` in one Saturday PR per repository
-and auto-merges after required checks pass. A repository that opts into the
-flake soak updater disables that local `lockFileMaintenance` and schedules the
-updater weekly at an odd minute.
+Nix repositories extend `github>JacobPEvans/.github:renovate-nix`. Renovate's
+Nix manager maintains `flake.lock` in one Saturday PR per repository and
+auto-merges after required checks pass. Lock-file maintenance has no age gate:
+branch-tracking flake inputs move to their current revision.
 
 ## Version Pinning
 
@@ -47,7 +46,7 @@ updater weekly at an odd minute.
 | --- | --- |
 | First-party GitHub Actions and reusable workflows | Full commit SHA with a release tag comment (`# vX.Y.Z`); `@vN` is also accepted |
 | Third-party GitHub Actions | Full commit SHA with a released-version comment (`# vX.Y.Z`) |
-| Nix flake locks | Renovate by default; opted-in branch inputs use the seven-day soak updater |
+| Nix flake locks | Maintained by Renovate's Nix manager; no age gate |
 | npm packages | Lower-bound (`^x.y.z`) in `package.json`; lockfile committed |
 
 The existing scanners remain in place. Renovate updates first-party and
