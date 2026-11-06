@@ -13,7 +13,7 @@ const script = path.join(__dirname, '..', 'scripts', 'flake-lock-fresh.sh');
 const HEAD = 'a'.repeat(40);
 const STALE = 'b'.repeat(40);
 
-function run(lock, { base, status = 'ahead', maxAgeDays = 0 } = {}) {
+function run(lock, { base, status = 'ahead', maxAgeDays = 0, minAgeDays = 0 } = {}) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'flf-'));
   // Fake git: every ref resolves to HEAD.
   fs.writeFileSync(path.join(dir, 'git'), `#!/bin/sh\nprintf '%s\\t%s\\n' ${HEAD} "$3"\n`, { mode: 0o755 });
@@ -27,7 +27,7 @@ function run(lock, { base, status = 'ahead', maxAgeDays = 0 } = {}) {
   }
   const names = path.join(dir, 'stale-names');
   const r = spawnSync('bash', [script, ...args, path.join(dir, 'flake.lock')], {
-    env: { ...process.env, PATH: `${dir}:${process.env.PATH}`, OWNERS: 'ours other-ours', STALE_NAMES_FILE: names, MAX_AGE_DAYS: String(maxAgeDays) },
+    env: { ...process.env, PATH: `${dir}:${process.env.PATH}`, OWNERS: 'ours other-ours', STALE_NAMES_FILE: names, MAX_AGE_DAYS: String(maxAgeDays), MIN_AGE_DAYS: String(minAgeDays) },
     encoding: 'utf8',
   });
   return { ...r, names: fs.readFileSync(names, 'utf8').split('\n').filter(Boolean) };
@@ -138,4 +138,30 @@ test('age check flags an old root input when a diverged upstream ref has newer c
   assert.equal(r.status, 1, r.stdout + r.stderr);
   assert.match(r.stdout, /nixpkgs \(NixOS\/r nixos-unstable\) is 31 days old with 1 newer upstream commit/);
   assert.deepEqual(r.names, ['nixpkgs']);
+});
+
+test('third-party soak gate is off by default', () => {
+  const r = run(lock({ nested: node('third-party', STALE, 'main', secondsAgo(1)) }));
+  assert.equal(r.status, 0, r.stdout + r.stderr);
+});
+
+test('third-party soak gate refuses one and two-day minimums', () => {
+  const r = run(lock({}), { minAgeDays: 2 });
+  assert.equal(r.status, 2);
+  assert.match(r.stdout, /MIN_AGE_DAYS must be 0 or at least 3/);
+});
+
+test('third-party soak gate fails a young node outside the root inputs', () => {
+  const source = lock({});
+  source.nodes.transitive = node('third-party', STALE, 'main', secondsAgo(1));
+  const r = run(source, { minAgeDays: 7 });
+  assert.equal(r.status, 1, r.stdout + r.stderr);
+  assert.match(r.stdout, /transitive \(third-party\/r\) is 1 days old; minimum is 7 days/);
+});
+
+test('third-party soak gate exempts a young first-party node', () => {
+  const source = lock({});
+  source.nodes.transitive = node('jpe-nix', STALE, 'main', secondsAgo(1));
+  const r = run(source, { minAgeDays: 7 });
+  assert.equal(r.status, 0, r.stdout + r.stderr);
 });
