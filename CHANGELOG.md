@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.46.0](https://github.com/JacobPEvans/.github/compare/v1.45.0...v1.46.0) (2026-11-06)
+
+
+### Features
+
+* **flake:** add a soak-aware updater and an opt-in soak gate ([#181](https://github.com/JacobPEvans/.github/issues/181)) ([c0ef82e](https://github.com/JacobPEvans/.github/commit/c0ef82e5e965cfde03d9a21c6d36010c5c9b2a92))
+
 ## [1.45.0](https://github.com/JacobPEvans/.github/compare/v1.44.6...v1.45.0) (2026-11-05)
 
 
