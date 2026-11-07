@@ -23,7 +23,7 @@ one-day stabilization hold.
 | Minor, patch, digest and pin updates | 7 days | Auto-merge after required checks pass |
 | First-party updates, including majors | None | Auto-merge after required checks pass |
 | Trusted-org majors | 7 days | Auto-merge after required checks pass; the dep:review label adds the dependency review |
-| Other majors | 30 days | Auto-merge after required checks pass |
+| Other majors | 7 days | Manual merge after required checks pass |
 
 First-party packages are `JacobPEvans/**`, `JacobPEvans-*/**`, `dryvist/**` and
 `jpe-*/**`. Renovate hash-pins their GitHub Actions refs, with the release tag in
