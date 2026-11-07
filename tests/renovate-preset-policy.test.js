@@ -25,6 +25,32 @@ test('npm updates respect the seven-day release age and avoid unsafe lock mainte
   assert.equal(npmLockRule.enabled, false);
 });
 
+test('timestamp-less lock and digest updates retain the configured release-age periods', () => {
+  const timestampRule = findRule(
+    preset,
+    (rule) => rule.matchUpdateTypes?.includes('lockFileMaintenance') &&
+      rule.matchUpdateTypes?.includes('digest'),
+    'allow timestamp-less lock maintenance and digest updates',
+  );
+  assert.deepEqual(timestampRule.matchUpdateTypes, ['lockFileMaintenance', 'digest']);
+  assert.equal(timestampRule.minimumReleaseAgeBehaviour, 'timestamp-optional');
+  assert.equal(timestampRule.minimumReleaseAge, undefined);
+  assert.equal(preset.minimumReleaseAge, '7 days');
+
+  const digestAgeRule = findRule(
+    preset,
+    (rule) => rule.matchUpdateTypes?.includes('digest') && rule.minimumReleaseAge,
+    'keep the release-age hold for dated digest updates',
+  );
+  assert.equal(digestAgeRule.minimumReleaseAge, '7 days');
+  const majorAgeRule = findRule(
+    preset,
+    (rule) => rule.matchUpdateTypes?.includes('major') && !rule.matchPackageNames,
+    'keep the release-age hold for other majors',
+  );
+  assert.equal(majorAgeRule.minimumReleaseAge, '30 days');
+});
+
 test('majors never ride in the grouped PR', () => {
   const grouping = JSON.parse(readFileSync('renovate-grouping.json', 'utf8'));
   for (const config of [preset, grouping]) {
