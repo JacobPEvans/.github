@@ -39,6 +39,8 @@ Nix repositories extend `github>JacobPEvans/.github:renovate-nix`. Renovate's
 Nix manager maintains `flake.lock` in one Saturday PR per repository and
 auto-merges after required checks pass. Lock-file maintenance has no age gate:
 branch-tracking flake inputs move to their current revision.
+Digest updates without a release timestamp have no age gate, while dated releases
+keep their stabilization period.
 
 ## Version Pinning
 

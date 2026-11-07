@@ -59,7 +59,7 @@
     "vulnerabilityFixStrategy": "highest"
   },
   "lockFileMaintenance": {
-    "description": "Lock-file maintenance runs in the Saturday 00:00-05:59 America/Indiana/Indianapolis window and auto-merges after required checks pass. Renovate cannot apply minimumReleaseAge to lock-file maintenance; npm and Terraform lock maintenance are disabled below because their package-manager guard or exact provider pins must stay authoritative. updateNotScheduled:false prevents intervening head refreshes.",
+    "description": "Lock-file maintenance runs without a release-age hold in the Saturday 00:00-05:59 America/Indiana/Indianapolis window and auto-merges after required checks pass. Timestamp-less lock updates use minimumReleaseAgeBehaviour:timestamp-optional; npm and Terraform lock maintenance remain disabled. updateNotScheduled:false prevents intervening head refreshes.",
     "enabled": true,
     "schedule": [
       "* 0-5 * * 6"
@@ -515,6 +515,14 @@
       "description": "Allow timestamp-less git refs to use the configured release-age policy.",
       "matchDatasources": [
         "git-refs"
+      ],
+      "minimumReleaseAgeBehaviour": "timestamp-optional"
+    },
+    {
+      "description": "Allow lock-file maintenance and digest updates without release timestamps; dated releases retain their configured release-age hold.",
+      "matchUpdateTypes": [
+        "lockFileMaintenance",
+        "digest"
       ],
       "minimumReleaseAgeBehaviour": "timestamp-optional"
     },
