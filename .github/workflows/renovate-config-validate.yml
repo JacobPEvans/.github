@@ -33,7 +33,7 @@ jobs:
     runs-on: ubuntu-26.04
     timeout-minutes: ${{ github.event_name == 'pull_request' && 5 || 30 }}
     env:
-      RENOVATE_VERSION: "44.166.0"
+      RENOVATE_VERSION: "44.198.3"
       RENOVATE_CONFIG_FILE: ${{ inputs.config_file }}
     steps:
       - name: Checkout
@@ -42,7 +42,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: "24.22.1"
+          node-version: "24.22.2"
 
       - name: Cache Renovate CLI
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
