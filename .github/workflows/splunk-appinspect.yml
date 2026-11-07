@@ -3,6 +3,10 @@ name: Splunk AppInspect
 on:
   pull_request:
   workflow_call:
+    outputs:
+      is_app:
+        description: Whether the repository contains a supported Splunk app layout
+        value: ${{ jobs.appinspect.outputs.is_app }}
 
 permissions:
   contents: read
@@ -12,6 +16,8 @@ jobs:
     name: AppInspect
     runs-on: ubuntu-26.04
     timeout-minutes: 25 # pr-policy: timeout-exception AppInspect includes dependency installation and static checks
+    outputs:
+      is_app: ${{ steps.app.outputs.is_app }}
     steps:
       - name: Checkout target repo
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -29,12 +35,18 @@ jobs:
           REPOSITORY_NAME: ${{ github.event.repository.name }}
         run: |
           set -euo pipefail
-          if [[ ! -f app.manifest && ! -f default/app.conf ]]; then
+          if [[ -f package/default/app.conf ]]; then
+            layout=package
+            app_conf=package/default/app.conf
+          elif [[ -f app.manifest || -f default/app.conf ]]; then
+            layout=root
+            app_conf=default/app.conf
+          else
             echo "::notice::No Splunk app manifest found; AppInspect is not applicable."
             echo "is_app=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          app_name=$(python - <<'PY'
+          APP_LAYOUT="$layout" APP_CONF="$app_conf" python3 - <<'PY'
           import configparser
           import json
           import os
@@ -42,48 +54,113 @@ jobs:
           from pathlib import Path
 
           app_name = ""
-          manifest = Path("app.manifest")
-          if manifest.is_file():
-              try:
-                  app_name = json.loads(manifest.read_text()).get("info", {}).get("id", {}).get("name", "")
-              except json.JSONDecodeError:
-                  pass
-          if not app_name and Path("default/app.conf").is_file():
+          app_layout = os.environ["APP_LAYOUT"]
+          app_conf = Path(os.environ["APP_CONF"])
+          app_version = ""
+          if app_layout == "package":
               config = configparser.ConfigParser(interpolation=None)
-              config.read("default/app.conf")
+              config.read(app_conf)
               app_name = config.get("package", "id", fallback="")
-          if not app_name:
-              app_name = os.environ["REPOSITORY_NAME"]
-          if not re.fullmatch(r"[A-Za-z0-9_.-]+", app_name):
+              app_version = config.get(
+                  "launcher", "version", fallback=config.get("id", "version", fallback="")
+              )
+              if not app_name or not app_version:
+                  raise SystemExit("package/default/app.conf must define [package] id and an app version")
+              if not re.fullmatch(r"[A-Za-z0-9._+-]+", app_version):
+                  raise SystemExit(f"Invalid Splunk app version: {app_version!r}")
+          else:
+              manifest = Path("app.manifest")
+              if manifest.is_file():
+                  try:
+                      app_name = json.loads(manifest.read_text()).get("info", {}).get("id", {}).get("name", "")
+                  except json.JSONDecodeError:
+                      pass
+              if not app_name and app_conf.is_file():
+                  config = configparser.ConfigParser(interpolation=None)
+                  config.read(app_conf)
+                  app_name = config.get("package", "id", fallback="")
+              if not app_name:
+                  app_name = os.environ["REPOSITORY_NAME"]
+          if app_name in {".", ".."} or not re.fullmatch(r"[A-Za-z0-9_.-]+", app_name):
               raise SystemExit(f"Invalid Splunk app id: {app_name!r}")
-          print(app_name)
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
+              output.write("is_app=true\n")
+              output.write(f"name={app_name}\n")
+              output.write(f"layout={app_layout}\n")
+              output.write(f"version={app_version}\n")
           PY
-          )
-          echo "is_app=true" >> "$GITHUB_OUTPUT"
-          echo "name=$app_name" >> "$GITHUB_OUTPUT"
 
       - name: Package app
         id: package
         if: steps.app.outputs.is_app == 'true'
         env:
           APP_NAME: ${{ steps.app.outputs.name }}
+          APP_LAYOUT: ${{ steps.app.outputs.layout }}
+          APP_VERSION: ${{ steps.app.outputs.version }}
         run: |
           set -euo pipefail
-          if [[ -f scripts/package.sh ]]; then
+          if [[ "$APP_LAYOUT" == root && -f scripts/package.sh ]]; then
             bash scripts/package.sh
           else
-            mkdir -p build
-            tar --exclude=.git --exclude=.github --exclude=build --exclude=tests \
-              --transform="s,^.,${APP_NAME}," \
-              -czf "build/${APP_NAME}-org-required.tar.gz" .
+            python3 - <<'PY'
+          import os
+          import tarfile
+          from pathlib import Path
+
+          app_name = os.environ["APP_NAME"]
+          app_layout = os.environ["APP_LAYOUT"]
+          source = Path("package") if app_layout == "package" else Path(".")
+          archive_name = (
+              f"{app_name}-{os.environ['APP_VERSION']}.tar.gz"
+              if app_layout == "package"
+              else f"{app_name}-org-required.tar.gz"
+          )
+          output_path = Path("build") / archive_name
+          output_path.parent.mkdir(parents=True, exist_ok=True)
+
+          excluded_parts = {".git", ".github", "build", "tests"}
+          if app_layout == "package":
+              excluded_parts.add(".direnv")
+
+          def is_local_file(path: Path) -> bool:
+              name = path.name
+              return (
+                  name in {".DS_Store", ".env", ".envrc"}
+                  or name.startswith(".env.")
+                  or name.endswith((".local", ".swp", "~"))
+              )
+
+          with tarfile.open(output_path, "w:gz") as archive:
+              archive.add(source, arcname=app_name, recursive=False)
+              for path in sorted(source.rglob("*")):
+                  relative = path.relative_to(source)
+                  if any(part in excluded_parts for part in relative.parts):
+                      continue
+                  if app_layout == "package" and is_local_file(path):
+                      continue
+                  archive.add(path, arcname=f"{app_name}/{relative.as_posix()}", recursive=False)
+          PY
           fi
           shopt -s nullglob
-          packages=(build/"${APP_NAME}"-*.tar.gz)
+          if [[ "$APP_LAYOUT" == package ]]; then
+            packages=("build/${APP_NAME}-${APP_VERSION}.tar.gz")
+          else
+            packages=(build/"${APP_NAME}"-*.tar.gz)
+          fi
           if [[ ${#packages[@]} -ne 1 ]]; then
             echo "::error::Expected one build/${APP_NAME}-*.tar.gz archive, found ${#packages[@]}."
             exit 1
           fi
           echo "path=${packages[0]}" >> "$GITHUB_OUTPUT"
+
+      - name: Upload Splunk package
+        if: steps.app.outputs.is_app == 'true'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: splunk-package
+          path: ${{ steps.package.outputs.path }}
+          if-no-files-found: error
+          retention-days: 1
 
       - name: Install Splunk AppInspect
         if: steps.app.outputs.is_app == 'true'
@@ -106,7 +183,7 @@ jobs:
           PY
 
       - name: Validate Dashboard Studio definitions
-        if: steps.app.outputs.is_app == 'true' && hashFiles('scripts/validate_dashboards.py') != ''
+        if: steps.app.outputs.is_app == 'true' && steps.app.outputs.layout == 'root' && hashFiles('scripts/validate_dashboards.py') != ''
         run: python scripts/validate_dashboards.py default/data/ui/views/*.xml
 
       - name: Upload AppInspect report
