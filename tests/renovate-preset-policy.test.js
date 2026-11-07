@@ -48,7 +48,8 @@ test('timestamp-less lock and digest updates retain the configured release-age p
     (rule) => rule.matchUpdateTypes?.includes('major') && !rule.matchPackageNames,
     'keep the release-age hold for other majors',
   );
-  assert.equal(majorAgeRule.minimumReleaseAge, '30 days');
+  assert.equal(majorAgeRule.minimumReleaseAge, '7 days');
+  assert.equal(majorAgeRule.automerge, false);
 });
 
 test('majors never ride in the grouped PR', () => {
