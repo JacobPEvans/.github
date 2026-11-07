@@ -182,7 +182,7 @@ jobs:
           cp "$RUNNER_TEMP/org-index.md" org-index.lint.md
 
       - name: Lint the generated repository index
-        uses: DavidAnson/markdownlint-cli2-action@21c1be1b93ad9ed58fa840aacc3f279cde2a72ff # v24
+        uses: DavidAnson/markdownlint-cli2-action@696eb3f2509270d7b882d2aa68347bc676e7af34 # v25
         with:
           config: ${{ runner.temp }}/org-index.markdownlint-cli2.yaml
           globs: org-index.lint.md
