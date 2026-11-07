@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.46.2](https://github.com/JacobPEvans/.github/compare/v1.46.1...v1.46.2) (2026-11-07)
+
+
+### Bug Fixes
+
+* **renovate:** open third-party major updates after seven days ([#191](https://github.com/JacobPEvans/.github/issues/191)) ([320c82a](https://github.com/JacobPEvans/.github/commit/320c82a01cd5a0c8a4d67a2f484a9d068e56f937))
+
 ## [1.46.1](https://github.com/JacobPEvans/.github/compare/v1.46.0...v1.46.1) (2026-11-07)
 
 
