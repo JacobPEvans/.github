@@ -3,7 +3,7 @@
   "description": [
     "Single Renovate policy master for JacobPEvans and dryvist repositories. It extends no other repository's config; dryvist/.github re-exports these presets as pass-throughs.",
     "Every update opens in one grouped PR per repository on Saturday 00:00-05:59 America/Indiana/Indianapolis time; security updates open at any time.",
-    "Seven-day stabilization for minor, patch and digest updates, no hold for first-party packages, 30 days for other majors. Renovate merges directly (platformAutomerge false). Shared custom managers live here; Nix support is enabled by the dedicated Nix preset."
+    "Seven-day stabilization for minor, patch, digest and third-party major updates, no hold for first-party packages. Renovate merges directly (platformAutomerge false). Shared custom managers live here; Nix support is enabled by the dedicated Nix preset."
   ],
   "extends": [
     "group:all"
@@ -282,12 +282,12 @@
       ]
     },
     {
-      "description": "Auto-merge other major updates after 30 days and green checks.",
+      "description": "Open other major updates after seven days. They need a manual merge.",
       "matchUpdateTypes": [
         "major"
       ],
-      "minimumReleaseAge": "30 days",
-      "automerge": true
+      "minimumReleaseAge": "7 days",
+      "automerge": false
     },
     {
       "description": "Auto-merge minor, patch, digest, and pin updates after seven days and green checks.",
