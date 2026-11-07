@@ -1,0 +1,49 @@
+name: Splunk Package Release
+
+on:
+  workflow_call:
+
+permissions: {}
+
+jobs:
+  appinspect:
+    name: Build and inspect Splunk package
+    uses: ./.github/workflows/splunk-appinspect.yml
+    permissions:
+      contents: read
+
+  release:
+    name: Upload Splunk package
+    if: ${{ github.event_name == 'release' }}
+    needs: appinspect
+    runs-on: ubuntu-26.04
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - name: Require a Splunk app layout
+        if: needs.appinspect.outputs.is_app != 'true'
+        run: |
+          echo "::error::Release event does not contain a supported Splunk app layout."
+          exit 1
+
+      - name: Download inspected package
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          name: splunk-package
+          path: build
+
+      - name: Upload package to GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          packages=(build/*.tar.gz)
+          if [[ ${#packages[@]} -ne 1 ]]; then
+            echo "::error::Expected one inspected package archive, found ${#packages[@]}."
+            exit 1
+          fi
+          gh release upload "$RELEASE_TAG" "${packages[0]}" \
+            --repo "$GITHUB_REPOSITORY" --clobber
