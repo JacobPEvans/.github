@@ -282,12 +282,12 @@
       ]
     },
     {
-      "description": "Auto-merge other major updates after 30 days and green checks.",
+      "description": "Open other major updates after seven days. They need a manual merge.",
       "matchUpdateTypes": [
         "major"
       ],
-      "minimumReleaseAge": "30 days",
-      "automerge": true
+      "minimumReleaseAge": "7 days",
+      "automerge": false
     },
     {
       "description": "Auto-merge minor, patch, digest, and pin updates after seven days and green checks.",
