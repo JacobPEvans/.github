@@ -35,7 +35,7 @@ concurrency:
 jobs:
   promotion-pr:
     name: Open promotion pull request
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 5
     permissions: {}
     steps:

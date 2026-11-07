@@ -23,7 +23,7 @@ permissions: {}
 jobs:
   regenerate:
     name: Regenerate repository index
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: ${{ github.event_name == 'pull_request' && 5 || 15 }}
     concurrency:
       group: org-index-${{ github.repository }}
