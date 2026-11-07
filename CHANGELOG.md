@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.46.1](https://github.com/JacobPEvans/.github/compare/v1.46.0...v1.46.1) (2026-11-07)
+
+
+### Bug Fixes
+
+* **renovate:** let timestamp-less lock and digest updates pass the release-age check ([#187](https://github.com/JacobPEvans/.github/issues/187)) ([c0e4a08](https://github.com/JacobPEvans/.github/commit/c0e4a083f58970ad47244d7cb1e95cc5da1a8851))
+
 ## [1.46.0](https://github.com/JacobPEvans/.github/compare/v1.45.0...v1.46.0) (2026-11-06)
 
 
