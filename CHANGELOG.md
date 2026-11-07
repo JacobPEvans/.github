@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.47.0](https://github.com/JacobPEvans/.github/compare/v1.46.2...v1.47.0) (2026-11-07)
+
+
+### Features
+
+* **splunk:** add a shared package and release workflow ([#193](https://github.com/JacobPEvans/.github/issues/193)) ([c69df31](https://github.com/JacobPEvans/.github/commit/c69df31e3e0f9c1d276f4cc0fefe736ad4c117db))
+* **splunk:** add shared package release workflow ([c69df31](https://github.com/JacobPEvans/.github/commit/c69df31e3e0f9c1d276f4cc0fefe736ad4c117db))
+
 ## [1.46.2](https://github.com/JacobPEvans/.github/compare/v1.46.1...v1.46.2) (2026-11-07)
 
 
