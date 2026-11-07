@@ -128,7 +128,7 @@ jobs:
       # cache backend of a later cache step to S3, once runs-on/action has run.
       - name: Enable RunsOn cache backend
         if: startsWith(inputs.runner_label, 'runs-on=')
-        uses: runs-on/action@17b59092eb37ebfdbb034460892887c09100eaa3 # v2.5.0
+        uses: runs-on/action@284bff869d4a825f778ac7c38e50f1e31ef198fd # v2.6.0
 
       # Restore-only on PRs; saves on pushes to the default branch (branch-agnostic
       # so both trunk and git-flow callers save where their PRs can read).
