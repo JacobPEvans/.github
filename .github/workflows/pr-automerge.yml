@@ -6,7 +6,8 @@
 # their own merge policy.
 #
 # Auto-merge is not enabled for draft PRs, PRs from forks, promotions (develop
-# into main, which merge by merge commit through their own flow)
+# into main, which merge by merge commit through their own flow), agent
+# sandbox PRs (head branches under agent/zcode/, merged by hand after review)
 # or PRs carrying human:review. A late human:review label disables an armed
 # request.
 #
@@ -49,7 +50,8 @@ jobs:
     if: >-
       ${{ github.event.action != 'labeled'
       && github.event.pull_request.head.repo.full_name == github.repository
-      && github.event.pull_request.user.login == 'jacobpevans-claude[bot]' }}
+      && github.event.pull_request.user.login == 'jacobpevans-claude[bot]'
+      && !startsWith(github.event.pull_request.head.ref, 'agent/zcode/') }}
     runs-on: ubuntu-26.04
     timeout-minutes: 2
     permissions:

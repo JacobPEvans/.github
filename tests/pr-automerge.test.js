@@ -18,6 +18,14 @@ test('PR Auto-Merge is armed only for session-bot pull requests', () => {
   assert.ok(expression.includes("github.event.pull_request.user.login == 'jacobpevans-claude[bot]'"));
 });
 
+test('PR Auto-Merge never arms agent sandbox pull requests', () => {
+  assert.ok(automergeJob, 'automerge job exists');
+  const condition = automergeJob[1].match(/^    if: >-\n((?:      .*\n)+)/m);
+  assert.ok(condition, 'automerge has a folded job-level if expression');
+  const expression = condition[1].replace(/\s+/g, ' ');
+  assert.ok(expression.includes("!startsWith(github.event.pull_request.head.ref, 'agent/zcode/')"));
+});
+
 test('PR Auto-Merge skips develop-to-main promotions on git-flow repos', () => {
   const promotionGuard = "!(github.event.pull_request.head.ref == 'develop' && github.event.pull_request.base.ref == 'main')";
   const guards = workflow.replace(/\s+/g, ' ').split(promotionGuard).length - 1;
