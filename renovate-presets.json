@@ -576,6 +576,25 @@
         "lockFileMaintenance"
       ],
       "enabled": false
+    },
+    {
+      "description": "First-party updates (repos we own) open as their own PRs at any time, ahead of other updates, with no release-age hold. Placed last so no earlier group or schedule applies; automerge stays as the rules above set it.",
+      "matchPackageNames": [
+        "JacobPEvans/**",
+        "JacobPEvans-*/**",
+        "dryvist/**",
+        "jpe-*/**",
+        "https://github.com/JacobPEvans/**",
+        "https://github.com/JacobPEvans-*/**",
+        "https://github.com/dryvist/**",
+        "https://github.com/jpe-*/**"
+      ],
+      "groupName": null,
+      "schedule": [
+        "at any time"
+      ],
+      "minimumReleaseAge": "0 days",
+      "prPriority": 10
     }
   ],
   "updateNotScheduled": false
