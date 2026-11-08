@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.47.1](https://github.com/JacobPEvans/.github/compare/v1.47.0...v1.47.1) (2026-11-08)
+
+
+### Bug Fixes
+
+* **renovate:** open first-party updates at any time as their own PRs ([#195](https://github.com/JacobPEvans/.github/issues/195)) ([22dc381](https://github.com/JacobPEvans/.github/commit/22dc381c317da7955187533acb439ffa9712d12b))
+
 ## [1.47.0](https://github.com/JacobPEvans/.github/compare/v1.46.2...v1.47.0) (2026-11-07)
 
 
