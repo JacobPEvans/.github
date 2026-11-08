@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.47.2](https://github.com/JacobPEvans/.github/compare/v1.47.1...v1.47.2) (2026-11-08)
+
+
+### Bug Fixes
+
+* **automerge:** never arm agent sandbox pull requests ([#197](https://github.com/JacobPEvans/.github/issues/197)) ([3bd40bf](https://github.com/JacobPEvans/.github/commit/3bd40bfbede50a6f5671269fd250d4d863b05ad0))
+
 ## [1.47.1](https://github.com/JacobPEvans/.github/compare/v1.47.0...v1.47.1) (2026-11-08)
 
 
