@@ -13,6 +13,52 @@ function findRule(config, predicate, description) {
   return rule;
 }
 
+function matchesPattern(value, pattern) {
+  if (pattern.startsWith('/') && pattern.endsWith('/')) {
+    return new RegExp(pattern.slice(1, -1)).test(value);
+  }
+
+  const source = pattern.split('**')
+    .map((part) => part.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '[^/]*'))
+    .join('.*');
+  return new RegExp(`^${source}$`).test(value);
+}
+
+function matchesPackageRule(rule, packageName, updateType, repository) {
+  if (rule.matchUpdateTypes && !rule.matchUpdateTypes.includes(updateType)) return false;
+
+  if (rule.matchPackageNames) {
+    const patterns = rule.matchPackageNames.map((pattern) => ({
+      exclude: pattern.startsWith('!'),
+      value: pattern.replace(/^!/, ''),
+    }));
+    const exclusions = patterns.filter((pattern) => pattern.exclude);
+    const inclusions = patterns.filter((pattern) => !pattern.exclude);
+    if (exclusions.some((pattern) => matchesPattern(packageName, pattern.value))) return false;
+    if (inclusions.length && !inclusions.some((pattern) => matchesPattern(packageName, pattern.value))) return false;
+  }
+
+  if (rule.matchRepositories && !rule.matchRepositories.some((pattern) => matchesPattern(repository, pattern))) {
+    return false;
+  }
+
+  return true;
+}
+
+function resolvePackagePolicy(packageName, updateType) {
+  const repository = 'JacobPEvans/example';
+  return preset.packageRules
+    .filter((rule) => matchesPackageRule(rule, packageName, updateType, repository))
+    .reduce((policy, rule) => {
+      for (const key of ['minimumReleaseAge', 'automerge']) {
+        if (Object.hasOwn(rule, key)) policy[key] = rule[key];
+      }
+      policy.labels.push(...(rule.addLabels || []));
+      policy.labels = [...new Set(policy.labels)];
+      return policy;
+    }, { minimumReleaseAge: preset.minimumReleaseAge, automerge: false, labels: [] });
+}
+
 test('npm updates respect the seven-day release age and avoid unsafe lock maintenance', () => {
   assert.equal(preset.minimumReleaseAge, '7 days');
   assert.equal(preset.internalChecksFilter, 'strict');
@@ -45,11 +91,54 @@ test('timestamp-less lock and digest updates retain the configured release-age p
   assert.equal(digestAgeRule.minimumReleaseAge, '7 days');
   const majorAgeRule = findRule(
     preset,
-    (rule) => rule.matchUpdateTypes?.includes('major') && !rule.matchPackageNames,
-    'keep the release-age hold for other majors',
+    (rule) => rule.matchUpdateTypes?.includes('major') && !rule.matchPackageNames && rule.minimumReleaseAge,
+    'restore the release-age hold for major updates',
   );
   assert.equal(majorAgeRule.minimumReleaseAge, '7 days');
-  assert.equal(majorAgeRule.automerge, false);
+  assert.equal(majorAgeRule.automerge, undefined);
+});
+
+test('trusted-org updates use zero-day non-major and seven-day major policies', () => {
+  const trustedOrgRule = findRule(
+    preset,
+    (rule) => rule.description?.startsWith('Auto-merge trusted-org updates'),
+    'trusted-org auto-merge policy',
+  );
+  assert.equal(trustedOrgRule.matchUpdateTypes, undefined);
+  assert.equal(trustedOrgRule.automerge, true);
+  assert.equal(trustedOrgRule.minimumReleaseAge, '0 days');
+  assert.equal(
+    preset.packageRules.filter((rule) =>
+      JSON.stringify(rule.matchPackageNames) === JSON.stringify(trustedOrgRule.matchPackageNames)).length,
+    1,
+  );
+
+  for (const updateType of ['minor', 'digest']) {
+    assert.deepEqual(resolvePackagePolicy('actions/checkout', updateType), {
+      minimumReleaseAge: '0 days',
+      automerge: true,
+      labels: [],
+    });
+  }
+
+  const trustedMajor = resolvePackagePolicy('actions/checkout', 'major');
+  assert.equal(trustedMajor.minimumReleaseAge, '7 days');
+  assert.equal(trustedMajor.automerge, true);
+  assert.ok(trustedMajor.labels.includes('dep:review'));
+  assert.ok(trustedMajor.labels.includes('update:major'));
+
+  const otherMajor = resolvePackagePolicy('lodash', 'major');
+  assert.equal(otherMajor.minimumReleaseAge, '7 days');
+  assert.equal(otherMajor.automerge, false);
+  assert.ok(otherMajor.labels.includes('dep:review'));
+
+  const firstPartyMajor = resolvePackagePolicy('dryvist/example', 'major');
+  assert.equal(firstPartyMajor.minimumReleaseAge, '0 days');
+  assert.equal(firstPartyMajor.automerge, true);
+
+  const claudeCodeMajor = resolvePackagePolicy('@anthropic-ai/claude-code', 'major');
+  assert.equal(claudeCodeMajor.minimumReleaseAge, '0 days');
+  assert.equal(claudeCodeMajor.automerge, true);
 });
 
 test('majors never ride in the grouped PR', () => {
@@ -102,7 +191,7 @@ test('Nix repos raise Go directives in a dedicated review-required PR', () => {
   }
 });
 
-test('release-age exceptions are limited to first-party, vulnerability alerts, and Claude Code', () => {
+test('release-age exceptions are limited to first-party, trusted-org, vulnerability alerts, and Claude Code', () => {
   assert.equal(preset.vulnerabilityAlerts.minimumReleaseAge, '1 day');
 
   const firstParty = findRule(
@@ -119,11 +208,18 @@ test('release-age exceptions are limited to first-party, vulnerability alerts, a
   );
   assert.equal(claudeCode.minimumReleaseAge, '0 days');
 
+  const trustedOrg = findRule(
+    preset,
+    (rule) => rule.description?.startsWith('Auto-merge trusted-org updates'),
+    'trusted-org zero-day rule',
+  );
+  assert.equal(trustedOrg.minimumReleaseAge, '0 days');
+
   for (const rule of preset.packageRules) {
     if (!rule.minimumReleaseAge) continue;
     const match = /^(\d+) days$/.exec(rule.minimumReleaseAge);
     assert.ok(match, `unexpected minimumReleaseAge: ${rule.minimumReleaseAge}`);
-    const isFirstParty = rule === firstParty || rule.matchPackageNames?.some((name) =>
+    const isFirstParty = rule === firstParty || rule === trustedOrg || rule.matchPackageNames?.some((name) =>
       /^(JacobPEvans|dryvist|jpe-)/i.test(name.replace('https://github.com/', '')),
     );
     assert.ok(Number(match[1]) >= 3 || isFirstParty || rule === claudeCode,
