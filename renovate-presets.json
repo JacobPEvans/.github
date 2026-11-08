@@ -3,7 +3,7 @@
   "description": [
     "Single Renovate policy master for JacobPEvans and dryvist repositories. It extends no other repository's config; dryvist/.github re-exports these presets as pass-throughs.",
     "Minor, patch and digest updates open in one grouped PR per repository and each major update opens its own PR, on Saturday 00:00-05:59 America/Indiana/Indianapolis time; security updates open at any time.",
-    "Seven-day stabilization for minor, patch, digest and third-party major updates, no hold for first-party packages. Renovate merges directly (platformAutomerge false). Shared custom managers live here; Nix support is enabled by the dedicated Nix preset."
+    "Seven-day stabilization for third-party non-major and major updates; trusted-org majors keep the seven-day hold, while trusted-org non-majors and first-party packages have no hold. Renovate merges directly (platformAutomerge false). Shared custom managers live here; Nix support is enabled by the dedicated Nix preset."
   ],
   "extends": [
     "group:allNonMajor"
@@ -287,15 +287,15 @@
         "!https://github.com/dryvist/**"
       ],
       "addLabels": [
-        "update:major"
+        "update:major",
+        "dep:review"
       ]
     },
     {
-      "description": "Open other major updates after seven days. They need a manual merge.",
+      "description": "Keep major updates manual unless a later rule enables auto-merge.",
       "matchUpdateTypes": [
         "major"
       ],
-      "minimumReleaseAge": "7 days",
       "automerge": false
     },
     {
@@ -415,7 +415,7 @@
       "minimumReleaseAge": "0 days"
     },
     {
-      "description": "Auto-merge trusted-org majors after seven days and green checks; dep:review triggers the dependency review.",
+      "description": "Auto-merge trusted-org updates after green checks with no release-age hold.",
       "matchPackageNames": [
         "actions/**",
         "ansible/**",
@@ -470,14 +470,15 @@
         "terraform-linters/**",
         "wakatime/**"
       ],
+      "automerge": true,
+      "minimumReleaseAge": "0 days"
+    },
+    {
+      "description": "Hold major updates for seven days before merge.",
       "matchUpdateTypes": [
         "major"
       ],
-      "automerge": true,
-      "minimumReleaseAge": "7 days",
-      "addLabels": [
-        "dep:review"
-      ]
+      "minimumReleaseAge": "7 days"
     },
     {
       "description": "Strip an optional v prefix from GitHub release tags for custom-regex pins.",
