@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.48.0](https://github.com/JacobPEvans/.github/compare/v1.47.2...v1.48.0) (2026-11-08)
+
+
+### Features
+
+* **renovate:** auto-merge trusted-org non-major updates with no release-age hold ([#200](https://github.com/JacobPEvans/.github/issues/200)) ([130cb3c](https://github.com/JacobPEvans/.github/commit/130cb3cbe0fe960957cb26d2daec4a331578085f))
+
 ## [1.47.2](https://github.com/JacobPEvans/.github/compare/v1.47.1...v1.47.2) (2026-11-08)
 
 
