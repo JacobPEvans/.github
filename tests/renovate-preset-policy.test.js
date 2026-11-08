@@ -135,6 +135,10 @@ test('trusted-org updates use zero-day non-major and seven-day major policies', 
   const firstPartyMajor = resolvePackagePolicy('dryvist/example', 'major');
   assert.equal(firstPartyMajor.minimumReleaseAge, '0 days');
   assert.equal(firstPartyMajor.automerge, true);
+
+  const claudeCodeMajor = resolvePackagePolicy('@anthropic-ai/claude-code', 'major');
+  assert.equal(claudeCodeMajor.minimumReleaseAge, '0 days');
+  assert.equal(claudeCodeMajor.automerge, true);
 });
 
 test('majors never ride in the grouped PR', () => {

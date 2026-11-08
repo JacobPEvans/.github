@@ -328,15 +328,6 @@
       "minimumReleaseAge": "0 days"
     },
     {
-      "description": "Claude Code updates are an owner-approved zero-day exception once checks pass.",
-      "matchPackageNames": [
-        "anthropics/claude-code",
-        "@anthropic-ai/claude-code"
-      ],
-      "automerge": true,
-      "minimumReleaseAge": "0 days"
-    },
-    {
       "description": "Pin GitHub Actions refs to SHA digests.",
       "matchManagers": [
         "github-actions"
@@ -479,6 +470,15 @@
         "major"
       ],
       "minimumReleaseAge": "7 days"
+    },
+    {
+      "description": "Claude Code updates are an owner-approved zero-day exception once checks pass.",
+      "matchPackageNames": [
+        "anthropics/claude-code",
+        "@anthropic-ai/claude-code"
+      ],
+      "automerge": true,
+      "minimumReleaseAge": "0 days"
     },
     {
       "description": "Strip an optional v prefix from GitHub release tags for custom-regex pins.",
