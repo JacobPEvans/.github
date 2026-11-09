@@ -253,13 +253,23 @@ jobs:
         run: echo "::notice::no requirements.yml, nothing to install"
       - name: Install Ansible collections
         if: ${{ steps.galaxy-cache.outputs.cache-hit != 'true' && hashFiles('requirements.yml') != '' }}
-        run: ansible-galaxy collection install -r requirements.yml --force
+        uses: nick-fields/retry@ad984534de44a9489a53aefd81eb77f87c70dc60 # v4.0.0
+        with:
+          max_attempts: 3
+          retry_wait_seconds: 30
+          timeout_minutes: 1
+          command: ansible-galaxy collection install -r requirements.yml --force
       # Roles install to ~/.ansible/roles, outside the checkout, so ansible-lint
       # never lints vendored Galaxy role code. Without -p, ansible-galaxy writes
       # to the first roles_path in ansible.cfg (roles/), inside the linted tree.
       - name: Install Ansible roles
         if: ${{ steps.galaxy-cache.outputs.cache-hit != 'true' && hashFiles('requirements.yml') != '' }}
-        run: ansible-galaxy role install -r requirements.yml --force -p "$HOME/.ansible/roles"
+        uses: nick-fields/retry@ad984534de44a9489a53aefd81eb77f87c70dc60 # v4.0.0
+        with:
+          max_attempts: 3
+          retry_wait_seconds: 30
+          timeout_minutes: 1
+          command: ansible-galaxy role install -r requirements.yml --force -p "$HOME/.ansible/roles"
       # Runs on every hit or miss: ansible.cfg's roles_path would otherwise
       # hide ~/.ansible/roles. Repo roles/ stays first in the search path,
       # then the repo's own ansible.cfg roles_path (if any), then Galaxy roles.
@@ -321,13 +331,23 @@ jobs:
         run: echo "::notice::no requirements.yml, nothing to install"
       - name: Install Ansible collections
         if: ${{ steps.galaxy-cache.outputs.cache-hit != 'true' && hashFiles('requirements.yml') != '' }}
-        run: ansible-galaxy collection install -r requirements.yml --force
+        uses: nick-fields/retry@ad984534de44a9489a53aefd81eb77f87c70dc60 # v4.0.0
+        with:
+          max_attempts: 3
+          retry_wait_seconds: 30
+          timeout_minutes: 1
+          command: ansible-galaxy collection install -r requirements.yml --force
       # `collection install` ignores a `roles:` key, so any role a repo pins in
       # requirements.yml (e.g. splunk.splunk, the shared inventory_resolve) was
       # never installed. Skips cleanly when the file has no `roles:` entries.
       - name: Install Ansible roles
         if: ${{ steps.galaxy-cache.outputs.cache-hit != 'true' && hashFiles('requirements.yml') != '' }}
-        run: ansible-galaxy role install -r requirements.yml --force -p "$HOME/.ansible/roles"
+        uses: nick-fields/retry@ad984534de44a9489a53aefd81eb77f87c70dc60 # v4.0.0
+        with:
+          max_attempts: 3
+          retry_wait_seconds: 30
+          timeout_minutes: 1
+          command: ansible-galaxy role install -r requirements.yml --force -p "$HOME/.ansible/roles"
       - name: Set Ansible roles path
         run: echo "ANSIBLE_ROLES_PATH=$GITHUB_WORKSPACE/roles:$HOME/.ansible/roles" >> "$GITHUB_ENV"
       - name: Fetch Doppler secrets

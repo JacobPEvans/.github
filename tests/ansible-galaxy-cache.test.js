@@ -57,7 +57,7 @@ test('reconciles a restored Galaxy cache against current requirements before lin
     for (const state of GALAXY_STATES) {
       assert.equal(runsWhen(step, state), state.runs, JSON.stringify(state));
     }
-    assert.ok(step.includes(`run: ${command} -r requirements.yml --force`));
+    assert.ok(step.includes(`command: ${command} -r requirements.yml --force`));
   }
 });
 
@@ -88,6 +88,6 @@ test('installs current Galaxy dependencies after a Molecule cache miss', () => {
     for (const state of GALAXY_STATES) {
       assert.equal(runsWhen(step, state), state.runs, JSON.stringify(state));
     }
-    assert.ok(step.includes(`run: ${command} -r requirements.yml --force`));
+    assert.ok(step.includes(`command: ${command} -r requirements.yml --force`));
   }
 });

@@ -253,6 +253,33 @@ test('Galaxy installs run only when requirements.yml exists and say so when it d
   assert.doesNotMatch(ansibleCi, /if: steps\.galaxy-cache\.outputs\.cache-hit != 'true'\n/);
 });
 
+test('all four Ansible Galaxy installs retry with bounded attempts and preserve their commands', () => {
+  const starts = [...ansibleCi.matchAll(/^      - name: Install Ansible (collections|roles)$/gm)];
+  assert.equal(starts.length, 4);
+
+  for (const match of starts) {
+    const nextStep = ansibleCi.indexOf('\n      - ', match.index + match[0].length);
+    const step = ansibleCi.slice(match.index, nextStep === -1 ? undefined : nextStep);
+    const isRole = match[1] === 'roles';
+
+    assert.match(step, /^      - name: Install Ansible (collections|roles)$/m);
+    assert.match(step, /^        if: \$\{\{ steps\.galaxy-cache\.outputs\.cache-hit != 'true' && hashFiles\('requirements\.yml'\) != '' \}\}$/m);
+    assert.match(step, /^        uses: nick-fields\/retry@ad984534de44a9489a53aefd81eb77f87c70dc60 # v4\.0\.0$/m);
+    assert.match(step, /^          max_attempts: 3$/m);
+    assert.match(step, /^          retry_wait_seconds: 30$/m);
+    assert.match(step, /^          timeout_minutes: 1$/m);
+    assert.match(
+      step,
+      isRole
+        ? /command: ansible-galaxy role install -r requirements\.yml --force -p "\$HOME\/\.ansible\/roles"/
+        : /command: ansible-galaxy collection install -r requirements\.yml --force/,
+    );
+  }
+
+  assert.ok(ansibleCi.includes('# Roles install to ~/.ansible/roles, outside the checkout, so ansible-lint'));
+  assert.ok(ansibleCi.includes('# never lints vendored Galaxy role code. Without -p, ansible-galaxy writes'));
+});
+
 test('mapped Molecule paths still go through the scenario selector', () => {
   assert.match(ansibleChanges, /Select scenarios only when every relevant path is covered/);
   assert.match(ansibleChanges, /run: node \.gh-shared\/\.github\/scripts\/select-molecule-scenarios\.js/);
