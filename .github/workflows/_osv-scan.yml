@@ -56,26 +56,48 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Install osv-scanner
+      - name: Download osv-scanner
+        id: osv-download
+        uses: nick-fields/retry@ad984534de44a9489a53aefd81eb77f87c70dc60 # v4.0.0
+        env:
+          GH_TOKEN: ${{ github.token }}
+        with:
+          max_attempts: 3
+          retry_wait_seconds: 30
+          timeout_minutes: 1
+          command: |
+            set -euo pipefail
+            # renovate: datasource=github-releases depName=google/osv-scanner
+            OSV_SCANNER_VERSION="v2.7.0"
+            case "$(uname -s)" in
+              Linux) os=linux ;;
+              Darwin) os=darwin ;;
+              *) echo "::error::unsupported OS: $(uname -s)"; exit 1 ;;
+            esac
+            case "$(uname -m)" in
+              x86_64 | amd64) arch=amd64 ;;
+              aarch64 | arm64) arch=arm64 ;;
+              *) echo "::error::unsupported arch: $(uname -m)"; exit 1 ;;
+            esac
+            asset="osv-scanner_${os}_${arch}"
+            base="https://github.com/google/osv-scanner/releases/download/${OSV_SCANNER_VERSION}"
+            if command -v gh >/dev/null 2>&1; then
+              gh release download "$OSV_SCANNER_VERSION" --repo google/osv-scanner \
+                --pattern "$asset" --pattern osv-scanner_SHA256SUMS --dir "$RUNNER_TEMP" --clobber
+            else
+              unset GH_TOKEN
+              curl -fsSL --retry 5 --retry-all-errors --retry-delay 10 --connect-timeout 20 \
+                -o "${RUNNER_TEMP}/${asset}" "${base}/${asset}"
+              curl -fsSL --retry 5 --retry-all-errors --retry-delay 10 --connect-timeout 20 \
+                -o "${RUNNER_TEMP}/osv-scanner_SHA256SUMS" "${base}/osv-scanner_SHA256SUMS"
+            fi
+            echo "asset=${asset}" >> "$GITHUB_OUTPUT"
+
+      - name: Verify and install osv-scanner
+        env:
+          asset: ${{ steps.osv-download.outputs.asset }}
         run: |
           set -euo pipefail
-          # renovate: datasource=github-releases depName=google/osv-scanner
-          OSV_SCANNER_VERSION="v2.7.0"
-          case "$(uname -s)" in
-            Linux) os=linux ;;
-            Darwin) os=darwin ;;
-            *) echo "::error::unsupported OS: $(uname -s)"; exit 1 ;;
-          esac
-          case "$(uname -m)" in
-            x86_64 | amd64) arch=amd64 ;;
-            aarch64 | arm64) arch=arm64 ;;
-            *) echo "::error::unsupported arch: $(uname -m)"; exit 1 ;;
-          esac
-          asset="osv-scanner_${os}_${arch}"
-          base="https://github.com/google/osv-scanner/releases/download/${OSV_SCANNER_VERSION}"
-          curl -fsSL --retry 3 -o "${RUNNER_TEMP}/${asset}" "${base}/${asset}"
-          curl -fsSL --retry 3 -o "${RUNNER_TEMP}/osv-scanner_SHA256SUMS" \
-            "${base}/osv-scanner_SHA256SUMS"
           cd "${RUNNER_TEMP}"
           if command -v sha256sum >/dev/null; then
             grep " ${asset}\$" osv-scanner_SHA256SUMS | sha256sum -c -

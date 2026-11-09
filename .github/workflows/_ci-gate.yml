@@ -1019,6 +1019,12 @@ jobs:
           node-version: '22'
       - name: Set up bun
         if: ${{ hashFiles('bun.lock', 'bun.lockb') != '' }}
+        id: setup-bun-first
+        continue-on-error: true
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+
+      - name: Retry setup bun
+        if: ${{ steps.setup-bun-first.outcome == 'failure' }}
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
       - name: Install bun dependencies
         if: ${{ hashFiles('bun.lock', 'bun.lockb') != '' }}

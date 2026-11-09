@@ -98,6 +98,11 @@ test('Molecule uses a fixed default command and only appends optional argv', () 
   assert.match(inputSection, /^      molecule_args:\n[\s\S]*?type: string/m);
 });
 
+test('Galaxy retries default to three attempts while preserving caller overrides', () => {
+  assert.match(inputDeclaration('galaxy_retry_attempts'), /type: number[\s\S]*?default: 3/);
+  assert.match(workflow, /max_attempts: \$\{\{ inputs\.galaxy_retry_attempts \}\}/);
+});
+
 test('scenario discovery, runner selection, matrix scheduling, and timeouts are explicit', () => {
   assert.match(workflow, /scenario_discovery == 'directories'/);
   assert.match(workflow, /scenario_discovery == 'repo_script'/);

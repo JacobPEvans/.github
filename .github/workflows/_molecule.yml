@@ -158,7 +158,7 @@ on:
         description: Maximum attempts for Galaxy installation.
         type: number
         required: false
-        default: 1
+        default: 3
       galaxy_retry_wait_seconds:
         description: Seconds between Galaxy retries; zero keeps the retry action's default.
         type: number
