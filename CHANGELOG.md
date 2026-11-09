@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.48.2](https://github.com/JacobPEvans/.github/compare/v1.48.1...v1.48.2) (2026-11-09)
+
+
+### Bug Fixes
+
+* **ci:** retry and authenticate GitHub downloads in the shared workflows ([#204](https://github.com/JacobPEvans/.github/issues/204)) ([32c0355](https://github.com/JacobPEvans/.github/commit/32c0355fa9062b93d3ce6fa1603298b45f707637))
+
 ## [1.48.1](https://github.com/JacobPEvans/.github/compare/v1.48.0...v1.48.1) (2026-11-09)
 
 
