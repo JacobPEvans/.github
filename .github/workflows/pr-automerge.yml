@@ -1,9 +1,10 @@
 # PR Auto-Merge
 #
 # Injected into every repository as an organization required workflow. It turns
-# on native auto-merge for pull requests opened by the session bot when
-# they open, reopen or leave draft. Pull requests from other authors are left to
-# their own merge policy.
+# on native auto-merge for pull requests opened by the release App
+# (jacobpevans-release-please[bot]) when they open, reopen or leave draft.
+# Pull requests from any other author, including agent Apps, are never armed;
+# Renovate pull requests follow the Renovate preset's own automerge rules.
 #
 # Auto-merge is not enabled for draft PRs, PRs from forks, promotions (develop
 # into main, which merge by merge commit through their own flow), agent
@@ -50,7 +51,7 @@ jobs:
     if: >-
       ${{ github.event.action != 'labeled'
       && github.event.pull_request.head.repo.full_name == github.repository
-      && github.event.pull_request.user.login == 'jacobpevans-claude[bot]'
+      && github.event.pull_request.user.login == 'jacobpevans-release-please[bot]'
       && !startsWith(github.event.pull_request.head.ref, 'agent/zcode/') }}
     runs-on: ubuntu-26.04
     timeout-minutes: 2
