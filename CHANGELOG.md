@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.48.1](https://github.com/JacobPEvans/.github/compare/v1.48.0...v1.48.1) (2026-11-09)
+
+
+### Bug Fixes
+
+* **pr-automerge:** arm auto-merge only for release App PRs ([#202](https://github.com/JacobPEvans/.github/issues/202)) ([db751ec](https://github.com/JacobPEvans/.github/commit/db751ecc79a0d230c879a2812d420527be19acae))
+
 ## [1.48.0](https://github.com/JacobPEvans/.github/compare/v1.47.2...v1.48.0) (2026-11-08)
 
 
