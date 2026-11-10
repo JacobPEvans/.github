@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.49.0](https://github.com/JacobPEvans/.github/compare/v1.48.2...v1.49.0) (2026-11-10)
+
+
+### Features
+
+* **disclosure:** case-sensitive denylist entries with a cs: prefix ([#206](https://github.com/JacobPEvans/.github/issues/206)) ([2a4bb5a](https://github.com/JacobPEvans/.github/commit/2a4bb5aac0a5da05fa90f1fdc2583346c312e1a3))
+
 ## [1.48.2](https://github.com/JacobPEvans/.github/compare/v1.48.1...v1.48.2) (2026-11-09)
 
 
