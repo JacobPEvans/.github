@@ -10,6 +10,7 @@
 #
 # Usage: disclosure-denylist-scan.sh <denylist-file> <base-ref> [allowlist-file]
 #   <denylist-file> — one fixed string per line (blank lines / #-comments skipped)
+#                     a line starting with `cs:` is matched case-sensitively (prefix dropped)
 #   <base-ref>      — git ref to diff against; only lines added since it are scanned
 #   [allowlist-file] — optional; one exact public identifier per line (same comment
 #                     rules). Each is removed, case-insensitively, from the added diff
@@ -54,60 +55,75 @@ fi
 
 # Strip blank lines and #-comments so an operator can annotate the source list.
 PATTERNS_FILE="$(mktemp)"
-trap 'rm -f "$PATTERNS_FILE"' EXIT
+CI_PATTERNS="$(mktemp)"
+CS_PATTERNS="$(mktemp)"
+ALLOW_IDS="$(mktemp)"
+trap 'rm -f "$PATTERNS_FILE" "$CI_PATTERNS" "$CS_PATTERNS" "$ALLOW_IDS"' EXIT
 grep -vE '^[[:space:]]*(#|$)' "$DENYLIST_FILE" > "$PATTERNS_FILE"
-
-# A repository naming itself discloses nothing (Renovate links its own job log
-# in every PR body), so the scanned repository's own name and owner/name are
-# dropped from the patterns.
-if [[ -n "${GITHUB_REPOSITORY:-}" ]]; then
-  own_patterns="$(mktemp)"
-  awk -v full="$GITHUB_REPOSITORY" -v name="${GITHUB_REPOSITORY#*/}" '
-    { t = $0; gsub(/^[[:space:]]+|[[:space:]]+$/, "", t) }
-    tolower(t) != tolower(full) && tolower(t) != tolower(name)
-  ' "$PATTERNS_FILE" > "$own_patterns"
-  mv "$own_patterns" "$PATTERNS_FILE"
+if grep -qE '^cs:[[:space:]]*$' "$PATTERNS_FILE"; then
+  echo "::error::denylist cs: line has no term" >&2
+  exit 2
 fi
 
-if [[ ! -s "$PATTERNS_FILE" ]]; then
+# A `cs:` line is a case-sensitive term: its prefix is dropped and the term goes to
+# CS_PATTERNS. Every other line goes to CI_PATTERNS and is matched case-insensitively.
+# A repository naming itself discloses nothing (Renovate links its own job log in every
+# PR body), so the scanned repository's own name and owner/name are dropped from the
+# patterns: case-insensitively from CI_PATTERNS, exactly from CS_PATTERNS.
+#
+# Patterns are matched with `grep -w`, which bounds each one to a whole token so
+# a denylisted identifier no longer fires inside an unrelated word. `grep -w`
+# counts underscore as a word character, so underscores are normalized to spaces
+# on BOTH sides — patterns here, haystack in hit_lines — making `_` bound an
+# identifier like every other separator. This mirrors gh-guard's hits_denylist(),
+# whose measured result on 102 real PR bodies was 0% false positives with full
+# recall on every hard identifier leak in that corpus.
+own_repo="${GITHUB_REPOSITORY:-}"
+awk -v full="$own_repo" -v name="${own_repo#*/}" -v cs="$CS_PATTERNS" '
+  function trim(s) { gsub(/^[[:space:]]+|[[:space:]]+$/, "", s); return s }
+  function bound(s) { gsub(/_/, " ", s); return s }
+  /^cs:/ {
+    term = substr($0, 4)
+    if (trim(term) != full && trim(term) != name) print bound(term) > cs
+    next
+  }
+  tolower(trim($0)) != tolower(full) && tolower(trim($0)) != tolower(name) { print bound($0) }
+' "$PATTERNS_FILE" > "$CI_PATTERNS"
+
+if [[ ! -s "$CI_PATTERNS" && ! -s "$CS_PATTERNS" ]]; then
   echo "::error::denylist file has no active patterns after stripping comments/blanks" >&2
   exit 2
 fi
 
 # Allowlisted identifiers, stripped the same way. With no allowlist argument the
 # list stays empty and nothing is removed.
-ALLOW_IDS="$(mktemp)"
 if [[ -n "$ALLOWLIST_FILE" ]]; then
   grep -vE '^[[:space:]]*(#|$)' "$ALLOWLIST_FILE" > "$ALLOW_IDS" || true
 fi
 
-# Patterns are matched with `grep -w`, which bounds each one to a whole token so
-# a denylisted identifier no longer fires inside an unrelated word. `grep -w`
-# counts underscore as a word character, so underscores are normalized to spaces
-# on BOTH sides — patterns here, haystack at each call site — making `_` bound an
-# identifier like every other separator. This mirrors gh-guard's hits_denylist(),
-# whose measured result on 102 real PR bodies was 0% false positives with full
-# recall on every hard identifier leak in that corpus.
-BOUNDED_PATTERNS="$(mktemp)"
-trap 'rm -f "$PATTERNS_FILE" "$BOUNDED_PATTERNS" "$ALLOW_IDS"' EXIT
-tr '_' ' ' < "$PATTERNS_FILE" > "$BOUNDED_PATTERNS"
-
 hits=0
+
+# Prints the line number of each line of <file> that hits a term, once per line. A list
+# is passed to grep only when non-empty: some grep builds match every line for an empty
+# pattern file.
+hit_lines() {
+  local file="$1"
+  {
+    if [[ -s "$CI_PATTERNS" ]]; then tr '_' ' ' < "$file" | grep -niwFf "$CI_PATTERNS" || true; fi
+    if [[ -s "$CS_PATTERNS" ]]; then tr '_' ' ' < "$file" | grep -nwFf "$CS_PATTERNS" || true; fi
+  } | cut -d: -f1 | sort -un
+}
 
 scan_file() {
   local label="$1" path="$2"
   [[ -f "$path" ]] || return 0
-  # -n gives "line:content"; cut keeps only the number, so no matched term or
-  # line content ever reaches stdout. Underscores are normalized to spaces
-  # first: grep -w treats `_` as a word character, so without this an
-  # identifier glued to a word by `_` would escape the boundary.
+  # hit_lines keeps only line numbers, so no matched term or line content ever
+  # reaches stdout.
   while read -r lineno; do
     [[ -n "$lineno" ]] || continue
     echo "${label}:${lineno}"
     hits=$((hits + 1))
-  done < <(tr '_' ' ' < "$path" \
-             | grep -niwFf "$BOUNDED_PATTERNS" \
-             | cut -d: -f1 || true)
+  done < <(hit_lines "$path")
 }
 
 # Lines the PR adds (base ref...HEAD). Unchanged lines in a touched file were
@@ -134,9 +150,7 @@ scan_added() {
     [[ -n "$n" ]] || continue
     echo "${f}:$(sed -n "${n}p" "$numbers")"
     hits=$((hits + 1))
-  done < <(tr '_' ' ' < "$content" \
-             | grep -niwFf "$BOUNDED_PATTERNS" \
-             | cut -d: -f1 || true)
+  done < <(hit_lines "$content")
   rm -f "$content" "$numbers"
 }
 

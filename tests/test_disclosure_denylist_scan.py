@@ -430,5 +430,113 @@ class DisclosureDenylistScanTest(unittest.TestCase):
                 self.assertEqual(result.stdout, "")
 
 
+    def _denylist(self, text):
+        self.denylist.write_text(text)
+
+    def test_cs_entry_does_not_match_lowercase_identifier(self):
+        """A `cs:` term is case-sensitive, so lowercase identifiers do not hit."""
+        self._denylist("cs:Zqorbin\n")
+        self._commit_file(
+            "notes.txt",
+            "zqorbincallback\n_zqorbinLog\nzqorbin_path\n",
+            "lowercase identifiers",
+        )
+
+        result = self._run()
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_cs_entry_does_not_match_lowercase_word_in_prose(self):
+        self._denylist("cs:Zqorbin\n")
+        self._commit_file("notes.txt", "the zqorbin word in prose\n", "lowercase prose")
+
+        result = self._run()
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_cs_entry_matches_capitalised_word_in_prose(self):
+        self._denylist("cs:Zqorbin\n")
+        self._commit_file("notes.txt", "Zqorbin is named here\n", "capitalised prose")
+
+        result = self._run()
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(result.stdout.split(), ["notes.txt:1"])
+        self.assertNotIn("Zqorbin", result.stdout + result.stderr)
+
+    def test_cs_entry_matches_next_to_punctuation(self):
+        self._denylist("cs:Zqorbin\n")
+        self._commit_file(
+            "notes.txt", "(Zqorbin), then\nuse Zqorbin.\nZqorbin/path\n", "punctuation"
+        )
+
+        result = self._run()
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(
+            result.stdout.split(), ["notes.txt:1", "notes.txt:2", "notes.txt:3"]
+        )
+        self.assertNotIn("Zqorbin", result.stdout + result.stderr)
+
+    def test_cs_entry_keeps_whole_word_and_underscore_bounds(self):
+        self._denylist("cs:Zqorbin\n")
+        self._commit_file(
+            "notes.txt", "Zqorbincallback\nprefix_Zqorbin_suffix\n", "bounds"
+        )
+
+        result = self._run()
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(result.stdout.split(), ["notes.txt:2"])
+        self.assertNotIn("Zqorbin", result.stdout + result.stderr)
+
+    def test_normal_entry_still_matches_case_insensitively(self):
+        """Entries without the prefix keep case-insensitive matching beside a cs: entry."""
+        self._denylist("cs:Zqorbin\nANOTHER-TERM\n")
+        self._commit_file(
+            "notes.txt",
+            "lower another-term here\nUPPER ANOTHER-TERM here\n",
+            "case-insensitive",
+        )
+
+        result = self._run()
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(result.stdout.split(), ["notes.txt:1", "notes.txt:2"])
+        self.assertNotIn("ANOTHER-TERM", result.stdout + result.stderr)
+
+    def test_cs_entry_in_pr_title_and_body_is_case_sensitive(self):
+        self._denylist("cs:Zqorbin\n")
+
+        lower = self._run(
+            env_extra={"PR_TITLE": "fix zqorbin wiring", "PR_BODY": "uses zqorbin"}
+        )
+        self.assertEqual(lower.returncode, 0, lower.stdout + lower.stderr)
+
+        upper = self._run(
+            env_extra={"PR_TITLE": "fix Zqorbin wiring", "PR_BODY": "uses Zqorbin"}
+        )
+        self.assertEqual(upper.returncode, 1)
+        self.assertEqual(upper.stdout.split(), ["PR", "title:1", "PR", "body:1"])
+        self.assertNotIn("Zqorbin", upper.stdout + upper.stderr)
+
+    def test_own_name_drops_a_cs_entry_only_on_an_exact_match(self):
+        self._denylist("cs:Zqorbin\nANOTHER-TERM\n")
+        body = "job log at https://example.test/acme/Zqorbin/runs"
+
+        own = self._run(
+            env_extra={"PR_BODY": body, "GITHUB_REPOSITORY": "acme/Zqorbin"}
+        )
+        self.assertEqual(own.returncode, 0, own.stdout + own.stderr)
+
+        other_case = self._run(
+            env_extra={"PR_BODY": body, "GITHUB_REPOSITORY": "acme/zqorbin"}
+        )
+        self.assertEqual(other_case.returncode, 1)
+        self.assertIn("PR body:1", other_case.stdout)
+
+    def test_cs_line_without_a_term_is_instrument_error(self):
+        for line in ("cs:\n", "cs:   \n"):
+            with self.subTest(line=line):
+                self._denylist("ANOTHER-TERM\n" + line)
+                result = self._run()
+                self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+                self.assertEqual(result.stdout, "")
+
+
 if __name__ == "__main__":
     unittest.main()
