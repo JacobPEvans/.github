@@ -227,3 +227,5 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+# direnv .envrc is committed by convention; the Python template above ignores it.
+!.envrc
