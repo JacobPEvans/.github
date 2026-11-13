@@ -64,6 +64,72 @@ function jobRuns(jobName, lint) {
   return new Function('lint', `return (${expression});`)(lint);
 }
 
+function ansibleLintJob() {
+  const start = ansibleCi.indexOf('\n  ansible-lint:\n');
+  assert.notEqual(start, -1, 'ansible-lint job exists');
+  const rest = ansibleCi.slice(start + 1);
+  const nextJob = /\n  [a-zA-Z][\w-]*:\n/.exec(rest.slice(1));
+  return rest.slice(0, nextJob ? nextJob.index + 1 : undefined);
+}
+
+function jobStep(job, name) {
+  const start = job.indexOf(`- name: ${name}`);
+  assert.notEqual(start, -1, `${name} step exists in ansible-lint job`);
+  const rest = job.slice(start);
+  const nextStep = /\n      - (?:name:|uses:)/.exec(rest.slice(1));
+  return rest.slice(0, nextStep ? nextStep.index + 1 : undefined);
+}
+
+function stepCondition(step) {
+  const condition = step.match(/^ {8}if: ([\s\S]*?)(?=^ {8}(?:uses|run|with):)/m);
+  assert.ok(condition, 'step has an if condition');
+  return condition[1];
+}
+
+test('org lint config checkout is pinned and runs before ansible-lint', () => {
+  const job = ansibleLintJob();
+  const checkout = jobStep(job, 'Checkout org ansible-lint and yamllint configs');
+  assert.match(checkout, /uses: actions\/checkout@[0-9a-f]{40} # v7/);
+  assert.match(checkout, /persist-credentials: false/);
+  assert.ok(
+    job.indexOf('Checkout org ansible-lint and yamllint configs') < job.indexOf('uses: ansible/ansible-lint@'),
+    'org config checkout precedes ansible-lint',
+  );
+});
+
+test('org lint config copy steps check every caller config name for their tool', () => {
+  const job = ansibleLintJob();
+  const ansibleLintCopy = jobStep(job, 'Apply org-default ansible-lint config');
+  const yamllintCopy = jobStep(job, 'Apply org-default yamllint config');
+  const ansibleLintGuard = stepCondition(ansibleLintCopy);
+  const yamllintGuard = stepCondition(yamllintCopy);
+
+  for (const config of [
+    '.ansible-lint',
+    '.ansible-lint.yml',
+    '.ansible-lint.yaml',
+    '.config/ansible-lint.yml',
+    '.config/ansible-lint.yaml',
+  ]) {
+    assert.ok(ansibleLintGuard.includes(config), `ansible-lint fallback guard checks ${config}`);
+  }
+  assert.match(ansibleLintGuard, /hashFiles\([\s\S]*?\) == ''/);
+
+  for (const config of ['.yamllint', '.yamllint.yml', '.yamllint.yaml']) {
+    assert.ok(yamllintGuard.includes(config), `yamllint fallback guard checks ${config}`);
+  }
+  assert.match(yamllintGuard, /hashFiles\([\s\S]*?\) == ''/);
+});
+
+test('org config checkout is removed before ansible-lint runs', () => {
+  const job = ansibleLintJob();
+  const cleanup = job.indexOf('- name: Remove org config checkout');
+  const lint = job.indexOf('uses: ansible/ansible-lint@');
+  assert.notEqual(cleanup, -1, 'org config cleanup exists in ansible-lint job');
+  assert.notEqual(lint, -1, 'ansible-lint action exists in ansible-lint job');
+  assert.ok(cleanup < lint, 'org config checkout is removed before ansible-lint');
+});
+
 test('lint false skips validation jobs; the gate runs and default lint keeps existing selection', () => {
   const lintDefault = ansibleCi.match(
     /^      lint:\n        description: .*\n        type: boolean\n        default: (true|false)$/m,
