@@ -275,6 +275,34 @@ jobs:
       # then the repo's own ansible.cfg roles_path (if any), then Galaxy roles.
       - name: Set Ansible roles path
         run: echo "ANSIBLE_ROLES_PATH=$GITHUB_WORKSPACE/roles:$(sed -n 's/^[[:space:]]*roles_path[[:space:]]*=[[:space:]]*\(.*[^[:space:]]\)[[:space:]]*$/\1:/p' ansible.cfg 2>/dev/null | head -n 1)$HOME/.ansible/roles" >> "$GITHUB_ENV"
+      # Callers without their own lint configs get the org canonical ones.
+      # The side checkout is removed before ansible-lint runs, so its YAML is
+      # not linted as project content.
+      - name: Checkout org ansible-lint and yamllint configs
+        if: >-
+          hashFiles('.ansible-lint', '.ansible-lint.yml', '.ansible-lint.yaml',
+          '.config/ansible-lint.yml', '.config/ansible-lint.yaml') == ''
+          || hashFiles('.yamllint', '.yamllint.yml', '.yamllint.yaml') == ''
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          repository: JacobPEvans/.github
+          ref: ${{ job.workflow_sha }}
+          sparse-checkout: |
+            precommit/configs/ansible-lint.yml
+            precommit/configs/yamllint.yml
+          sparse-checkout-cone-mode: false
+          path: .org-ansible-checkout
+          persist-credentials: false
+      - name: Apply org-default ansible-lint config
+        if: >-
+          hashFiles('.ansible-lint', '.ansible-lint.yml', '.ansible-lint.yaml',
+          '.config/ansible-lint.yml', '.config/ansible-lint.yaml') == ''
+        run: cp .org-ansible-checkout/precommit/configs/ansible-lint.yml .ansible-lint
+      - name: Apply org-default yamllint config
+        if: hashFiles('.yamllint', '.yamllint.yml', '.yamllint.yaml') == ''
+        run: cp .org-ansible-checkout/precommit/configs/yamllint.yml .yamllint
+      - name: Remove org config checkout
+        run: rm -rf .org-ansible-checkout
       - uses: ansible/ansible-lint@9bce2bfb8f4a984e6b13767bc0d6bf0a49492164 # v26
         with:
           args: ${{ inputs.lint_args }}
