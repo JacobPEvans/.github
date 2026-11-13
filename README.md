@@ -70,8 +70,9 @@ jobs:
 ## Required workflow
 
 [`main-source-gate.yml`](.github/workflows/main-source-gate.yml) requires pull requests targeting `main` in
-ruleset-targeted repositories to use `develop` or `hotfix/<name>` from the same repository. The host repository
-uses trunk flow and is not a ruleset target, so the workflow skips it.
+ruleset-targeted repositories to use `develop` or `hotfix/<name>` from the same repository. An organization's
+`.github` repository can call it through `workflow_call` for an organization ruleset. Organization `.github`
+repositories use trunk flow and are not ruleset targets, so the workflow skips any repository named `.github`.
 
 ## Molecule reusable workflow
 
