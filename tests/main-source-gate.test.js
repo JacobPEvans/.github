@@ -50,14 +50,15 @@ test('workflow is a standalone, least-permission pull request check', () => {
   assert.match(workflow, /^    permissions: \{\}$/m);
   assert.match(workflow, /^concurrency:\n  group: enterprise-main-source-gate-/m);
   assert.match(workflow, /^  cancel-in-progress: true$/m);
-  assert.doesNotMatch(workflow, /pull_request_target|workflow_call|^\s+uses:/m);
+  assert.match(workflow, /^  workflow_call:$/m);
+  assert.doesNotMatch(workflow, /pull_request_target|^\s+uses:/m);
   assert.doesNotMatch(gateScript, /\$\{\{/);
 });
 
-test('host repository is skipped by the job-level guard', () => {
+test('organization .github repositories are skipped by the job-level guard', () => {
   assert.match(
     workflow,
-    /^  main-source-gate:\n    name: Main Source Gate\n    # The host repo is trunk and is not a target of the ruleset\.\n    if: github\.repository != 'JacobPEvans\/\.github'$/m,
+    /^  main-source-gate:\n    name: Main Source Gate\n    # Organization \.github repositories are trunk and are not ruleset targets\.\n    if: github\.event\.repository\.name != '\.github'$/m,
   );
 });
 
