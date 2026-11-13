@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.50.0](https://github.com/JacobPEvans/.github/compare/v1.49.0...v1.50.0) (2026-11-13)
+
+
+### Features
+
+* **ansible-ci:** use the org lint configs when a repo has none ([cc9495a](https://github.com/JacobPEvans/.github/commit/cc9495a47c989327f9aa0638f7dbb1dbd8737b02))
+* **ansible-ci:** use the org lint configs when a repo has none ([#211](https://github.com/JacobPEvans/.github/issues/211)) ([78a74e9](https://github.com/JacobPEvans/.github/commit/78a74e9a7ae6dbacdbeee415c4a80b8f70a661c4))
+* **main-source-gate:** let an organization .github repository call the gate ([550e0eb](https://github.com/JacobPEvans/.github/commit/550e0ebb8250ebc2c66c4ecc6f96c634345048a4))
+* **main-source-gate:** let an organization .github repository call the gate ([#212](https://github.com/JacobPEvans/.github/issues/212)) ([36dc87d](https://github.com/JacobPEvans/.github/commit/36dc87dc97d4aec351b82c82a74ab3ada6f9f150))
+
 ## [1.49.0](https://github.com/JacobPEvans/.github/compare/v1.48.2...v1.49.0) (2026-11-10)
 
 
