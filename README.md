@@ -47,7 +47,7 @@ jobs:
 
 `_promotion-pr.yml` opens a pull request from `develop` into `main` on a git-flow repository when `develop` has
 commits that `main` lacks and no promotion pull request is open. The pull request is titled
-`release: promote develop to main`, carries the `release:in-progress` label, and never enables auto-merge.
+`chore: promote develop to main`, carries the `release:in-progress` label, and never enables auto-merge.
 
 The caller needs the `GH_ACTION_RELEASE_PLEASE_PRIVATE_KEY` secret and the `GH_ACTION_RELEASE_PLEASE_APP_ID`
 organization variable. The App needs contents read and pull request write on the caller repository. Callers
