@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.51.1](https://github.com/JacobPEvans/.github/compare/v1.51.0...v1.51.1) (2026-11-14)
+
+
+### Bug Fixes
+
+* **promotion:** open the promotion pull request with a chore title ([#222](https://github.com/JacobPEvans/.github/issues/222)) ([f18af7a](https://github.com/JacobPEvans/.github/commit/f18af7a0fb8be3dc87d12af67367c4c50c1a342b))
+
 ## [1.51.0](https://github.com/JacobPEvans/.github/compare/v1.50.1...v1.51.0) (2026-11-14)
 
 
