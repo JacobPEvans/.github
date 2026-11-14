@@ -4,6 +4,9 @@ Builds a tiny throwaway git repo, runs the scanner against it, and asserts:
   - a hit exits 1 and prints only "path:line" (never the matched term)
   - a clean diff exits 0
   - a PR title/body hit is caught the same way, never echoing the text
+  - a `.disclosure-reviewed` prefix on the BASE ref skips prose files and lists
+    them via DISCLOSURE_REVIEW_OUT, with the same base-ref and fail-closed rules
+    as `.disclosure-vendored`
 """
 
 import os
@@ -371,6 +374,15 @@ class DisclosureDenylistScanTest(unittest.TestCase):
         self._commit_file(".disclosure-vendored", text, "vendored list")
         self._mark_base()
 
+    def _review_base(self, text):
+        self._commit_file(".disclosure-reviewed", text, "reviewed list")
+        self._mark_base()
+
+    def _out_paths(self):
+        review = self.tmp / "review-out.txt"
+        exemptions = self.tmp / "exemptions-out.txt"
+        return review, exemptions
+
     def test_vendored_prefix_on_base_is_not_scanned(self):
         self._vendor_base("# third party\nsite/vendor/\n")
         self._commit_file("site/vendor/lib.js", "ANOTHER-TERM inside upstream code\n", "vendor")
@@ -428,6 +440,184 @@ class DisclosureDenylistScanTest(unittest.TestCase):
                 result = self._run()
                 self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
                 self.assertEqual(result.stdout, "")
+
+
+
+    def test_reviewed_prefix_on_base_is_not_scanned(self):
+        self._review_base("# first-party prose\ndocs/\n")
+        self._commit_file("docs/guide.md", "the SECRET-TERM manual\n", "prose")
+
+        review, _ = self._out_paths()
+        result = self._run(env_extra={"DISCLOSURE_REVIEW_OUT": str(review)})
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(review.read_text().split(), ["docs/guide.md"])
+
+    def test_hit_outside_reviewed_prefix_still_fails(self):
+        self._review_base("docs/\n")
+        self._commit_file("docs/guide.md", "prose SECRET-TERM here\n", "prose")
+        self._commit_file("notes.txt", "plain SECRET-TERM here\n", "code notes")
+
+        review, _ = self._out_paths()
+        result = self._run(env_extra={"DISCLOSURE_REVIEW_OUT": str(review)})
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(result.stdout.split(), ["notes.txt:1"])
+        self.assertNotIn("SECRET-TERM", result.stdout + result.stderr)
+        self.assertEqual(review.read_text().split(), ["docs/guide.md"])
+
+    def test_reviewed_prefix_added_in_the_same_change_exempts_nothing(self):
+        """The list is read from the BASE ref, so it cannot exempt its own PR."""
+        self._commit_file(".disclosure-reviewed", "docs/\n", "reviewed list")
+        self._commit_file("docs/guide.md", "SECRET-TERM in prose\n", "prose")
+
+        review, _ = self._out_paths()
+        result = self._run(env_extra={"DISCLOSURE_REVIEW_OUT": str(review)})
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("docs/guide.md:1", result.stdout)
+        self.assertNotIn("SECRET-TERM", result.stdout + result.stderr)
+        self.assertEqual(review.read_text(), "")
+
+    def test_root_or_escaping_reviewed_entry_is_instrument_error(self):
+        for entry in (".", "/", "./", "/etc/", "../x/", "site/../../x/"):
+            with self.subTest(entry=entry):
+                self._review_base(entry + "\n")
+                self._commit_file("notes.txt", "ANOTHER-TERM " + entry + "\n", "change " + entry)
+
+                review, _ = self._out_paths()
+                result = self._run(env_extra={"DISCLOSURE_REVIEW_OUT": str(review)})
+                self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+                self.assertEqual(result.stdout, "")
+
+    def test_review_out_lists_skipped_files_sorted(self):
+        self._review_base("docs/\n")
+        self._commit_file("docs/zulu.md", "SECRET-TERM notes\n", "prose zulu")
+        self._commit_file("docs/alpha.md", "SECRET-TERM notes\n", "prose alpha")
+        self._commit_file("docs/mike.md", "SECRET-TERM notes\n", "prose mike")
+
+        review, _ = self._out_paths()
+        result = self._run(env_extra={"DISCLOSURE_REVIEW_OUT": str(review)})
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(
+            review.read_text().splitlines(),
+            ["docs/alpha.md", "docs/mike.md", "docs/zulu.md"],
+        )
+
+    def test_review_out_is_empty_when_nothing_is_skipped(self):
+        self._commit_file("notes.txt", "plain text\n", "no prose")
+
+        review, _ = self._out_paths()
+        result = self._run(env_extra={"DISCLOSURE_REVIEW_OUT": str(review)})
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertTrue(review.exists())
+        self.assertEqual(review.read_text(), "")
+
+    def test_review_output_file_is_not_created_without_the_variable(self):
+        self._review_base("docs/\n")
+        self._commit_file("docs/guide.md", "SECRET-TERM\n", "prose")
+
+        review, _ = self._out_paths()
+        result = self._run()
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertFalse(review.exists())
+
+    def test_reviewed_list_itself_is_scanned(self):
+        self._review_base("docs/\n")
+        self._commit_file(".disclosure-reviewed", "docs/\nSECRET-TERM/\n", "edit reviewed list")
+
+        review, _ = self._out_paths()
+        result = self._run(env_extra={"DISCLOSURE_REVIEW_OUT": str(review)})
+        self.assertEqual(result.returncode, 1)
+        self.assertIn(".disclosure-reviewed:2", result.stdout)
+        self.assertNotIn("SECRET-TERM", result.stdout + result.stderr)
+        self.assertEqual(review.read_text(), "")
+
+    def test_reviewed_does_not_cover_pr_title(self):
+        self._review_base("docs/\n")
+
+        review, _ = self._out_paths()
+        result = self._run(env_extra={"PR_TITLE": "bump ANOTHER-TERM", "DISCLOSURE_REVIEW_OUT": str(review)})
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("PR title:1", result.stdout)
+        self.assertNotIn("ANOTHER-TERM", result.stdout + result.stderr)
+
+    def test_vendored_prefix_wins_over_reviewed_prefix(self):
+        """A path under both lists stays vendored: not scanned, not reported.
+
+        Vendored trees are third-party copies accepted verbatim, so they are
+        never handed to the first-party prose review job.
+        """
+        self._vendor_base("site/vendor/\n")
+        self._commit_file(".disclosure-reviewed", "site/\n", "reviewed list")
+        self._mark_base()
+        self._commit_file("site/vendor/lib.js", "SECRET-TERM\n", "vendor tree")
+
+        review, _ = self._out_paths()
+        result = self._run(env_extra={"DISCLOSURE_REVIEW_OUT": str(review)})
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(review.read_text(), "")
+
+    def test_exemptions_changed_is_written_when_a_list_is_added(self):
+        self._commit_file(".disclosure-reviewed", "docs/\n", "reviewed list")
+        self._commit_file("docs/guide.md", "prose only\n", "clean prose")
+
+        review, exemptions = self._out_paths()
+        result = self._run(env_extra={
+            "DISCLOSURE_REVIEW_OUT": str(review),
+            "DISCLOSURE_EXEMPTIONS_OUT": str(exemptions),
+        })
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(exemptions.read_text(), "exemptions-changed\n")
+
+    def test_exemptions_changed_is_written_when_a_list_is_removed(self):
+        self._review_base("docs/\n")
+        run_git(self.repo, "rm", "-q", ".disclosure-reviewed")
+        run_git(self.repo, "commit", "-q", "-m", "drop reviewed list")
+
+        review, exemptions = self._out_paths()
+        result = self._run(env_extra={
+            "DISCLOSURE_REVIEW_OUT": str(review),
+            "DISCLOSURE_EXEMPTIONS_OUT": str(exemptions),
+        })
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(exemptions.read_text(), "exemptions-changed\n")
+
+    def test_exemptions_changed_is_written_when_the_vendored_list_changes(self):
+        self._vendor_base("site/vendor/\n")
+        self._commit_file(".disclosure-vendored", "site/vendor/\nsite/vendor2/\n", "edit list")
+
+        review, exemptions = self._out_paths()
+        result = self._run(env_extra={
+            "DISCLOSURE_REVIEW_OUT": str(review),
+            "DISCLOSURE_EXEMPTIONS_OUT": str(exemptions),
+        })
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(exemptions.read_text(), "exemptions-changed\n")
+
+    def test_exemptions_line_is_absent_when_lists_are_unchanged(self):
+        self._review_base("docs/\n")
+        self._commit_file("notes.txt", "plain text\n", "unrelated change")
+
+        review, exemptions = self._out_paths()
+        result = self._run(env_extra={
+            "DISCLOSURE_REVIEW_OUT": str(review),
+            "DISCLOSURE_EXEMPTIONS_OUT": str(exemptions),
+        })
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(exemptions.read_text(), "")
+
+    def test_exemptions_output_is_ignored_without_review_out(self):
+        self._commit_file(".disclosure-reviewed", "docs/\n", "reviewed list")
+
+        _, exemptions = self._out_paths()
+        result = self._run(env_extra={"DISCLOSURE_EXEMPTIONS_OUT": str(exemptions)})
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertFalse(exemptions.exists())
+
+    def test_unwritable_review_output_is_instrument_error(self):
+        result = self._run(
+            env_extra={"DISCLOSURE_REVIEW_OUT": str(self.tmp / "missing-dir" / "out.txt")}
+        )
+        self.assertEqual(result.returncode, 2)
+        self.assertEqual(result.stdout, "")
 
 
     def _denylist(self, text):
