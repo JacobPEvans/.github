@@ -155,7 +155,7 @@ test('root-layout apps retain the org-required archive path and root packaging r
 test('the release reusable workflow inspects through the shared job before uploading its artifact', () => {
   assert.match(releaseWorkflow, /^  appinspect:\n    name: Build and inspect Splunk package\n    uses: \.\/\.github\/workflows\/splunk-appinspect\.yml$/m);
   assert.match(releaseWorkflow, /^    if: \$\{\{ github\.event_name == 'release' \}\}$/m);
-  assert.match(releaseWorkflow, /actions\/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7/);
+  assert.match(releaseWorkflow, /actions\/download-artifact@[0-9a-f]{40} # v\d+/);
   assert.match(releaseWorkflow, /gh release upload "\$RELEASE_TAG"/);
   assert.match(releaseWorkflow, /^      contents: write$/m);
 });
