@@ -95,6 +95,10 @@ jobs:
 
           # A merge commit in the branch carries a "Merge ..." message that the commit message
           # rule rejects, which leaves the pull request blocked with every check green. Name it here.
+          if (( COMMITS > 250 )); then
+            echo "This pull request has $COMMITS commits; the commit list stops at 250, so merge commits cannot be ruled out." >&2
+            exit 1
+          fi
           merges=$(gh api --paginate "repos/$REPO/pulls/$PR/commits" \
             | jq -r '.[] | select((.parents | length) > 1) | "\(.sha[0:7]) \(.commit.message | split("\n")[0])"')
           if [[ -n "$merges" ]]; then

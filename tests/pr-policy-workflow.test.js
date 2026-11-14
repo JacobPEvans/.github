@@ -17,7 +17,7 @@ const script = workflow.slice(runStart + runMarker.length)
   .join('\n')
   .trimEnd();
 
-function runPolicy(rules, commits) {
+function runPolicy(rules, commits, count = '2') {
   const ghStub = `
 gh() {
   if [[ "$1" == api && "$2" == "repos/$REPO/rules/branches/main" ]]; then
@@ -37,6 +37,7 @@ gh() {
       GITHUB_TOKEN: 'test-token',
       REPO: 'example/repo',
       PR: '7',
+      COMMITS: count,
       BASE: 'main',
       DEFAULT_BRANCH: 'main',
       HEAD: 'feature',
@@ -85,6 +86,13 @@ test('no commit message rule passes without reading the commit list', () => {
   const result = runPolicy([], 'not json');
 
   assert.equal(result.status, 0, result.stderr);
+});
+
+test('more commits than the API lists fails instead of passing unchecked', () => {
+  const result = runPolicy([conventional], [plain], '251');
+
+  assert.equal(result.status, 1, result.stderr);
+  assert.match(result.stderr, /251 commits/);
 });
 
 test('an unreadable commit list fails the check', () => {
