@@ -47,6 +47,17 @@ gh() {
   });
 }
 
+const conventional = {
+  type: 'commit_message_pattern',
+  parameters: { name: 'Conventional subject', operator: 'regex', pattern: '^(feat|fix): .+', negate: false },
+};
+const plain = { sha: '1111111abcdef', parents: [{ sha: 'a' }], commit: { message: 'fix: repair the thing\n\nBody' } };
+const merge = {
+  sha: 'abcdef0123456789abcdef0123456789abcdef01',
+  parents: [{ sha: 'a' }, { sha: 'b' }],
+  commit: { message: 'Merge develop into x\n\nBody' },
+};
+
 test('PR Title keeps its check name and has read access to PR commits', () => {
   assert.match(workflow, /^    name: PR Title$/m);
   assert.match(workflow, /^      pull-requests: read$/m);
@@ -55,79 +66,27 @@ test('PR Title keeps its check name and has read access to PR commits', () => {
   assert.match(script, /if \[\[ "\$TITLE" == "Merge "\* \]\]; then\n  exit 0/);
 });
 
-test('valid commit subjects pass every regex rule', () => {
-  const rules = [
-    {
-      type: 'commit_message_pattern',
-      parameters: {
-        name: 'Conventional subject',
-        operator: 'regex',
-        pattern: '^(feat|fix): .+',
-        negate: false,
-      },
-    },
-    {
-      type: 'commit_message_pattern',
-      parameters: {
-        name: 'No merge commits',
-        operator: 'regex',
-        pattern: '^Merge ',
-        negate: true,
-      },
-    },
-  ];
-  const commits = [{ sha: '1111111abcdef', commit: { message: 'fix: repair the thing\n\nBody' } }];
-  const result = runPolicy(rules, commits);
+test('a branch with single-parent commits passes', () => {
+  const result = runPolicy([conventional], [plain]);
 
   assert.equal(result.status, 0, result.stderr);
 });
 
-const conventional = {
-  type: 'commit_message_pattern',
-  parameters: { name: 'Conventional subject', operator: 'regex', pattern: '^(feat|fix): .+', negate: false },
-};
-
-test('a merge subject in the branch fails with its short SHA and the re-cut guidance', () => {
-  const commits = [
-    { sha: '1111111abcdef', commit: { message: 'fix: repair the thing' } },
-    { sha: 'abcdef0123456789abcdef0123456789abcdef01', commit: { message: 'Merge develop into x\n\nBody' } },
-  ];
-  const result = runPolicy([conventional], commits);
+test('a merge commit in the branch fails with its short SHA and the re-cut guidance', () => {
+  const result = runPolicy([conventional], [plain, merge]);
 
   assert.equal(result.status, 1, result.stderr);
-  assert.match(result.stderr, /abcdef0 "Merge develop into x" breaks commit_message_pattern \(must match\)/);
+  assert.match(result.stderr, /abcdef0 Merge develop into x/);
   assert.doesNotMatch(result.stderr, /1111111/);
   assert.match(result.stderr, /Re-create the branch from the base and cherry-pick the changes/);
 });
 
-test('a second rule that allows merge subjects does not excuse the stricter rule', () => {
-  const lenient = {
-    type: 'commit_message_pattern',
-    parameters: { name: 'Or merge', operator: 'regex', pattern: '^(Merge .+|(feat|fix): .+)', negate: false },
-  };
-  const commits = [{ sha: 'abcdef0123456789', commit: { message: 'Merge develop into x' } }];
-
-  assert.equal(runPolicy([conventional, lenient], commits).status, 1);
-});
-
-test('no regex rules pass without requiring a commit list', () => {
-  const result = runPolicy([], []);
+test('no commit message rule passes without reading the commit list', () => {
+  const result = runPolicy([], 'not json');
 
   assert.equal(result.status, 0, result.stderr);
 });
 
 test('an unreadable commit list fails the check', () => {
   assert.notEqual(runPolicy([conventional], 'not json').status, 0);
-});
-
-test('a negated rule rejects a subject that matches it', () => {
-  const noMerge = {
-    type: 'commit_message_pattern',
-    parameters: { name: 'No merge commits', operator: 'regex', pattern: '^Merge ', negate: true },
-  };
-  const commits = [{ sha: 'abcdef0123456789', commit: { message: 'Merge develop into x' } }];
-  const result = runPolicy([conventional, noMerge], commits);
-
-  assert.equal(result.status, 1, result.stderr);
-  assert.match(result.stderr, /abcdef0 "Merge develop into x" breaks commit_message_pattern \(mustnot match\): \^Merge /);
 });

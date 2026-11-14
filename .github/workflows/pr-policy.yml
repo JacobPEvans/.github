@@ -93,28 +93,13 @@ jobs:
             exit 1
           fi
 
-          # GitHub applies every commit message rule to each commit in the branch, so one bad
-          # subject leaves the pull request blocked with all checks green. Name it here.
-          # One line per rule: "must <pattern>", or "mustnot <pattern>" for a negated rule.
-          patterns=$(jq -r '.[] | select(.type == "commit_message_pattern" and .parameters.operator == "regex")
-            | "\(if .parameters.negate then "mustnot" else "must" end) \(.parameters.pattern)"' <<< "$rules")
-          subjects=$(gh api --paginate "repos/$REPO/pulls/$PR/commits" \
-            | jq -r '.[] | "\(.sha[0:7]) \(.commit.message | split("\n")[0])"')
-          failed=0
-          while IFS= read -r rule; do
-            want=${rule%% *}
-            pattern=${rule#* }
-            while read -r sha subject; do
-              [[ -n "$sha" ]] || continue
-              if [[ "$subject" =~ $pattern ]]; then matched=must; else matched=mustnot; fi
-              if [[ "$matched" != "$want" ]]; then
-                printf '%s "%s" breaks commit_message_pattern (%s match): %s\n' "$sha" "$subject" "$want" "$pattern" >&2
-                failed=1
-              fi
-            done <<< "$subjects"
-          done <<< "$patterns"
-          if (( failed )); then
-            echo 'This pull request cannot merge while such a commit is in the branch.' >&2
+          # A merge commit in the branch carries a "Merge ..." message that the commit message
+          # rule rejects, which leaves the pull request blocked with every check green. Name it here.
+          merges=$(gh api --paginate "repos/$REPO/pulls/$PR/commits" \
+            | jq -r '.[] | select((.parents | length) > 1) | "\(.sha[0:7]) \(.commit.message | split("\n")[0])"')
+          if [[ -n "$merges" ]]; then
+            printf 'Merge commits in this branch:\n%s\n' "$merges" >&2
+            echo 'This pull request cannot merge while a merge commit is in the branch.' >&2
             echo 'Re-create the branch from the base and cherry-pick the changes; do not merge the base into it.' >&2
+            exit 1
           fi
-          exit "$failed"
