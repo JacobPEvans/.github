@@ -71,7 +71,7 @@ jobs:
       - name: Add item to project board
         # No `v1` major tag exists for this action (only v1.0.x releases), so
         # `@v1` fails job setup with "unable to resolve action".
-        uses: actions/add-to-project@5afcf98fcd03f1c2f92c3c83f58ae24323cc57fd # v2.0.0
+        uses: actions/add-to-project@f2c1f1fa649a891be84948ea89b5dfba1526ef05 # v2.0.1
         with:
           project-url: ${{ inputs.project-url }}
           github-token: ${{ steps.app-token.outputs.token }}
