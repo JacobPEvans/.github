@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.50.1](https://github.com/JacobPEvans/.github/compare/v1.50.0...v1.50.1) (2026-11-14)
+
+
+### Bug Fixes
+
+* **main-source-gate:** key the concurrency lock on the repository ([d6347d6](https://github.com/JacobPEvans/.github/commit/d6347d65787daa5567ceeed2343ed093842b51b7))
+* **main-source-gate:** use a non-cancelling, repository-keyed concurrency lock ([#218](https://github.com/JacobPEvans/.github/issues/218)) ([d6347d6](https://github.com/JacobPEvans/.github/commit/d6347d65787daa5567ceeed2343ed093842b51b7))
+
 ## [1.50.0](https://github.com/JacobPEvans/.github/compare/v1.49.0...v1.50.0) (2026-11-13)
 
 
