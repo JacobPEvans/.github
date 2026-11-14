@@ -14,7 +14,7 @@ on:
         type: string
         required: false
         # renovate: datasource=github-tags depName=dryvist/mlx-benchmarks
-        default: 36ba0772ebe34f0407e511be3932e94f9298add7  # v0.72.0
+        default: 76187f101030a853d8b21e260797056397518b0e  # v0.73.0
 
 permissions:
   contents: read
