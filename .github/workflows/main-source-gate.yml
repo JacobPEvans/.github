@@ -9,8 +9,8 @@ on:
 permissions: {}
 
 concurrency:
-  group: enterprise-main-source-gate-${{ github.workflow }}-${{ github.event.pull_request.number }}
-  cancel-in-progress: true
+  group: enterprise-main-source-gate-${{ github.repository }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
 
 jobs:
   main-source-gate:
