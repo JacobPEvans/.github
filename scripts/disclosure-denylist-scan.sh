@@ -32,11 +32,28 @@
 # is always scanned. A root entry (`.`, `/`, empty after `./`), an absolute path or a
 # `..` segment is an instrument error. Title and body are always scanned.
 #
+# Reviewed paths: a repository may commit `.disclosure-reviewed` at its root, one
+# directory prefix per line (same comment and validation rules), naming first-party
+# folders that hold prose (documentation, prompts, reports) on which fixed-string
+# matching false-hits. Added lines under a listed prefix are not matched against the
+# denylist; they are left to a separate review job. The list is read from the BASE
+# ref, so a change cannot exempt its own new paths, and the list file itself is
+# always scanned. A path under both lists is treated as vendored. Title and body
+# are always scanned.
+#
+# Review output: when DISCLOSURE_REVIEW_OUT names a file, it is created and filled
+# with every changed file path that had at least one added line skipped because of
+# `.disclosure-reviewed`, one per line and sorted — paths only, never line content,
+# never a denylist term; it stays empty when there are none. When
+# DISCLOSURE_EXEMPTIONS_OUT also names a file and the diff adds, removes or changes
+# `.disclosure-reviewed` or `.disclosure-vendored`, the single line
+# `exemptions-changed` is written to it. Nothing is written when a variable is unset.
+#
 # Exit codes:
 #   0 — no hits
 #   1 — one or more hits (see stdout for path:line)
 #   2 — instrument error (missing/empty denylist file, missing allowlist file, bad base ref,
-#       invalid vendored entry)
+#       invalid vendored or reviewed entry, unwritable review/exemptions output file)
 
 set -euo pipefail
 
@@ -51,6 +68,23 @@ fi
 if [[ -n "$ALLOWLIST_FILE" && ! -f "$ALLOWLIST_FILE" ]]; then
   echo "::error::allowlist file missing: $ALLOWLIST_FILE" >&2
   exit 2
+fi
+
+# Review output files. Each is created (truncated) up front when its variable is set,
+# so even a run that exits early leaves a well-defined empty file behind; an
+# unwritable path is an instrument error, never a silent skip. DISCLOSURE_EXEMPTIONS_OUT
+# is only honored alongside DISCLOSURE_REVIEW_OUT.
+REVIEW_OUT="${DISCLOSURE_REVIEW_OUT:-}"
+EXEMPTIONS_OUT="${DISCLOSURE_EXEMPTIONS_OUT:-}"
+if [[ -n "$REVIEW_OUT" ]]; then
+  if ! : > "$REVIEW_OUT"; then
+    echo "::error::review output file not writable: $REVIEW_OUT" >&2
+    exit 2
+  fi
+  if [[ -n "$EXEMPTIONS_OUT" ]] && ! : > "$EXEMPTIONS_OUT"; then
+    echo "::error::exemptions output file not writable: $EXEMPTIONS_OUT" >&2
+    exit 2
+  fi
 fi
 
 # Strip blank lines and #-comments so an operator can annotate the source list.
@@ -126,6 +160,38 @@ scan_file() {
   done < <(hit_lines "$path")
 }
 
+# Reads one prefix list from the BASE ref (never from HEAD, so a change cannot
+# exempt its own new paths) and fills the global PREFIXES array with one
+# normalized prefix per entry. Comments and blank lines are skipped, a `./`
+# prefix and a missing trailing slash are normalized away, and a root entry, an
+# absolute path or a `..` segment is an instrument error.
+load_prefixes() {
+  local list_name="$1" entry
+  PREFIXES=()
+  while IFS= read -r entry; do
+    entry="${entry#"${entry%%[![:space:]]*}"}"; entry="${entry%"${entry##*[![:space:]]}"}"
+    while [[ "$entry" == ./* ]]; do entry="${entry#./}"; done
+    if [[ -z "$entry" || "$entry" == "." || "$entry" == /* || "/$entry/" == */../* ]]; then
+      echo "::error::${list_name}: root, absolute or '..' entry is not allowed" >&2
+      exit 2
+    fi
+    [[ "$entry" == */ ]] || entry="${entry}/"
+    PREFIXES+=("$entry")
+  done < <(git show "$BASE_REF:${list_name}" 2>/dev/null | grep -vE '^[[:space:]]*(#|$)' || true)
+}
+
+# True when a path starts with one of the prefix arguments. The trailing slash
+# makes a prefix match whole directory names only, so `vendor2/` never matches a
+# `vendor/` entry.
+under_prefix() {
+  local path="$1" prefix
+  shift
+  for prefix in "$@"; do
+    if [[ "$path" == "$prefix"* ]]; then return 0; fi
+  done
+  return 1
+}
+
 # Lines the PR adds (base ref...HEAD). Unchanged lines in a touched file were
 # already scanned when they were added, so a regenerated file (CHANGELOG) does
 # not re-flag its history. Each hit reports the line's number in the new file.
@@ -137,6 +203,14 @@ scan_added() {
     !inhunk { next }
     /^\+/ { print substr($0, 2) > c; print line > l; line++ }
   '
+  if [[ -s "$content" ]] && under_prefix "$f" "${reviewed[@]+"${reviewed[@]}"}"; then
+    # First-party prose under `.disclosure-reviewed`: report the path for the
+    # separate review job instead of matching it. Only the path is recorded —
+    # never line content, never a denylist term.
+    reviewed_paths+=("$f")
+    rm -f "$content" "$numbers"
+    return
+  fi
   # Each whole-token occurrence of an allowlisted identifier becomes a space, so its
   # neighbours keep their token boundaries and no line is dropped: `numbers` stays
   # aligned with `content`. An occurrence that is not a whole token stays, so a term
@@ -164,26 +238,34 @@ ALLOWLIST_HOME_PATH="scripts/disclosure-denylist-allowlist.txt"
 
 if git rev-parse -q --verify "$BASE_REF" >/dev/null; then
   vendored=()
-  while IFS= read -r entry; do
-    entry="${entry#"${entry%%[![:space:]]*}"}"; entry="${entry%"${entry##*[![:space:]]}"}"
-    while [[ "$entry" == ./* ]]; do entry="${entry#./}"; done
-    if [[ -z "$entry" || "$entry" == "." || "$entry" == /* || "/$entry/" == */../* ]]; then
-      echo "::error::.disclosure-vendored: root, absolute or '..' entry is not allowed" >&2
-      exit 2
-    fi
-    [[ "$entry" == */ ]] || entry="${entry}/"
-    vendored+=("$entry")
-  done < <(git show "$BASE_REF:.disclosure-vendored" 2>/dev/null | grep -vE '^[[:space:]]*(#|$)' || true)
+  reviewed=()
+  reviewed_paths=()
+  load_prefixes ".disclosure-vendored"
+  vendored=("${PREFIXES[@]}")
+  load_prefixes ".disclosure-reviewed"
+  reviewed=("${PREFIXES[@]}")
   while IFS= read -r f; do
     [[ -n "$f" ]] || continue
-    for prefix in "${vendored[@]+"${vendored[@]}"}"; do
-      [[ "$f" == "$prefix"* ]] && continue 2
-    done
+    if under_prefix "$f" "${vendored[@]+"${vendored[@]}"}"; then continue; fi
     if [[ "${GITHUB_REPOSITORY:-}" == "$ALLOWLIST_HOME_REPO" && "$f" == "$ALLOWLIST_HOME_PATH" ]]; then
       continue
     fi
     scan_added "$f"
   done < <(git diff --name-only --diff-filter=d "$BASE_REF"...HEAD -- . 2>/dev/null || true)
+  if [[ -n "$REVIEW_OUT" ]]; then
+    if [[ "${#reviewed_paths[@]}" -gt 0 ]]; then
+      printf '%s\n' "${reviewed_paths[@]}" | LC_ALL=C sort > "$REVIEW_OUT"
+    fi
+    if [[ -n "$EXEMPTIONS_OUT" ]]; then
+      changed_lists="$(git diff --name-only "$BASE_REF"...HEAD -- .disclosure-reviewed .disclosure-vendored)" || {
+        echo "::error::could not diff the exemption lists" >&2
+        exit 2
+      }
+      if [[ -n "$changed_lists" ]]; then
+        printf 'exemptions-changed\n' > "$EXEMPTIONS_OUT"
+      fi
+    fi
+  fi
 else
   echo "::error::base ref not found: $BASE_REF" >&2
   exit 2
