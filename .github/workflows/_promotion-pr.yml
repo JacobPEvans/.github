@@ -71,6 +71,6 @@ jobs:
           fi
 
           gh pr create --repo "$GH_REPO" --base main --head develop \
-            --title 'release: promote develop to main' \
+            --title 'chore: promote develop to main' \
             --label release:in-progress \
             --body 'Merges develop into main.'
