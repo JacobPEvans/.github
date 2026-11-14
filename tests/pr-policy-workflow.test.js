@@ -95,7 +95,7 @@ test('a merge subject in the branch fails with its short SHA and the re-cut guid
   const result = runPolicy([conventional], commits);
 
   assert.equal(result.status, 1, result.stderr);
-  assert.match(result.stderr, /abcdef0 "Merge develop into x" does not match commit_message_pattern/);
+  assert.match(result.stderr, /abcdef0 "Merge develop into x" breaks commit_message_pattern \(must match\)/);
   assert.doesNotMatch(result.stderr, /1111111/);
   assert.match(result.stderr, /Re-create the branch from the base and cherry-pick the changes/);
 });
@@ -116,9 +116,18 @@ test('no regex rules pass without requiring a commit list', () => {
   assert.equal(result.status, 0, result.stderr);
 });
 
-test('an unreadable commit list passes with a warning after the title check', () => {
-  const result = runPolicy([conventional], 'not json');
+test('an unreadable commit list fails the check', () => {
+  assert.notEqual(runPolicy([conventional], 'not json').status, 0);
+});
 
-  assert.equal(result.status, 0, result.stderr);
-  assert.match(result.stdout, /::warning::Could not list the pull request commits/);
+test('a negated rule rejects a subject that matches it', () => {
+  const noMerge = {
+    type: 'commit_message_pattern',
+    parameters: { name: 'No merge commits', operator: 'regex', pattern: '^Merge ', negate: true },
+  };
+  const commits = [{ sha: 'abcdef0123456789', commit: { message: 'Merge develop into x' } }];
+  const result = runPolicy([conventional, noMerge], commits);
+
+  assert.equal(result.status, 1, result.stderr);
+  assert.match(result.stderr, /abcdef0 "Merge develop into x" breaks commit_message_pattern \(mustnot match\): \^Merge /);
 });
