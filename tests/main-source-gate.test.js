@@ -49,7 +49,7 @@ test('workflow is a standalone, least-permission pull request check', () => {
   assert.match(workflow, /^    timeout-minutes: 2$/m);
   assert.match(workflow, /^    permissions: \{\}$/m);
   assert.match(workflow, /^concurrency:\n  group: enterprise-main-source-gate-/m);
-  assert.match(workflow, /^  cancel-in-progress: true$/m);
+  assert.match(workflow, /^  cancel-in-progress: false$/m);
   assert.match(workflow, /^  workflow_call:$/m);
   assert.doesNotMatch(workflow, /pull_request_target|^\s+uses:/m);
   assert.doesNotMatch(gateScript, /\$\{\{/);
