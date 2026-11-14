@@ -112,7 +112,7 @@ jobs:
       # It does NOT include flake checking — that was a separate action (flake-checker-action).
       # Flake evaluation is handled by `nix flake check` below, not by the installer.
       - name: Install Nix
-        uses: DeterminateSystems/determinate-nix-action@8d87e8d5e5b8a8309d4281094560f127d9a265f1 # v3
+        uses: DeterminateSystems/determinate-nix-action@16f94ba7aae399b9f9077c254b6719ec6de7e3e3 # v3
         with:
           extra-conf: |
             max-jobs = auto
@@ -128,7 +128,7 @@ jobs:
       # cache backend of a later cache step to S3, once runs-on/action has run.
       - name: Enable RunsOn cache backend
         if: startsWith(inputs.runner_label, 'runs-on=')
-        uses: runs-on/action@284bff869d4a825f778ac7c38e50f1e31ef198fd # v2.6.0
+        uses: runs-on/action@13fbb6a39310a0dac9ab4716da2c4e74a3326dfc # v2.7.0
 
       # Restore-only on PRs; saves on pushes to the default branch (branch-agnostic
       # so both trunk and git-flow callers save where their PRs can read).

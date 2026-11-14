@@ -303,7 +303,7 @@ jobs:
         run: cp .org-ansible-checkout/precommit/configs/yamllint.yml .yamllint
       - name: Remove org config checkout
         run: rm -rf .org-ansible-checkout
-      - uses: ansible/ansible-lint@9bce2bfb8f4a984e6b13767bc0d6bf0a49492164 # v26
+      - uses: ansible/ansible-lint@b74fb6f73d234bf92672372cb1c10768e4018d16 # v26
         with:
           args: ${{ inputs.lint_args }}
 
