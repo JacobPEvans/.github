@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.51.0](https://github.com/JacobPEvans/.github/compare/v1.50.1...v1.51.0) (2026-11-14)
+
+
+### Features
+
+* **agent:** zcode run j-95dbff14bde9ceed ([39a70fd](https://github.com/JacobPEvans/.github/commit/39a70fd55e59a33d4d412894389c37935efc5f5e))
+* **disclosure-gate:** add a reviewed-paths list and review outputs to the scan ([#220](https://github.com/JacobPEvans/.github/issues/220)) ([39a70fd](https://github.com/JacobPEvans/.github/commit/39a70fd55e59a33d4d412894389c37935efc5f5e))
+
 ## [1.50.1](https://github.com/JacobPEvans/.github/compare/v1.50.0...v1.50.1) (2026-11-14)
 
 
