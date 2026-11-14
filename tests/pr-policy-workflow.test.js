@@ -62,6 +62,10 @@ const merge = {
 test('PR Title keeps its check name and has read access to PR commits', () => {
   assert.match(workflow, /^    name: PR Title$/m);
   assert.match(workflow, /^      pull-requests: read$/m);
+  // The script runs under `set -u`; every variable it reads must be in the step environment.
+  for (const name of ['REPO', 'PR', 'COMMITS', 'BASE', 'DEFAULT_BRANCH', 'HEAD', 'TITLE']) {
+    assert.match(workflow.slice(workflow.indexOf('  pr-title:')), new RegExp(`^          ${name}: \\$\\{\\{`, 'm'), name);
+  }
   assert.match(script, /gh api --paginate "repos\/\$REPO\/pulls\/\$PR\/commits"/);
   assert.match(script, /if \[\[ "\$BASE" == "\$DEFAULT_BRANCH" && "\$HEAD" == "develop" \]\]; then\n  exit 0/);
   assert.match(script, /if \[\[ "\$TITLE" == "Merge "\* \]\]; then\n  exit 0/);

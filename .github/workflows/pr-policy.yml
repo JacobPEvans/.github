@@ -67,6 +67,7 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
           PR: ${{ github.event.pull_request.number }}
+          COMMITS: ${{ github.event.pull_request.commits }}
           BASE: ${{ github.event.pull_request.base.ref }}
           DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
           HEAD: ${{ github.event.pull_request.head.ref }}
