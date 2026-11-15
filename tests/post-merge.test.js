@@ -86,8 +86,8 @@ test('a red run posts to chat and dispatches post-merge-red with commit id and r
   assert.match(settle, /- name: Post the red result to chat/);
   assert.match(settle, /- name: Dispatch the CI-fix reaction/);
   assert.match(settle, /-f event_type=post-merge-red/);
-  assert.match(settle, /client_payload\[commit\]="\$RED_SHA"/);
-  assert.match(settle, /client_payload\[run_url\]="\$RUN_URL"/);
+  assert.match(settle, /-f "client_payload\[commit\]=\$RED_SHA"/);
+  assert.match(settle, /-f "client_payload\[run_url\]=\$RUN_URL"/);
   assert.match(settle, /uses: slackapi\/slack-github-action@[0-9a-f]{40} # v4\.0\.0/);
   assert.match(settle, /if: steps\.decide\.outputs\.revert != '' && env\.HAS_SLACK == 'true'/);
 });
