@@ -9,7 +9,7 @@ const gitleaksAction = 'gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5
 
 test('gitleaks retries once after failure and retains its redacted non-reporting configuration', () => {
   assert.equal((workflow.match(/uses: gitleaks\/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3\.0\.0/g) || []).length, 2);
-  assert.match(workflow, new RegExp(`uses: ${gitleaksAction.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\n\\s+id: gitleaks-first\\n\\s+continue-on-error: true`));
+  assert.match(workflow, new RegExp(`uses: ${gitleaksAction.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\n\\s+id: gitleaks-first\\n\\s+if: \\$\\{\\{ github\\.event_name != 'merge_group' \\}\\}\\n\\s+continue-on-error: true`));
   assert.match(workflow, /if: \$\{\{ steps\.gitleaks-first\.outcome == 'failure' \}\}\n\s+uses: gitleaks\/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3\.0\.0/);
 
   for (const setting of [

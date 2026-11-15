@@ -13,13 +13,14 @@ name: Markdown Lint
 
 on:
   pull_request:
+  merge_group:
 
 permissions:
   contents: read
 
 concurrency:
-  group: enterprise-markdown-lint-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: enterprise-markdown-lint-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   markdownlint:
@@ -30,7 +31,9 @@ jobs:
       - name: Checkout target repo
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          fetch-depth: 2
+          # A merge queue entry diffs its own base_sha..head_sha pair, which
+          # can reach back past the two commits a pull_request diff needs.
+          fetch-depth: ${{ github.event_name == 'merge_group' && 0 || 2 }}
 
       - name: Checkout org config (single source of truth)
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -42,26 +45,36 @@ jobs:
       - name: List changed Markdown files
         # Pull requests lint only the Markdown they add or modify, so a PR is
         # never red for files it did not touch. HEAD is the PR merge commit and
-        # HEAD^1 the base tip, so the diff is exactly the PR's change.
+        # HEAD^1 the base tip, so the diff is exactly the PR's change. A merge
+        # queue entry diffs its base_sha..head_sha pair instead.
         id: changed
-        if: github.event_name == 'pull_request'
+        if: github.event_name != 'push'
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.merge_group.base_sha }}
+          HEAD_SHA: ${{ github.event.merge_group.head_sha }}
         run: |
+          if [[ "$EVENT_NAME" == merge_group ]]; then
+            range=("$BASE_SHA" "$HEAD_SHA")
+          else
+            range=(HEAD^1 HEAD)
+          fi
           {
             echo 'files<<CHANGED_MD_EOF'
-            git diff --name-only --diff-filter=ACMR HEAD^1 HEAD -- '*.md' \
+            git diff --name-only --diff-filter=ACMR "${range[@]}" -- '*.md' \
               ':!CHANGELOG.md' ':!**/node_modules/**' ':!**/.github/aw/imports/**' ':!.org-github/**'
             echo 'CHANGED_MD_EOF'
           } >> "$GITHUB_OUTPUT"
 
       - name: Run markdownlint on changed files with the forced org config
-        if: github.event_name == 'pull_request' && steps.changed.outputs.files != ''
+        if: github.event_name != 'push' && steps.changed.outputs.files != ''
         uses: DavidAnson/markdownlint-cli2-action@696eb3f2509270d7b882d2aa68347bc676e7af34 # v25
         with:
           config: .org-github/.markdownlint-cli2.yaml
           globs: ${{ steps.changed.outputs.files }}
 
       - name: Run markdownlint with the forced org config
-        if: github.event_name != 'pull_request'
+        if: github.event_name == 'push'
         uses: DavidAnson/markdownlint-cli2-action@696eb3f2509270d7b882d2aa68347bc676e7af34 # v25
         with:
           config: .org-github/.markdownlint-cli2.yaml
