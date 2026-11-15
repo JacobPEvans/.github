@@ -53,6 +53,18 @@ on:
         type: number
         required: false
         default: 0
+      override_input:
+        description: >-
+          Run-time flake input override, passed as --override-input to the
+          flake evaluations below so a caller can test against an upstream
+          topic branch without committing the pin. Whitespace-separated
+          "input=flake-ref" pairs, e.g. nixpkgs=github:NixOS/nixpkgs/topic.
+          Nothing is written to flake.lock; the trailing diff step fails the
+          job if the override leaked into a tracked file anyway. Empty
+          (default) runs the checks unchanged.
+        type: string
+        required: false
+        default: ''
 
 permissions:
   contents: read
@@ -153,21 +165,35 @@ jobs:
         # derivations (require darwin binaries).
         env:
           ALL_SYSTEMS_FLAG: ${{ inputs.all_systems && '--all-systems' || '' }}
+          OVERRIDE_INPUT: ${{ inputs.override_input }}
         run: |
+          override_args=()
+          # Intentional word splitting: whitespace-separated input=flake-ref pairs.
+          # shellcheck disable=SC2086
+          for pair in $OVERRIDE_INPUT; do
+            override_args+=(--override-input "${pair%%=*}" "${pair#*=}")
+          done
           # shellcheck disable=SC2086 # Expands deliberately to zero or one flag.
-          nix flake check $ALL_SYSTEMS_FLAG --print-build-logs --show-trace --keep-going
+          nix flake check "${override_args[@]}" $ALL_SYSTEMS_FLAG --print-build-logs --show-trace --keep-going
 
       - name: Check focused flake checks
         if: inputs.focused_checks
         env:
           ALL_SYSTEMS_FLAG: ${{ inputs.all_systems && '--all-systems' || '' }}
           FOCUSED_CHECKS_SHARD: ${{ inputs.focused_checks_shard }}
+          OVERRIDE_INPUT: ${{ inputs.override_input }}
         run: |
+          override_args=()
+          # Intentional word splitting: whitespace-separated input=flake-ref pairs.
+          # shellcheck disable=SC2086
+          for pair in $OVERRIDE_INPUT; do
+            override_args+=(--override-input "${pair%%=*}" "${pair#*=}")
+          done
           # Evaluate flake outputs but build only the current system's check derivations.
           # `checks` is an optional flake output; only a missing output or system
           # yields an empty list. Flake evaluation errors still fail this step.
           # shellcheck disable=SC2086 # Expands deliberately to zero or one flag.
-          nix flake check --no-build $ALL_SYSTEMS_FLAG --print-build-logs --show-trace --keep-going
+          nix flake check "${override_args[@]}" --no-build $ALL_SYSTEMS_FLAG --print-build-logs --show-trace --keep-going
           system="$(nix eval --impure --raw --expr builtins.currentSystem)"
           check_names="$(
             nix eval --raw --impure --expr '
@@ -215,5 +241,9 @@ jobs:
               check_installables+=(".#checks.${system}.${check}")
             done <<< "$check_names"
             nix build --no-link --print-build-logs --show-trace --keep-going \
-              "${check_installables[@]}"
+              "${override_args[@]}" "${check_installables[@]}"
           fi
+
+      - name: Verify the override stayed out of tracked files
+        if: ${{ inputs.override_input != '' }}
+        run: git diff --exit-code

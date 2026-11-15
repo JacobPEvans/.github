@@ -31,6 +31,19 @@ on:
         type: string
         required: false
         default: ubuntu-24.04
+      module_source_var:
+        description: >-
+          Run-time module source override, exported as TF_VAR_<name> around
+          init/validate/tflint so a caller whose module block reads
+          `source = var.<name>` can resolve the module from an upstream topic
+          branch without editing the tracked configuration. One "name=value"
+          pair, e.g. module_source=git::https://github.com/org/repo//modules/x?ref=topic.
+          Nothing tracked changes; the trailing diff step fails the job if
+          the override leaked into a tracked file anyway. Empty (default)
+          runs the checks unchanged.
+        type: string
+        required: false
+        default: ''
 
 permissions: {}
 
@@ -73,7 +86,14 @@ jobs:
       - name: OpenTofu Init + Validate
         env:
           DIRS: ${{ inputs.working_directories }}
+          MODULE_SOURCE_VAR: ${{ inputs.module_source_var }}
         run: |
+          # Run-time module source override: exported before init so the module
+          # resolves from the topic branch without any tracked file edit.
+          # shellcheck disable=SC2086 # Intentional splitting of name=value pairs.
+          for pair in $MODULE_SOURCE_VAR; do
+            export "TF_VAR_${pair%%=*}=${pair#*=}"
+          done
           for dir in $(jq -r '.[]' <<<"$DIRS"); do
             echo "::group::$dir"
             (cd "$dir" && tofu init -backend=false -input=false && tofu validate -no-color)
@@ -94,11 +114,21 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
           DIRS: ${{ inputs.working_directories }}
+          MODULE_SOURCE_VAR: ${{ inputs.module_source_var }}
         run: |
           config="$GITHUB_WORKSPACE/.tflint.hcl"
           [ -f "$config" ] || config="$GITHUB_WORKSPACE/.gh-shared/precommit/configs/tflint.hcl"
+          # Same override as init above, so tflint evaluates the topic module.
+          # shellcheck disable=SC2086 # Intentional splitting of name=value pairs.
+          for pair in $MODULE_SOURCE_VAR; do
+            export "TF_VAR_${pair%%=*}=${pair#*=}"
+          done
           for dir in $(jq -r '.[]' <<<"$DIRS"); do
             echo "::group::$dir"
             (cd "$dir" && tflint --config "$config" --init && tflint --config "$config" -f compact)
             echo "::endgroup::"
           done
+
+      - name: Verify the override stayed out of tracked files
+        if: ${{ inputs.module_source_var != '' }}
+        run: git diff --exit-code

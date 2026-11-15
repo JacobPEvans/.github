@@ -20,6 +20,19 @@ on:
         type: string
         required: false
         default: macos-26
+      override_input:
+        description: >-
+          Run-time flake input override, appended to the build command as
+          --override-input pairs so a caller can build against an upstream
+          topic branch without committing the pin. Whitespace-separated
+          "input=flake-ref" pairs, e.g. nixpkgs=github:NixOS/nixpkgs/topic
+          (a compound custom build command must leave its last command in a
+          form that accepts the appended flags). Nothing is written to
+          flake.lock; the trailing diff step fails the job if the override
+          leaked into a tracked file anyway. Empty (default) builds unchanged.
+        type: string
+        required: false
+        default: ''
 
 permissions: {}
 
@@ -87,9 +100,22 @@ jobs:
       - name: Build
         env:
           BUILD_COMMAND: ${{ inputs.build-command }}
+          OVERRIDE_INPUT: ${{ inputs.override_input }}
         run: |
           # Empty build-command (the default) runs the home-manager build.
           if [ -z "$BUILD_COMMAND" ]; then
             BUILD_COMMAND="nix build .#homeConfigurations.$(whoami).activationPackage --print-build-logs"
           fi
-          eval "$BUILD_COMMAND"
+          # Run-time flake input overrides, resolved during evaluation and
+          # never written to flake.lock (the trailing diff step fails the job
+          # on a leak). Intentional word splitting: input=flake-ref pairs.
+          override_args=()
+          # shellcheck disable=SC2086
+          for pair in $OVERRIDE_INPUT; do
+            override_args+=(--override-input "${pair%%=*}" "${pair#*=}")
+          done
+          eval "$BUILD_COMMAND ${override_args[*]}"
+
+      - name: Verify the override stayed out of tracked files
+        if: ${{ inputs.override_input != '' }}
+        run: git diff --exit-code

@@ -227,6 +227,18 @@ on:
         type: string
         required: false
         default: ''
+      nix_override_input:
+        description: >-
+          Run-time flake input override for `Nix Validate` and `Nix Build`,
+          forwarded to both as `override_input`: whitespace-separated
+          "input=flake-ref" pairs passed as --override-input (e.g.
+          nixpkgs=github:NixOS/nixpkgs/topic), so a caller can evaluate
+          against an upstream topic branch without committing the pin. Both
+          children verify afterwards that the override wrote nothing into a
+          tracked file. Empty (default) keeps today's behaviour.
+        type: string
+        required: false
+        default: ''
       nix_skip_deps_only:
         description: >-
           Skip `nix-validate`/`nix-build` on dependency-only bot PRs (see
@@ -313,6 +325,18 @@ on:
         description: JSON array of directories `_tofu-ci.yml` validates
         type: string
         default: '["."]'
+      tofu_module_source_var:
+        description: >-
+          Run-time module source override for `OpenTofu CI`, forwarded as
+          `module_source_var`: a "name=value" pair exported as TF_VAR_<name>
+          around init/validate/tflint, so a caller whose module block reads
+          `source = var.<name>` can resolve the module from an upstream topic
+          branch without editing the tracked configuration. The job verifies
+          afterwards that nothing leaked into a tracked file. Empty (default)
+          keeps today's behaviour.
+        type: string
+        required: false
+        default: ''
       osv_scan:
         description: >-
           Enable `OSV Scanner` on every pull_request (differential scan; not
@@ -405,6 +429,20 @@ on:
           Extra arguments for ansible-lint, forwarded to `_ansible-ci.yml`'s
           `lint_args`, for example `tests/canary/ansible` to lint one directory.
           Empty (default) keeps the lint scope unchanged.
+        type: string
+        required: false
+        default: ''
+
+      galaxy_requirements_override:
+        description: >-
+          Install-time Galaxy requirements override for `Ansible CI`,
+          forwarded as `galaxy_requirements_override`: the YAML body of a
+          requirements file force-installed after the committed
+          requirements.yml in the lint and Molecule jobs, written to an
+          untracked runner path so a caller can pin an upstream topic branch
+          without committing the pin. The Galaxy cache is bypassed on an
+          override run, and the jobs verify afterwards that nothing leaked
+          into a tracked file. Empty (default) keeps today's behaviour.
         type: string
         required: false
         default: ''
@@ -811,6 +849,7 @@ jobs:
     with:
       all_systems: ${{ github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && inputs.all_systems }}
       focused_checks: ${{ github.event_name != 'push' || github.ref != format('refs/heads/{0}', github.event.repository.default_branch) }}
+      override_input: ${{ inputs.nix_override_input }}
       runner_label: ${{ (!github.event.pull_request || github.event.pull_request.head.repo.full_name == github.repository) && (inputs.nix_validate_runner_label || inputs.runner_label) || 'ubuntu-24.04' }}
       timeout_minutes: ${{ inputs.nix_validate_timeout_minutes }}
 
@@ -839,6 +878,7 @@ jobs:
     uses: ./.github/workflows/_nix-build.yml
     with:
       build-command: ${{ inputs.nix_build_command }}
+      override_input: ${{ inputs.nix_override_input }}
 
   markdown-lint:
     name: Markdown Lint
@@ -955,6 +995,7 @@ jobs:
     uses: ./.github/workflows/_ansible-ci.yml
     with:
       emit_gate: false
+      galaxy_requirements_override: ${{ inputs.galaxy_requirements_override }}
       lint_args: ${{ inputs.ansible_lint_args }}
       # scope's `molecule` output is a second layer on `_ansible-ci.yml`'s
       # own molecule toggle - only turns it off when scope definitively
@@ -990,6 +1031,7 @@ jobs:
       ((needs.lane.outputs.tier != 'standard' && needs.lane.outputs.tier != 'hot') || (github.event.pull_request.user.login != 'jacobpevans-release-please[bot]' && !(startsWith(github.head_ref, 'promote/') && github.base_ref == 'main' && github.event.repository.default_branch != 'main')))) }}
     uses: ./.github/workflows/_tofu-ci.yml
     with:
+      module_source_var: ${{ inputs.tofu_module_source_var }}
       working_directories: ${{ inputs.tofu_working_directories }}
       runner_label: ${{ (!github.event.pull_request || github.event.pull_request.head.repo.full_name == github.repository) && inputs.runner_label || 'ubuntu-24.04' }}
 

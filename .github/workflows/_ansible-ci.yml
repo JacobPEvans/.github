@@ -154,6 +154,17 @@ on:
           and every fork PR always fall back to ubuntu-24.04.
         type: string
         default: ubuntu-24.04
+      galaxy_requirements_override:
+        description: >-
+          Install-time Galaxy requirements override, applied after the
+          committed requirements.yml on every collection and role install in
+          the lint and Molecule jobs. The YAML body of a requirements file;
+          it is written to an untracked runner temp path at run time, never
+          into the checkout, and the Galaxy cache is bypassed so restored
+          content cannot shadow the override. Empty (default) keeps the
+          committed requirements as the only source.
+        type: string
+        default: ""
     secrets:
       doppler_token:
         description: Doppler service token, only needed when molecule_doppler is true.
@@ -235,8 +246,12 @@ jobs:
       # requirements.yml digest. ansible-lint's implicit install does not
       # force-replace those restored versions, so only an exact cache hit may
       # skip installing the current requirements before lint.
+      # Bypassed entirely on an override run: content saved under the base
+      # requirements.yml key must never mix with override-installed pins, and
+      # a hit here would skip the installs the override needs.
       - name: Cache Ansible Galaxy content
         id: galaxy-cache
+        if: ${{ inputs.galaxy_requirements_override == '' }}
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: |
@@ -270,6 +285,30 @@ jobs:
           retry_wait_seconds: 30
           timeout_minutes: 1
           command: ansible-galaxy role install -r requirements.yml --force -p "$HOME/.ansible/roles"
+      # Run-time topic-branch testing: the override file lives OUTSIDE the
+      # checkout and force-installs after the committed requirements.yml, so
+      # the override pins win at install time and nothing tracked changes.
+      - name: Write Galaxy requirements override
+        if: ${{ inputs.galaxy_requirements_override != '' }}
+        env:
+          GALAXY_REQUIREMENTS_OVERRIDE: ${{ inputs.galaxy_requirements_override }}
+        run: printf '%s\n' "$GALAXY_REQUIREMENTS_OVERRIDE" > "$RUNNER_TEMP/galaxy-requirements-override.yml"
+      - name: Install overridden Ansible collections
+        if: ${{ inputs.galaxy_requirements_override != '' }}
+        uses: nick-fields/retry@ad984534de44a9489a53aefd81eb77f87c70dc60 # v4.0.0
+        with:
+          max_attempts: 3
+          retry_wait_seconds: 30
+          timeout_minutes: 1
+          command: ansible-galaxy collection install -r "$RUNNER_TEMP/galaxy-requirements-override.yml" --force
+      - name: Install overridden Ansible roles
+        if: ${{ inputs.galaxy_requirements_override != '' }}
+        uses: nick-fields/retry@ad984534de44a9489a53aefd81eb77f87c70dc60 # v4.0.0
+        with:
+          max_attempts: 3
+          retry_wait_seconds: 30
+          timeout_minutes: 1
+          command: ansible-galaxy role install -r "$RUNNER_TEMP/galaxy-requirements-override.yml" --force -p "$HOME/.ansible/roles"
       # Runs on every hit or miss: ansible.cfg's roles_path would otherwise
       # hide ~/.ansible/roles. Repo roles/ stays first in the search path,
       # then the repo's own ansible.cfg roles_path (if any), then Galaxy roles.
@@ -306,6 +345,9 @@ jobs:
       - uses: ansible/ansible-lint@b74fb6f73d234bf92672372cb1c10768e4018d16 # v26
         with:
           args: ${{ inputs.lint_args }}
+      - name: Verify the override stayed out of tracked files
+        if: ${{ inputs.galaxy_requirements_override != '' }}
+        run: git diff --exit-code
 
   molecule:
     name: Molecule (${{ matrix.scenario }})
@@ -346,8 +388,12 @@ jobs:
       # Cache Galaxy content keyed on requirements.yml. On a hit the collections
       # and roles are already present, so the forced reinstalls below are skipped;
       # on a miss (requirements.yml changed) they run and repopulate the cache.
+      # Bypassed entirely on an override run, same as the lint job: saved
+      # base-pinned content must never mix with override installs, and a hit
+      # here would skip the installs the override needs.
       - name: Cache Ansible Galaxy content
         id: galaxy-cache
+        if: ${{ inputs.galaxy_requirements_override == '' }}
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: |
@@ -376,6 +422,29 @@ jobs:
           retry_wait_seconds: 30
           timeout_minutes: 1
           command: ansible-galaxy role install -r requirements.yml --force -p "$HOME/.ansible/roles"
+      # Run-time topic-branch testing: same override as the lint job, written
+      # outside the checkout and force-installed last so the override wins.
+      - name: Write Galaxy requirements override
+        if: ${{ inputs.galaxy_requirements_override != '' }}
+        env:
+          GALAXY_REQUIREMENTS_OVERRIDE: ${{ inputs.galaxy_requirements_override }}
+        run: printf '%s\n' "$GALAXY_REQUIREMENTS_OVERRIDE" > "$RUNNER_TEMP/galaxy-requirements-override.yml"
+      - name: Install overridden Ansible collections
+        if: ${{ inputs.galaxy_requirements_override != '' }}
+        uses: nick-fields/retry@ad984534de44a9489a53aefd81eb77f87c70dc60 # v4.0.0
+        with:
+          max_attempts: 3
+          retry_wait_seconds: 30
+          timeout_minutes: 1
+          command: ansible-galaxy collection install -r "$RUNNER_TEMP/galaxy-requirements-override.yml" --force
+      - name: Install overridden Ansible roles
+        if: ${{ inputs.galaxy_requirements_override != '' }}
+        uses: nick-fields/retry@ad984534de44a9489a53aefd81eb77f87c70dc60 # v4.0.0
+        with:
+          max_attempts: 3
+          retry_wait_seconds: 30
+          timeout_minutes: 1
+          command: ansible-galaxy role install -r "$RUNNER_TEMP/galaxy-requirements-override.yml" --force -p "$HOME/.ansible/roles"
       - name: Set Ansible roles path
         run: echo "ANSIBLE_ROLES_PATH=$GITHUB_WORKSPACE/roles:$HOME/.ansible/roles" >> "$GITHUB_ENV"
       - name: Fetch Doppler secrets
@@ -393,6 +462,9 @@ jobs:
           ANSIBLE_ALLOW_BROKEN_CONDITIONALS: "1"
           MOLECULE_SCENARIO: ${{ matrix.scenario }}
         run: molecule test -s "$MOLECULE_SCENARIO"
+      - name: Verify the override stayed out of tracked files
+        if: ${{ inputs.galaxy_requirements_override != '' }}
+        run: git diff --exit-code
 
   # Token budgets reach the Ansible fleet only from here. _token-limits.yml is
   # otherwise only wired through _ci-gate.yml, and no Ansible repo calls that —
