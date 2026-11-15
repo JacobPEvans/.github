@@ -188,6 +188,7 @@ jobs:
         id: classify
         if: >-
           ${{ github.event_name == 'pull_request' ||
+          github.event_name == 'merge_group' ||
           (github.event_name == 'push' && github.ref != 'refs/heads/main') }}
         with:
           base: ${{ github.event_name == 'push' && github.event.before || '' }}
@@ -223,6 +224,7 @@ jobs:
       - name: Note that mapping is not required when Molecule is off
         if: >-
           ${{ (github.event_name == 'pull_request' ||
+          github.event_name == 'merge_group' ||
           (github.event_name == 'push' && github.ref != 'refs/heads/main')) &&
           steps.filter.outputs.molecule == 'true' &&
           !inputs.molecule }}
@@ -231,6 +233,7 @@ jobs:
         id: unmapped
         if: >-
           ${{ (github.event_name == 'pull_request' ||
+          github.event_name == 'merge_group' ||
           (github.event_name == 'push' && github.ref != 'refs/heads/main')) &&
           inputs.molecule &&
           steps.filter.outputs.molecule == 'true' &&
@@ -248,6 +251,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         if: >-
           ${{ (github.event_name == 'pull_request' ||
+          github.event_name == 'merge_group' ||
           (github.event_name == 'push' && github.ref != 'refs/heads/main')) &&
           (inputs.molecule_scenario_filters != '' ||
           inputs.molecule_contract_filters != '') }}
@@ -262,6 +266,7 @@ jobs:
         id: scenario_selection
         if: >-
           ${{ (github.event_name == 'pull_request' ||
+          github.event_name == 'merge_group' ||
           (github.event_name == 'push' && github.ref != 'refs/heads/main')) &&
           (inputs.molecule_scenario_filters != '' ||
           inputs.molecule_contract_filters != '') }}

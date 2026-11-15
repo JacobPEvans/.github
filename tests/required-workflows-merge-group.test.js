@@ -84,3 +84,11 @@ test('the gitleaks steps skip a queue entry and the denylist scan reads its base
   assert.equal(gate.split("if: ${{ github.event_name != 'merge_group' }}").length - 1, 2);
   assert.match(gate, /BASE_SHA: \$\{\{ github\.event\.pull_request\.base\.sha \|\| github\.event\.merge_group\.base_sha \}\}/);
 });
+
+test('the Ansible change detector selects Molecule scenarios for a queue entry', () => {
+  const changes = readWorkflow('_ansible-changes.yml');
+  const prOnly = "github.event_name == 'pull_request' ||\n          (github.event_name == 'push'";
+  const withQueue = "github.event_name == 'pull_request' ||\n          github.event_name == 'merge_group' ||";
+  assert.equal(changes.split(prOnly).length - 1, 0);
+  assert.equal(changes.split(withQueue).length - 1, 5);
+});
