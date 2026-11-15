@@ -75,5 +75,5 @@ test('flake lock freshness is optional and included in the merge gate', () => {
     /^  flake-lock-fresh:\n    name: Flake Lock Fresh\n    if: \$\{\{ inputs\.flake_lock_max_age_days > 0 \}\}\n    permissions:\n      contents: read\n    uses: dryvist\/\.github\/\.github\/workflows\/_flake-lock-fresh\.yml@[0-9a-f]{40} # PR #426 merge commit\n    with:\n      max_age_days: \$\{\{ inputs\.flake_lock_max_age_days \}\}$/m,
   );
   assert.match(gate, /^    needs: \[.*\bflake-lock-fresh\b.*\]$/m);
-  assert.match(gate, /^          CI_GATE_ALLOWED_SKIPS: >-\n(?:^            .*\n)*?^            .*flake-lock-fresh/m);
+  assert.match(gate, /^          allowed-skips: >-\n(?:^            .*\n)*?^            .*flake-lock-fresh/m);
 });

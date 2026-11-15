@@ -441,19 +441,12 @@ jobs:
     runs-on: ${{ (!github.event.pull_request || github.event.pull_request.head.repo.full_name == github.repository) && inputs.runner_label || 'ubuntu-24.04' }}
     timeout-minutes: ${{ github.event_name == 'pull_request' && 5 || 30 }}
     steps:
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+      # alls-green runs `python`; a self-hosted runner may only carry python3.
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
         with:
-          node-version: '22'
-      - name: Checkout result aggregator
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          repository: JacobPEvans/.github
-          ref: ${{ job.workflow_sha }}
-          path: .gh-shared
-          sparse-checkout: scripts/ci-gate-aggregate.mts
-          sparse-checkout-cone-mode: false
+          python-version: '3.x'
       - name: Aggregate results
-        env:
-          CI_GATE_JOBS: ${{ toJSON(needs) }}
-          CI_GATE_ALLOWED_SKIPS: ansible-lint, molecule, token-limits, renovate-annotations, renovate_config
-        run: node .gh-shared/scripts/ci-gate-aggregate.mts
+        uses: re-actors/alls-green@b5b5b37504aa4183270bd3d855c52a67f212be35 # v1.3.0
+        with:
+          jobs: ${{ toJSON(needs) }}
+          allowed-skips: ansible-lint, molecule, token-limits, renovate-annotations, renovate_config

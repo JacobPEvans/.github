@@ -80,6 +80,13 @@ on:
           `agent/` head branch, is never tiny or land-first.
         type: string
         default: 'jacobs-agent-smith[bot]'
+    secrets:
+      GH_APP_PRIVATE_KEY:
+        description: >-
+          Optional. The gate labels a tiny or land-first pull request
+          checks:deferred with an App token; without the key those two lanes
+          are not granted.
+        required: false
     outputs:
       lane:
         description: >-
@@ -116,6 +123,9 @@ jobs:
     name: Classify Lane
     runs-on: ubuntu-24.04
     timeout-minutes: 5
+    env:
+      # Secrets are not allowed in if: expressions; expose only whether the key is set.
+      HAS_APP_KEY: ${{ secrets.GH_APP_PRIVATE_KEY != '' }}
     outputs:
       lane: ${{ steps.classify.outputs.lane }}
       tier: ${{ steps.tier.outputs.tier }}
@@ -254,7 +264,10 @@ jobs:
           BOT_LOGINS: ${{ inputs.bot_logins }}
           AUTOMATION_LOGINS: ${{ inputs.automation_logins }}
           SANDBOX_LOGINS: ${{ inputs.sandbox_logins }}
-          TIER: ${{ steps.tier.outputs.tier }}
+          # The tier only opens the tiny and land-first lanes here. Without
+          # the App key the gate cannot record their deferred checks, so the
+          # classifier sees legacy and grants neither.
+          TIER: ${{ env.HAS_APP_KEY == 'true' && steps.tier.outputs.tier || 'legacy' }}
         run: |
           set -euo pipefail
           csv_array() { jq -cn --arg csv "$1" 'if $csv == "" then [] else [$csv | split(",")[] | gsub("^\\s+|\\s+$"; "")] end'; }
