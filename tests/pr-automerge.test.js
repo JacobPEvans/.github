@@ -76,7 +76,7 @@ test('the legacy tier keeps the release App scope and the agent sandbox exclusio
 
 test('the standard and hot tiers require both exact gate contexts', () => {
   assert.ok(
-    workflow.includes('(["gate / Merge Gate", "AI Merge Gate"] - $have | length) == 0'),
+    workflow.includes('(["gate / Merge Gate", "AI Merge Gate"] - [.[] | select(.type == "required_status_checks")'),
     'the readiness rule requires both exact context names',
   );
   assert.ok(

@@ -1,0 +1,486 @@
+# Reusable: settle the checks a fast-lane merge deferred.
+#
+# A pull request labelled checks:deferred merged without running its heavy
+# checks (the gate's bot, tiny and land-first lanes defer them). This
+# workflow is the caller for pushes to the default branch and settles the
+# debt on HEAD:
+#
+#   1. The `green` branch marks the newest commit whose deferred work is
+#      verified. When it does not exist yet, it is created at the commit
+#      before the push (github.event.before) and the first run settles from
+#      there.
+#   2. The merged pull requests labelled checks:deferred between green and
+#      HEAD are collected through the API (commits/{sha}/pulls).
+#   3. None -> green is fast-forwarded to HEAD; there is nothing to verify.
+#   4. Otherwise _ci-gate.yml runs the caller's enabled checks on HEAD (a
+#      push event selects the full tier, and the lane classifier can never
+#      take a fast lane without a pull request payload, so every enabled
+#      heavy check runs), and every deferred pull request must carry an
+#      "AI Merge Gate" check run on its head commit whose summary says
+#      VERDICT: MERGE. A VERDICT: DEFERRED summary means the review has not
+#      finished: the verdict is re-read for at most 8 minutes (inside the
+#      job's 10-minute cap), then treated as red. All green -> green is
+#      fast-forwarded to HEAD.
+#   5. Red -> the failure is posted to chat (skipped when the optional
+#      slack_webhook_url secret is empty; this repository uses no
+#      slack-github-action anywhere), a post-merge-red repository_dispatch
+#      with the commit id and the run URL is sent to the calling
+#      repository, and a revert job waits in the revert-delay environment
+#      (the 15-minute wait timer lives on that environment; no runner is
+#      held while it waits). Still red afterwards — green still does not
+#      contain the red commit, so a later verified run cannot be undone —
+#      every deferred pull request is reverted, each revert pull request is
+#      labelled auto-revert and its auto-merge is armed. A VERDICT: CHANGES
+#      verdict skips the wait and runs the same revert steps at once.
+#   6. green only ever moves forward: it is moved with a plain non-forced
+#      ref update of a commit id, which the API rejects when it is not a
+#      fast-forward. A rewritten default branch therefore fails the run
+#      instead of rewinding green.
+#
+# Caller shape (a push to the caller's default branch):
+#
+#   on:
+#     push:
+#       branches: [main]
+#
+#   jobs:
+#     post-merge:
+#       permissions:
+#         contents: write    # green ref moves, post-merge-red dispatches
+#         pull-requests: write
+#         checks: read       # AI Merge Gate verdicts on the head commits
+#         actions: write     # forwarded to _ci-gate.yml's queue watchdog
+#       uses: JacobPEvans/.github/.github/workflows/_post-merge.yml@v1
+#       with:
+#         profile: nix       # the caller's gate stack, forwarded verbatim
+#       secrets:
+#         GH_APP_PRIVATE_KEY: ${{ secrets.GH_APP_PRIVATE_KEY }}
+#         slack_webhook_url: ${{ secrets.SLACK_WEBHOOK_URL }}
+#
+# The App token copies _flake-lock-fresh.yml: minted from
+# vars.GH_APP_CLIENT_ID and secrets.GH_APP_PRIVATE_KEY when the key is set,
+# with github.token as the fallback.
+
+name: _post-merge
+
+on:
+  workflow_call:
+    inputs:
+      filters:
+        description: >-
+          YAML body for dorny/paths-filter, forwarded to _ci-gate.yml. The
+          full event tier a push selects runs every enabled check, so this
+          carries the caller's gate config for parity, not a switch.
+        type: string
+        required: false
+        default: ''
+      profile:
+        description: Preset forwarded to _ci-gate.yml, enabling its matching checks.
+        type: string
+        required: false
+        default: ''
+      nix_build:
+        description: >-
+          Enable the Nix Build check on HEAD (forwarded to _ci-gate.yml; the
+          one heavy tier a profile does not enable by itself).
+        type: boolean
+        required: false
+        default: false
+      runner_label:
+        description: GitHub Actions runner label for _ci-gate.yml's check jobs.
+        type: string
+        required: false
+        default: ubuntu-24.04
+    secrets:
+      GH_APP_PRIVATE_KEY:
+        description: >-
+          Optional private key of the automation App (vars.GH_APP_CLIENT_ID).
+          Empty falls back to github.token, like _flake-lock-fresh.yml.
+        required: false
+      slack_webhook_url:
+        description: >-
+          Optional chat webhook for the red post. Empty (default) skips the
+          post step.
+        required: false
+
+concurrency:
+  group: post-merge-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    name: Verify Deferred Merges
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      pull-requests: read
+    env:
+      HAS_APP_KEY: ${{ secrets.GH_APP_PRIVATE_KEY != '' }}
+    outputs:
+      has_deferred: ${{ steps.deferred.outputs.has_deferred }}
+      deferred: ${{ steps.deferred.outputs.deferred }}
+      green_sha: ${{ steps.green.outputs.green }}
+    steps:
+      - name: Mint the App token
+        id: app-token
+        if: env.HAS_APP_KEY == 'true'
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3
+        with:
+          client-id: ${{ vars.GH_APP_CLIENT_ID }}
+          private-key: ${{ secrets.GH_APP_PRIVATE_KEY }}
+          repositories: ${{ github.event.repository.name }}
+          permission-contents: write
+          permission-pull-requests: write
+
+      - name: Seed the green branch when it does not exist
+        id: green
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token || github.token }}
+          REPO: ${{ github.repository }}
+          BEFORE: ${{ github.event.before }}
+          HEAD_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          green="$(gh api "repos/$REPO/git/ref/heads/green" --jq .object.sha 2>/dev/null || true)"
+          if [[ -z "$green" ]]; then
+            seed="$BEFORE"
+            if [[ -z "$seed" || "$seed" == 0000000000000000000000000000000000000000 ]]; then
+              seed="$(gh api "repos/$REPO/commits/$HEAD_SHA" --jq '.parents[0].sha // ""')"
+            fi
+            if [[ -z "$seed" ]]; then
+              seed="$HEAD_SHA"
+            fi
+            gh api -X POST "repos/$REPO/git/refs" -f ref=refs/heads/green -f sha="$seed"
+            green="$seed"
+            echo "seeded green at $seed"
+          fi
+          echo "green=$green" >> "$GITHUB_OUTPUT"
+
+      - name: List the merged pull requests deferred between green and HEAD
+        id: deferred
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token || github.token }}
+          REPO: ${{ github.repository }}
+          GREEN_SHA: ${{ steps.green.outputs.green }}
+          HEAD_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          has_deferred=false
+          deferred='[]'
+          if [[ "$GREEN_SHA" != "$HEAD_SHA" ]]; then
+            compare="$(gh api "repos/$REPO/compare/$GREEN_SHA...$HEAD_SHA")"
+            if [[ "$(jq -r '.ahead_by' <<<"$compare")" -gt "$(jq '.commits | length' <<<"$compare")" ]]; then
+              echo "::error::green is more than 250 commits behind HEAD; the compare API would hide deferred pull requests"
+              exit 1
+            fi
+            ndjson=""
+            for sha in $(jq -r '.commits[].sha' <<<"$compare"); do
+              pulls="$(gh api "repos/$REPO/commits/$sha/pulls?per_page=100" \
+                --jq '.[] | select(.merged_at != null and ([(.labels // [])[].name] | index("checks:deferred"))) | {number: .number, head_sha: .head.sha}')"
+              [[ -z "$pulls" ]] || ndjson+="${pulls}"$'\n'
+            done
+            if [[ -n "$ndjson" ]]; then
+              deferred="$(printf '%s' "$ndjson" | jq -cs 'unique_by(.number)')"
+              has_deferred=true
+            fi
+          fi
+          {
+            echo "has_deferred=$has_deferred"
+            echo "deferred=$deferred"
+          } >> "$GITHUB_OUTPUT"
+          printf 'deferred pull requests: %s\n' "$deferred"
+
+  # Called on the caller's push event, so _ci-gate.yml selects the full test
+  # tier and the lane classifier cannot take a fast lane: every enabled
+  # check runs on HEAD. Its optional secrets are deliberately not forwarded,
+  # which leaves the scope classifier in its fail-safe full tier.
+  gate:
+    name: Post-Merge Gate
+    needs: [verify]
+    if: needs.verify.outputs.has_deferred == 'true'
+    permissions:
+      contents: read
+      pull-requests: read
+      actions: write
+    uses: ./.github/workflows/_ci-gate.yml
+    with:
+      filters: ${{ inputs.filters }}
+      profile: ${{ inputs.profile }}
+      nix_build: ${{ inputs.nix_build }}
+      runner_label: ${{ inputs.runner_label }}
+
+  verdicts:
+    name: Read AI Verdicts
+    needs: [verify]
+    if: needs.verify.outputs.has_deferred == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      checks: read
+      pull-requests: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPO: ${{ github.repository }}
+      DEFERRED: ${{ needs.verify.outputs.deferred }}
+    outputs:
+      red: ${{ steps.verdicts.outputs.red }}
+      changes: ${{ steps.verdicts.outputs.changes }}
+    steps:
+      - name: 'Require VERDICT: MERGE on every deferred pull request'
+        id: verdicts
+        run: |
+          set -euo pipefail
+          deadline=$((SECONDS + 480))
+          pending=true
+          changes=false
+          while [[ "$pending" == true && "$changes" == false && $SECONDS -lt $deadline ]]; do
+            pending=false
+            changes=false
+            while IFS= read -r pr; do
+              [[ -n "$pr" ]] || continue
+              head_sha="$(jq -r --argjson n "$pr" '.[] | select(.number == $n) | .head_sha' <<<"$DEFERRED")"
+              summary="$(gh api "repos/$REPO/commits/$head_sha/check-runs?per_page=100" \
+                --jq '[.check_runs[] | select(.name == "AI Merge Gate")] | sort_by(.started_at) | last | .output.summary // ""' \
+                || true)"
+              case "$summary" in
+                *"VERDICT: MERGE"*) ;;
+                *"VERDICT: CHANGES"*) changes=true ;;
+                *"VERDICT: DEFERRED"*) pending=true ;;
+                *) pending=true ;;
+              esac
+            done < <(jq -r '.[].number' <<<"$DEFERRED")
+            if [[ "$pending" == false || "$changes" == true || $SECONDS -ge $deadline ]]; then
+              break
+            fi
+            sleep 45
+          done
+          red=false
+          if [[ "$pending" == true && "$changes" == false ]]; then
+            red=true
+          fi
+          {
+            echo "changes=$changes"
+            echo "red=$red"
+          } >> "$GITHUB_OUTPUT"
+
+  settle:
+    name: Settle Green
+    needs: [verify, gate, verdicts]
+    if: ${{ always() && needs.verify.result == 'success' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    env:
+      HAS_APP_KEY: ${{ secrets.GH_APP_PRIVATE_KEY != '' }}
+    outputs:
+      revert: ${{ steps.decide.outputs.revert }}
+      deferred: ${{ needs.verify.outputs.deferred }}
+      head_sha: ${{ github.sha }}
+    steps:
+      - name: Mint the App token
+        id: app-token
+        if: env.HAS_APP_KEY == 'true'
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3
+        with:
+          client-id: ${{ vars.GH_APP_CLIENT_ID }}
+          private-key: ${{ secrets.GH_APP_PRIVATE_KEY }}
+          repositories: ${{ github.event.repository.name }}
+          permission-contents: write
+          permission-pull-requests: write
+
+      - name: Decide the outcome
+        id: decide
+        env:
+          HAS_DEFERRED: ${{ needs.verify.outputs.has_deferred }}
+          GATE_RESULT: ${{ needs.gate.result }}
+          VERDICTS_RESULT: ${{ needs.verdicts.result }}
+          VERDICTS_RED: ${{ needs.verdicts.outputs.red }}
+          VERDICTS_CHANGES: ${{ needs.verdicts.outputs.changes }}
+        run: |
+          set -euo pipefail
+          revert=''
+          if [[ "$HAS_DEFERRED" == 'true' ]]; then
+            if [[ "$VERDICTS_CHANGES" == 'true' ]]; then
+              revert=now
+            elif [[ "$GATE_RESULT" == success && "$VERDICTS_RESULT" == success && "$VERDICTS_RED" != 'true' ]]; then
+              revert=''
+            else
+              revert=delay
+            fi
+          fi
+          echo "revert=$revert" >> "$GITHUB_OUTPUT"
+
+      - name: Fast-forward green to HEAD
+        if: steps.decide.outputs.revert == ''
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token || github.token }}
+          REPO: ${{ github.repository }}
+          GREEN_SHA: ${{ needs.verify.outputs.green_sha }}
+          HEAD_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          if [[ "$GREEN_SHA" == "$HEAD_SHA" ]]; then
+            echo "green is already at $HEAD_SHA"
+            exit 0
+          fi
+          # force=false makes the API reject the update unless it is a plain
+          # fast-forward, so green can only ever move forward.
+          gh api -X PATCH "repos/$REPO/git/refs/heads/green" -F sha="$HEAD_SHA" -F force=false
+
+      - name: Post the red result to chat
+        if: steps.decide.outputs.revert == 'delay'
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.slack_webhook_url }}
+          RED_SHA: ${{ github.sha }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          if [[ -z "$SLACK_WEBHOOK_URL" ]]; then
+            echo 'no slack_webhook_url secret; skipping the chat post'
+            exit 0
+          fi
+          payload="$(jq -rn --arg text "post-merge verification failed for $RED_SHA; the deferred merges will be reverted. $RUN_URL" '{text: $text}')"
+          curl -fsSL --max-time 10 -X POST -H 'Content-Type: application/json' -d "$payload" "$SLACK_WEBHOOK_URL"
+
+      - name: Dispatch the CI-fix reaction
+        if: steps.decide.outputs.revert == 'delay'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token || github.token }}
+          REPO: ${{ github.repository }}
+          RED_SHA: ${{ github.sha }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          gh api "repos/$REPO/dispatches" \
+            -f event_type=post-merge-red \
+            -f client_payload[commit]="$RED_SHA" \
+            -f client_payload[run_url]="$RUN_URL"
+
+  # The wait comes from the revert-delay environment's 15-minute wait timer,
+  # so no runner is held while it elapses. The revert step first re-reads
+  # green: a commit a later run already verified (green contains it) is left
+  # alone. gh pr revert is a pure API call, so no checkout is needed and the
+  # job only asks for the read and pull request scopes it uses.
+  revert:
+    name: Revert Deferred Merges
+    needs: [verify, settle]
+    if: >-
+      always() && needs.verify.result == 'success' &&
+      needs.settle.outputs.revert == 'delay'
+    environment: revert-delay
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: write
+    env:
+      HAS_APP_KEY: ${{ secrets.GH_APP_PRIVATE_KEY != '' }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - name: Mint the App token
+        id: app-token
+        if: env.HAS_APP_KEY == 'true'
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3
+        with:
+          client-id: ${{ vars.GH_APP_CLIENT_ID }}
+          private-key: ${{ secrets.GH_APP_PRIVATE_KEY }}
+          repositories: ${{ github.event.repository.name }}
+          permission-contents: write
+          permission-pull-requests: write
+
+      - name: Revert each deferred pull request unless green already contains the commit
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token || github.token }}
+          REPO: ${{ github.repository }}
+          RED_SHA: ${{ needs.settle.outputs.head_sha }}
+          DEFERRED: ${{ needs.settle.outputs.deferred }}
+        run: |
+          set -euo pipefail
+          green="$(gh api "repos/$REPO/git/ref/heads/green" --jq .object.sha)"
+          status="$(gh api "repos/$REPO/compare/$RED_SHA...$green" --jq .status)"
+          if [[ "$status" == ahead || "$status" == identical ]]; then
+            echo "green already contains $RED_SHA; nothing to revert"
+            exit 0
+          fi
+          failures=0
+          for pr in $(jq -r '.[].number' <<<"$DEFERRED"); do
+            if ! out="$(gh pr revert "$pr" 2>&1)"; then
+              echo "::error::reverting #$pr failed: $out"
+              failures=1
+              continue
+            fi
+            revert_pr="$(printf '%s\n' "$out" | grep -oE '(#[0-9]+|pull/[0-9]+)' | grep -oE '[0-9]+' | tail -1 || true)"
+            if [[ -z "$revert_pr" ]]; then
+              echo "::error::no revert pull request number found for #$pr in: $out"
+              failures=1
+              continue
+            fi
+            gh pr edit "$revert_pr" --add-label auto-revert
+            gh pr merge "$revert_pr" --auto --squash
+            echo "reverted #$pr as #$revert_pr; auto-merge armed"
+          done
+          exit "$failures"
+
+  # A VERDICT: CHANGES review verdict means the review asked for changes
+  # after the merge: the same revert steps as the delayed revert, without
+  # the revert-delay environment.
+  revert-changes:
+    name: Revert Deferred Merges (Changes Verdict)
+    needs: [verify, settle]
+    if: >-
+      always() && needs.verify.result == 'success' &&
+      needs.settle.outputs.revert == 'now'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: write
+    env:
+      HAS_APP_KEY: ${{ secrets.GH_APP_PRIVATE_KEY != '' }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - name: Mint the App token
+        id: app-token
+        if: env.HAS_APP_KEY == 'true'
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3
+        with:
+          client-id: ${{ vars.GH_APP_CLIENT_ID }}
+          private-key: ${{ secrets.GH_APP_PRIVATE_KEY }}
+          repositories: ${{ github.event.repository.name }}
+          permission-contents: write
+          permission-pull-requests: write
+
+      - name: Revert each deferred pull request unless green already contains the commit
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token || github.token }}
+          REPO: ${{ github.repository }}
+          RED_SHA: ${{ needs.settle.outputs.head_sha }}
+          DEFERRED: ${{ needs.settle.outputs.deferred }}
+        run: |
+          set -euo pipefail
+          green="$(gh api "repos/$REPO/git/ref/heads/green" --jq .object.sha)"
+          status="$(gh api "repos/$REPO/compare/$RED_SHA...$green" --jq .status)"
+          if [[ "$status" == ahead || "$status" == identical ]]; then
+            echo "green already contains $RED_SHA; nothing to revert"
+            exit 0
+          fi
+          failures=0
+          for pr in $(jq -r '.[].number' <<<"$DEFERRED"); do
+            if ! out="$(gh pr revert "$pr" 2>&1)"; then
+              echo "::error::reverting #$pr failed: $out"
+              failures=1
+              continue
+            fi
+            revert_pr="$(printf '%s\n' "$out" | grep -oE '(#[0-9]+|pull/[0-9]+)' | grep -oE '[0-9]+' | tail -1 || true)"
+            if [[ -z "$revert_pr" ]]; then
+              echo "::error::no revert pull request number found for #$pr in: $out"
+              failures=1
+              continue
+            fi
+            gh pr edit "$revert_pr" --add-label auto-revert
+            gh pr merge "$revert_pr" --auto --squash
+            echo "reverted #$pr as #$revert_pr; auto-merge armed"
+          done
+          exit "$failures"
