@@ -1,0 +1,232 @@
+diff --git a/.github/workflows/_promotion-pr.yml b/.github/workflows/_promotion-pr.yml
+index 12cd5ad..452ea9d 100644
+--- a/.github/workflows/_promotion-pr.yml
++++ b/.github/workflows/_promotion-pr.yml
+@@ -1,9 +1,10 @@
+-# Reusable: weekly develop-to-main promotion pull request.
++# Reusable: daily green-to-main promotion pull request.
+ #
+-# Opens a pull request from develop into main when develop has commits that main
+-# does not and no open promotion pull request exists. The pull request carries the
+-# release:in-progress label that _release-freeze.yml reads. Auto-merge is never
+-# enabled.
++# Stops (with an ntfy post when configured) when main has commits that develop
++# lacks, since promoting would revert them. Otherwise dispatches the caller's
++# full-suite workflow on the green branch, waits for it to succeed, creates a
++# promote/<yyyy-mm-dd> branch at the tested sha, opens the pull request into
++# main, and arms merge-commit auto-merge on it.
+ #
+ # The pull request is opened with the release GitHub App token, not github.token,
+ # so the pull_request workflows run on it.
+@@ -11,20 +12,37 @@
+ # Caller shape:
+ #   on:
+ #     schedule:
+-#       - cron: "13 12 * * 6"
++#       - cron: "17 9 * * *"
+ #   permissions: {}
+ #   jobs:
+ #     promotion-pr:
+ #       uses: JacobPEvans/.github/.github/workflows/_promotion-pr.yml@v1
++#       with:
++#         full_suite_workflow: full-suite.yml # the caller's full-suite workflow filename
++#         ntfy_topic: my-topic
+ #       secrets:
+ #         GH_ACTION_RELEASE_PLEASE_PRIVATE_KEY: ${{ secrets.GH_ACTION_RELEASE_PLEASE_PRIVATE_KEY }}
++#         NTFY_BASE_URL: ${{ secrets.NTFY_BASE_URL }}
+ name: _promotion-pr
+ 
+ on:
+   workflow_call:
++    inputs:
++      full_suite_workflow:
++        description: The caller's full-suite workflow filename, dispatched on green.
++        required: false
++        type: string
++        default: ''
++      ntfy_topic:
++        description: The ntfy topic receiving the promotion result.
++        required: false
++        type: string
++        default: ''
+     secrets:
+       GH_ACTION_RELEASE_PLEASE_PRIVATE_KEY:
+         required: true
++      NTFY_BASE_URL:
++        required: false
+ 
+ permissions: {}
+ 
+@@ -34,9 +52,9 @@ concurrency:
+ 
+ jobs:
+   promotion-pr:
+-    name: Open promotion pull request
++    name: Promote green to main
+     runs-on: ubuntu-26.04
+-    timeout-minutes: 5
++    timeout-minutes: 60
+     permissions: {}
+     steps:
+       - name: Mint caller repository token
+@@ -47,30 +65,97 @@ jobs:
+           private-key: ${{ secrets.GH_ACTION_RELEASE_PLEASE_PRIVATE_KEY }}
+           owner: ${{ github.repository_owner }}
+           repositories: ${{ github.event.repository.name }}
+-          permission-contents: read
++          permission-contents: write
+           permission-pull-requests: write
++          permission-actions: write
++          permission-checks: read
+ 
+-      - name: Open the promotion pull request
++      - name: Promote green to main
+         env:
+           GH_TOKEN: ${{ steps.token.outputs.token }}
+           GH_REPO: ${{ github.repository }}
++          FULL_SUITE_WORKFLOW: ${{ inputs.full_suite_workflow }}
+         run: |
+           set -euo pipefail
+ 
+-          existing=$(gh pr list --repo "$GH_REPO" --base main --head develop \
++          promote_date=$(date -u +%F)
++          promote_branch="promote/$promote_date"
++
++          ahead=$(gh api "repos/$GH_REPO/compare/develop...main" --jq '.ahead_by')
++          if [[ "$ahead" -gt 0 ]]; then
++            echo "::notice::main has $ahead commit(s) develop lacks; refusing to promote."
++            {
++              echo "PROMOTION_RESULT=stopped"
++              echo "PROMOTION_DETAIL=main is $ahead commit(s) ahead of develop"
++            } >> "$GITHUB_ENV"
++            exit 0
++          fi
++
++          existing=$(gh pr list --repo "$GH_REPO" --base main --head "$promote_branch" \
+             --state open --json number --jq '.[0].number // empty')
+           if [[ -n "$existing" ]]; then
+             echo "::notice::Promotion pull request #$existing is already open."
++            {
++              echo "PROMOTION_RESULT=skipped"
++              echo "PROMOTION_DETAIL=pull request #$existing is already open"
++            } >> "$GITHUB_ENV"
+             exit 0
+           fi
+ 
+-          ahead=$(gh api "repos/$GH_REPO/compare/main...develop" --jq '.ahead_by')
+-          if [[ "$ahead" == "0" ]]; then
+-            echo "::notice::develop has no commits ahead of main."
+-            exit 0
++          if [[ -z "$FULL_SUITE_WORKFLOW" ]]; then
++            echo "::error::The full_suite_workflow input is required to gate the promotion on the green full suite."
++            exit 1
++          fi
++
++          green_sha=$(gh api "repos/$GH_REPO/branches/green" --jq '.commit.sha')
++          gh workflow run "$FULL_SUITE_WORKFLOW" --repo "$GH_REPO" --ref green
++
++          run_id=''
++          for _ in $(seq 1 20); do
++            run_id=$(gh run list --repo "$GH_REPO" --workflow "$FULL_SUITE_WORKFLOW" \
++              --branch green --event workflow_dispatch --limit 1 \
++              --json databaseId --jq '.[0].databaseId // empty')
++            [[ -n "$run_id" ]] && break
++            sleep 15
++          done
++          [[ -n "$run_id" ]] || { echo "::error::The dispatched full-suite run never appeared."; exit 1; }
++
++          run_sha=$(gh run view "$run_id" --repo "$GH_REPO" --json headSha --jq '.headSha')
++          if [[ "$run_sha" != "$green_sha" ]]; then
++            echo "::error::Full-suite run $run_id is for $run_sha, not the captured green sha $green_sha."
++            exit 1
+           fi
+ 
+-          gh pr create --repo "$GH_REPO" --base main --head develop \
+-            --title 'chore: promote develop to main' \
+-            --label release:in-progress \
+-            --body 'Merges develop into main.'
++          gh run watch "$run_id" --repo "$GH_REPO" --exit-status --interval 30
++
++          gh api "repos/$GH_REPO/git/refs" \
++            -f "ref=refs/heads/$promote_branch" -f "sha=$green_sha" > /dev/null
++
++          pull_request_url=$(gh pr create --repo "$GH_REPO" --base main --head "$promote_branch" \
++            --title "chore: promote green to main ($promote_date)" \
++            --body "Merges the green branch at $green_sha into main after a successful full-suite run on green.")
++          gh pr merge "$pull_request_url" --repo "$GH_REPO" --auto --merge
++
++          {
++            echo "PROMOTION_RESULT=promoted"
++            echo "PROMOTION_DETAIL=$promote_branch pull request armed with merge-commit auto-merge"
++          } >> "$GITHUB_ENV"
++
++      - name: Publish the result to ntfy
++        env:
++          BASE_URL: ${{ secrets.NTFY_BASE_URL }}
++          TOPIC: ${{ inputs.ntfy_topic }}
++          RESULT: ${{ env.PROMOTION_RESULT }}
++          DETAIL: ${{ env.PROMOTION_DETAIL }}
++          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
++        run: |
++          if [ -z "${BASE_URL:-}" ]; then
++            echo "NTFY_BASE_URL not configured; skipping the audit publish."
++            exit 0
++          fi
++          echo "::add-mask::$BASE_URL"
++          host="${BASE_URL#*://}"; host="${host%%/*}"
++          [ -n "$host" ] && echo "::add-mask::$host" && echo "::add-mask::${host%%:*}"
++          curl -sS --max-time 30 -X POST "${BASE_URL%/}/${TOPIC}" \
++            -H "Title: promotion ${RESULT} ${DETAIL}" \
++            --data "${RUN_URL}" || true
+diff --git a/.github/workflows/main-source-gate.yml b/.github/workflows/main-source-gate.yml
+index f3a6bc0..d8d35d7 100644
+--- a/.github/workflows/main-source-gate.yml
++++ b/.github/workflows/main-source-gate.yml
+@@ -19,23 +19,40 @@ jobs:
+     if: github.event.repository.name != '.github'
+     runs-on: ubuntu-26.04
+     timeout-minutes: 2
+-    permissions: {}
++    permissions:
++      contents: read
+     steps:
+       - name: Enforce main pull request source
+         env:
+           BASE_REF: ${{ github.event.pull_request.base.ref }}
+           BASE_REPOSITORY: ${{ github.repository }}
++          GH_TOKEN: ${{ github.token }}
+           HEAD_REF: ${{ github.event.pull_request.head.ref }}
+           HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
++          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+         run: |
+           set -euo pipefail
+ 
+-          if [[ "$BASE_REF" == main &&
+-            "$HEAD_REPOSITORY" == "$BASE_REPOSITORY" &&
+-            ("$HEAD_REF" == develop || "$HEAD_REF" =~ ^hotfix/[A-Za-z0-9._-]+$) ]]; then
+-            printf 'Main Source Gate passed.\n'
+-            exit 0
++          if [[ "$BASE_REF" == main && "$HEAD_REPOSITORY" == "$BASE_REPOSITORY" ]]; then
++            if [[ "$HEAD_REF" == develop || "$HEAD_REF" =~ ^hotfix/[A-Za-z0-9._-]+$ ]]; then
++              printf 'Main Source Gate passed.\n'
++              exit 0
++            fi
++
++            if [[ "$HEAD_REF" =~ ^promote/[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]]; then
++              status=$(gh api "repos/$BASE_REPOSITORY/compare/main...$HEAD_SHA" --jq .status)
++              case "$status" in
++                ahead|identical)
++                  printf 'Main Source Gate passed.\n'
++                  exit 0
++                  ;;
++                *)
++                  printf 'Main Source Gate requires a promote/<date> head commit that is ahead of or identical to main; compare status: %s\n' "$status" >&2
++                  exit 1
++                  ;;
++              esac
++            fi
+           fi
+ 
+-          printf 'Main Source Gate requires pull requests targeting main to come from the same repository and use exactly develop or hotfix/<name> (letters, numbers, dots, underscores, and hyphens only). Head ref: %s\n' "$HEAD_REF" >&2
++          printf 'Main Source Gate requires pull requests targeting main to come from the same repository and use exactly develop or hotfix/<name> (letters, numbers, dots, underscores, and hyphens only), or a promote/<yyyy-mm-dd> branch whose head commit is ahead of or identical to main. Head ref: %s\n' "$HEAD_REF" >&2
+           exit 1
