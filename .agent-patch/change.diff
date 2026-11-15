@@ -1,0 +1,427 @@
+diff --git a/.github/workflows/_ci-gate.yml b/.github/workflows/_ci-gate.yml
+index e4ca620..70a52e8 100644
+--- a/.github/workflows/_ci-gate.yml
++++ b/.github/workflows/_ci-gate.yml
+@@ -415,9 +415,10 @@ on:
+ 
+       queue_timeout_minutes:
+         description: >-
+-          Minutes the watchdog waits before cancelling sibling jobs still in
+-          `queued` state. Default 10. Cap your slowest gate-path job at well
+-          below this value or it will be killed before it starts.
++          Deprecated compatibility input. The queue watchdog is gone; each
++          job's own timeout-minutes and the merge queue's
++          check_response_timeout_minutes cover stalls. Callers may still pass
++          it; the gate ignores it.
+         type: number
+         default: 10
+ 
+@@ -938,42 +939,6 @@ jobs:
+       config_file: ${{ inputs.osv_config_file }}
+       runner_label: ${{ (!github.event.pull_request || github.event.pull_request.head.repo.full_name == github.repository) && inputs.runner_label || 'ubuntu-24.04' }}
+ 
+-  # ============================================================================
+-  # WATCHDOG
+-  # Cancels the run if queued sibling jobs remain after queue_timeout_minutes.
+-  # This leaves the required gate non-green rather than accepting partial CI.
+-  # ============================================================================
+-  watchdog:
+-    name: Queue Watchdog
+-    needs: changes
+-    runs-on: ${{ (!github.event.pull_request || github.event.pull_request.head.repo.full_name == github.repository) && inputs.orchestration_runner || 'ubuntu-24.04' }}
+-    permissions:
+-      actions: write   # required to cancel this run on a queue timeout
+-      contents: read   # required for actions/checkout sparse-checkout
+-    # Hardcoded ceiling — GHA expressions don't support arithmetic so this
+-    # can't be derived from `queue_timeout_minutes`. The watchdog lives as long
+-    # as the run and stops itself at WATCH_MAX_MINUTES (55), inside this ceiling.
+-    timeout-minutes: ${{ github.event_name == 'pull_request' && 5 || 60 }}
+-    steps:
+-      - name: Sparse-checkout watchdog script from this repo
+-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+-        with:
+-          repository: JacobPEvans/.github
+-          ref: ${{ job.workflow_sha }}
+-          path: .gh-shared
+-          sparse-checkout: scripts/ci-gate-watchdog.sh
+-          sparse-checkout-cone-mode: false
+-      - name: Poll queue, then cancel the run if jobs remain queued
+-        env:
+-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+-          # Pull requests cancel a queued job after 3 minutes; other events keep the input.
+-          QUEUE_TIMEOUT_MINUTES: ${{ github.event_name == 'pull_request' && 3 || inputs.queue_timeout_minutes }}
+-          # Stop watching inside this job's PR ceiling (5) so its timeout never cancels the run.
+-          WATCH_MAX_MINUTES: ${{ github.event_name == 'pull_request' && 4.5 || 55 }}
+-          REPO: ${{ github.repository }}
+-          RUN_ID: ${{ github.run_id }}
+-        run: bash .gh-shared/scripts/ci-gate-watchdog.sh
+-
+   # Every reusable-workflow `uses:` in the caller must resolve: a missing local
+   # file, or a dryvist ref absent at its ref, fails the gate. Not filter-gated
+   # and never skipped, so a broken reference cannot merge green.
+@@ -1062,7 +1027,7 @@ jobs:
+   # ============================================================================
+   gate:
+     name: Merge Gate
+-    needs: [changes, scope, watchdog, flake-lock-fresh, nix-validate, nix-build, markdown-lint, file-size, token-limits, python-security, python-ci, ansible-ci, renovate-annotations, tofu-ci, osv-scan, dependency-review, zizmor, uses-resolve, repo-tests, workflow-lint]
++    needs: [changes, scope, flake-lock-fresh, nix-validate, nix-build, markdown-lint, file-size, token-limits, python-security, python-ci, ansible-ci, renovate-annotations, tofu-ci, osv-scan, dependency-review, zizmor, uses-resolve, repo-tests, workflow-lint]
+     # Run after workflow cancellation too, so cancelled sibling checks aggregate
+     # to a failing required status instead of a skipped (successful) job.
+     if: ${{ always() }}
+@@ -1100,7 +1065,7 @@ jobs:
+             flake-lock-fresh,
+             nix-validate, nix-build, markdown-lint, file-size, token-limits,
+             python-security, python-ci, ansible-ci, renovate-annotations,
+-            tofu-ci, osv-scan, dependency-review, zizmor, watchdog,
++            tofu-ci, osv-scan, dependency-review, zizmor,
+             repo-tests, workflow-lint
+           CI_GATE_ALLOWED_FAILURES: scope
+         run: node .gh-shared/scripts/ci-gate-aggregate.mts
+diff --git a/.github/workflows/canary.yml b/.github/workflows/canary.yml
+index 39324f8..f6cee50 100644
+--- a/.github/workflows/canary.yml
++++ b/.github/workflows/canary.yml
+@@ -96,6 +96,8 @@ jobs:
+       ansible_ci: true
+       # Scopes lint to the fixture.
+       ansible_lint_args: tests/canary/ansible
++      markdown_lint: false
++      file_size: false
+       dependency_review: false
+       zizmor: false
+ 
+@@ -113,6 +115,8 @@ jobs:
+           - '**'
+       nix_validate: true
+       all_systems: false
++      markdown_lint: false
++      file_size: false
+       dependency_review: false
+       zizmor: false
+ 
+@@ -134,6 +138,8 @@ jobs:
+           - '**'
+       tofu_ci: true
+       tofu_working_directories: '["tests/canary/tofu"]'
++      markdown_lint: false
++      file_size: false
+       dependency_review: false
+       zizmor: false
+ 
+@@ -154,6 +160,8 @@ jobs:
+           - '**'
+       python_security: true
+       python_security_dirs: tests/canary/python
++      markdown_lint: false
++      file_size: false
+       dependency_review: false
+       zizmor: false
+ 
+diff --git a/scripts/ci-gate-watchdog.sh b/scripts/ci-gate-watchdog.sh
+deleted file mode 100755
+index 9fa6548..0000000
+--- a/scripts/ci-gate-watchdog.sh
++++ /dev/null
+@@ -1,81 +0,0 @@
+-#!/usr/bin/env bash
+-# ci-gate-watchdog.sh — invoked by the `watchdog` job in _ci-gate.yml.
+-#
+-# Watch the run's sibling jobs for the whole run. Cancel the run if any job still
+-# waiting for a runner (`queued`, `pending` or `requested`) is older than
+-# QUEUE_TIMEOUT_MINUTES, measured per job from its created_at. Exit 0 once every
+-# sibling is `completed`. The Actions API does not expose job cancellation;
+-# cancelling the run keeps an incomplete check set from passing.
+-#
+-# The watchdog no longer exits at the first moment nothing is queued: jobs created
+-# later in the run (matrix legs, called workflows) and jobs reported as `pending`
+-# would go unwatched. It therefore lives as long as the run. On GitHub-hosted
+-# runners siblings finish in minutes, so it still exits as soon as the last one
+-# completes. `waiting` (environment approval) is not a runner queue and is never
+-# cancelled, but it keeps the watchdog polling until the job's timeout-minutes
+-# ceiling. "Queue Watchdog" (this job) and "Merge Gate" (awaiting this job) are
+-# exempt; their state here is intentional. Inside a called workflow GitHub
+-# prefixes job names ("nix / Merge Gate"), so the exemption matches the last
+-# " / " segment, which also exempts sibling watchdogs from other gate calls.
+-#
+-# Required env:
+-#   GH_TOKEN              — GitHub token with actions:write on the run
+-#   QUEUE_TIMEOUT_MINUTES — minutes a job may wait for a runner before the run is cancelled
+-#   REPO                  — owner/repo of the current workflow run
+-#   RUN_ID                — workflow run id
+-# Optional env:
+-#   WATCH_MAX_MINUTES     — minutes after which the watchdog stops watching and exits 0
+-#                           (default 55; keep it below the job's timeout-minutes)
+-
+-set -euo pipefail
+-
+-: "${GH_TOKEN:?required}"
+-: "${QUEUE_TIMEOUT_MINUTES:?required}"
+-: "${REPO:?required}"
+-: "${RUN_ID:?required}"
+-
+-# One line per non-exempt sibling: id, status, whole seconds since created_at, name.
+-# gh evaluates --jq itself (gojq, which has now and fromdateiso8601), so the runner
+-# needs no jq binary.
+-sibling_jobs() {
+-  gh api --paginate "repos/${REPO}/actions/runs/${RUN_ID}/jobs?per_page=100" \
+-    --jq '.jobs[]
+-      | select(.name | test("(^| / )(Queue Watchdog|Merge Gate)$") | not)
+-      | "\(.id)\t\(.status)\t\(now - (.created_at | fromdateiso8601) | floor)\t\(.name)"'
+-}
+-
+-# awk parses QUEUE_TIMEOUT_MINUTES so a float (e.g. 0.5) truncates to an integer
+-# instead of crashing bash arithmetic, which only handles integers.
+-limit_seconds=$(awk "BEGIN{printf \"%d\", $QUEUE_TIMEOUT_MINUTES * 60}")
+-poll_interval=10
+-# Stop watching before the job's own timeout-minutes, so a long healthy run never
+-# turns the watchdog red. $SECONDS is bash's elapsed-time builtin.
+-watch_seconds=$(awk "BEGIN{printf \"%d\", ${WATCH_MAX_MINUTES:-55} * 60}")
+-WATCH_MAX_MINUTES=${WATCH_MAX_MINUTES:-55}
+-
+-while :; do
+-  jobs=$(sibling_jobs)
+-  stuck=$(awk -F'\t' -v max="$limit_seconds" \
+-    '$2 ~ /^(queued|pending|requested)$/ && $3 > max' <<<"$jobs")
+-  if [ -n "$stuck" ]; then
+-    echo "Timeout (${QUEUE_TIMEOUT_MINUTES}m) reached; cancelling jobs still waiting for a runner:"
+-    break
+-  fi
+-  unfinished=$(awk -F'\t' 'NF && $2 != "completed" { n++ } END { print n + 0 }' <<<"$jobs")
+-  if [ "$unfinished" -eq 0 ]; then
+-    echo "All sibling jobs completed. Nothing to cancel."
+-    exit 0
+-  fi
+-  if [ "$SECONDS" -ge "$watch_seconds" ]; then
+-    echo "::notice::Queue Watchdog stopped watching after ${WATCH_MAX_MINUTES}m; no job had waited for a runner longer than ${QUEUE_TIMEOUT_MINUTES}m."
+-    exit 0
+-  fi
+-  sleep "$poll_interval"
+-done
+-
+-while IFS=$'\t' read -r _ status age job_name; do
+-  echo "Stuck job: ${job_name} (${status}, ${age}s since created)"
+-done <<<"$stuck"
+-
+-echo "Cancelling workflow run ${RUN_ID}; jobs waiting for a runner prevent a complete check set."
+-gh api -X POST "repos/${REPO}/actions/runs/${RUN_ID}/cancel"
+diff --git a/tests/canary-scope.test.js b/tests/canary-scope.test.js
+index 101a4d8..ad5e211 100644
+--- a/tests/canary-scope.test.js
++++ b/tests/canary-scope.test.js
+@@ -15,3 +15,16 @@ test('the generated llms index does not trigger caller-contract stacks', () => {
+   assert.ok(codeFilter, 'the Canary code filter must exist');
+   assert.match(codeFilter, /^              - '!llms\.txt'$/m);
+ });
++
++test('the markdown lint checks run only in the docs stack', () => {
++  for (const stack of ['ansible', 'nix', 'tofu', 'python']) {
++    const job = workflow.split(`\n  ${stack}:\n`)[1]?.split('\n\n')[0];
++
++    assert.ok(job, `the ${stack} stack job must exist`);
++    assert.match(job, /^      markdown_lint: false$/m, `${stack}: markdown_lint must be off`);
++    assert.match(job, /^      file_size: false$/m, `${stack}: file_size must be off`);
++  }
++
++  const docs = workflow.split('\n  docs:\n')[1]?.split('\n\n')[0];
++  assert.match(docs, /^      markdown_lint: true$/m);
++});
+diff --git a/tests/ci-gate-aggregate.test.mts b/tests/ci-gate-aggregate.test.mts
+index 59f873f..5bfe835 100644
+--- a/tests/ci-gate-aggregate.test.mts
++++ b/tests/ci-gate-aggregate.test.mts
+@@ -31,11 +31,11 @@ test('cancelled jobs remain named failures', () => {
+   assert.equal(run.stderr.trim(), 'Merge Gate failed: job "changes" returned cancelled.');
+ });
+ 
+-test('a cancelled watchdog remains a failure even though watchdog skips are allowed', () => {
+-  const run = runAggregator({ watchdog: { result: 'cancelled' } }, 'watchdog');
++test('a cancelled allowed skip remains a failure', () => {
++  const run = runAggregator({ 'workflow-lint': { result: 'cancelled' } }, 'workflow-lint');
+ 
+   assert.equal(run.status, 1);
+-  assert.equal(run.stderr.trim(), 'Merge Gate failed: job "watchdog" returned cancelled.');
++  assert.equal(run.stderr.trim(), 'Merge Gate failed: job "workflow-lint" returned cancelled.');
+ });
+ 
+ test('successes and explicitly allowed skips and failures pass', () => {
+diff --git a/tests/ci-gate-watchdog.test.js b/tests/ci-gate-watchdog.test.js
+deleted file mode 100644
+index e49bfba..0000000
+--- a/tests/ci-gate-watchdog.test.js
++++ /dev/null
+@@ -1,175 +0,0 @@
+-const assert = require('node:assert/strict');
+-const { chmodSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } = require('node:fs');
+-const os = require('node:os');
+-const path = require('node:path');
+-const { spawnSync } = require('node:child_process');
+-const { test } = require('node:test');
+-
+-const script = path.join(__dirname, '../scripts/ci-gate-watchdog.sh');
+-const cancelCall = 'api -X POST repos/example/repo/actions/runs/123/cancel\n';
+-
+-// created_at as the Actions API formats it: UTC, whole seconds.
+-const createdAgo = (seconds) => new Date(Date.now() - seconds * 1000).toISOString().replace(/\.\d{3}Z$/, 'Z');
+-const job = (id, name, status, ageSeconds = 0) => ({ id, name, status, created_at: createdAgo(ageSeconds) });
+-
+-// Runs the watchdog against a fake gh. Each entry of `polls` is the jobs listing
+-// returned by one poll; the last listing repeats if the script polls past it.
+-// The fake gh applies the --jq filter with the real jq, and sleep is stubbed so
+-// polls run back to back.
+-function runWatchdog(t, polls) {
+-  const dir = mkdtempSync(path.join(os.tmpdir(), 'ci-gate-watchdog-'));
+-  t.after(() => rmSync(dir, { recursive: true, force: true }));
+-  const calls = path.join(dir, 'calls');
+-  polls.forEach((jobs, i) => writeFileSync(path.join(dir, `poll-${i + 1}.json`), JSON.stringify({ jobs })));
+-  writeFileSync(path.join(dir, 'polls'), String(polls.length));
+-
+-  const gh = path.join(dir, 'gh');
+-  writeFileSync(
+-    gh,
+-    `#!/bin/sh
+-dir=$(dirname "$0")
+-case "$*" in
+-  *"repos/example/repo/actions/runs/123/jobs?per_page=100"*)
+-    n=$(cat "$dir/seen" 2>/dev/null || echo 0)
+-    n=$((n + 1))
+-    echo "$n" > "$dir/seen"
+-    last=$(cat "$dir/polls")
+-    [ "$n" -le "$last" ] || n=$last
+-    expr=""
+-    prev=""
+-    for arg in "$@"; do
+-      [ "$prev" = "--jq" ] && expr="$arg"
+-      prev="$arg"
+-    done
+-    jq -r "$expr" "$dir/poll-$n.json"
+-    ;;
+-  *"repos/example/repo/actions/runs/123/cancel"*)
+-    printf '%s\\n' "$*" >> "$CALLS"
+-    ;;
+-  *)
+-    exit 1
+-    ;;
+-esac
+-`,
+-  );
+-  chmodSync(gh, 0o755);
+-  const sleep = path.join(dir, 'sleep');
+-  writeFileSync(sleep, '#!/bin/sh\nexit 0\n');
+-  chmodSync(sleep, 0o755);
+-
+-  const run = spawnSync('bash', [script], {
+-    encoding: 'utf8',
+-    timeout: 30_000,
+-    env: {
+-      ...process.env,
+-      CALLS: calls,
+-      GH_TOKEN: 'test',
+-      PATH: `${dir}:${process.env.PATH}`,
+-      QUEUE_TIMEOUT_MINUTES: '10',
+-      REPO: 'example/repo',
+-      RUN_ID: '123',
+-    },
+-  });
+-  return { run, cancelled: existsSync(calls) ? readFileSync(calls, 'utf8') : '' };
+-}
+-
+-for (const status of ['queued', 'pending', 'requested']) {
+-  test(`a ${status} job older than the limit cancels the run`, (t) => {
+-    const { run, cancelled } = runWatchdog(t, [
+-      [job(456, 'shared-gate / Nix Validate / Validate', status, 3600)],
+-    ]);
+-
+-    assert.equal(run.status, 0, run.stderr);
+-    assert.match(run.stdout, /Timeout \(10m\) reached/);
+-    assert.match(run.stdout, /Stuck job: shared-gate \/ Nix Validate \/ Validate \(\w+, \d+s since created\)/);
+-    assert.match(run.stdout, /Cancelling workflow run 123/);
+-    assert.equal(cancelled, cancelCall);
+-  });
+-}
+-
+-test('a queued job younger than the limit that then completes does not cancel', (t) => {
+-  const { run, cancelled } = runWatchdog(t, [
+-    [job(456, 'shared-gate / Nix Validate / Validate', 'queued', 60)],
+-    [job(456, 'shared-gate / Nix Validate / Validate', 'completed', 90)],
+-  ]);
+-
+-  assert.equal(run.status, 0, run.stderr);
+-  assert.match(run.stdout, /All sibling jobs completed/);
+-  assert.equal(cancelled, '');
+-});
+-
+-test('a job that appears on a later poll is watched and cancels the run past the limit', (t) => {
+-  const { run, cancelled } = runWatchdog(t, [
+-    [job(1, 'shared-gate / Molecule (a)', 'in_progress', 120)],
+-    [job(1, 'shared-gate / Molecule (a)', 'completed', 120), job(2, 'shared-gate / Molecule (b)', 'queued', 3600)],
+-  ]);
+-
+-  assert.equal(run.status, 0, run.stderr);
+-  assert.match(run.stdout, /Stuck job: shared-gate \/ Molecule \(b\) \(queued, \d+s since created\)/);
+-  assert.equal(cancelled, cancelCall);
+-});
+-
+-test('waiting (environment approval) and in_progress jobs past the limit are never cancelled', (t) => {
+-  const { run, cancelled } = runWatchdog(t, [
+-    [job(7, 'deploy', 'waiting', 3600), job(10, 'build', 'in_progress', 3600)],
+-    [job(7, 'deploy', 'completed', 3600), job(10, 'build', 'completed', 3600)],
+-  ]);
+-
+-  assert.equal(run.status, 0, run.stderr);
+-  assert.match(run.stdout, /All sibling jobs completed/);
+-  assert.equal(cancelled, '');
+-});
+-
+-test('the exempt Queue Watchdog and Merge Gate jobs are ignored', (t) => {
+-  const { run, cancelled } = runWatchdog(t, [
+-    [job(8, 'Queue Watchdog', 'in_progress'), job(9, 'Merge Gate', 'queued', 3600)],
+-  ]);
+-
+-  assert.equal(run.status, 0, run.stderr);
+-  assert.match(run.stdout, /All sibling jobs completed/);
+-  assert.equal(cancelled, '');
+-});
+-
+-test('exempt names match after a called-workflow prefix, and only as the whole last segment', (t) => {
+-  const { run, cancelled } = runWatchdog(t, [
+-    [
+-      job(8, 'nix / Queue Watchdog', 'in_progress', 3600),
+-      job(9, 'ansible / Merge Gate', 'pending', 3600),
+-      job(10, 'gate / AI Merge Gate', 'pending', 3600),
+-    ],
+-  ]);
+-
+-  assert.equal(run.status, 0, run.stderr);
+-  assert.match(run.stdout, /gate \/ AI Merge Gate/);
+-  assert.notEqual(cancelled, '');
+-});
+-
+-test('all siblings completed exits 0 without cancelling', (t) => {
+-  const { run, cancelled } = runWatchdog(t, [
+-    [job(1, 'lint', 'completed', 600), job(2, 'test', 'completed', 600)],
+-  ]);
+-
+-  assert.equal(run.status, 0, run.stderr);
+-  assert.match(run.stdout, /All sibling jobs completed/);
+-  assert.equal(cancelled, '');
+-});
+-
+-test('the watchdog stops watching inside its own pull_request timeout', () => {
+-  const workflow = readFileSync(path.join(__dirname, '../.github/workflows/_ci-gate.yml'), 'utf8');
+-  const job = workflow.slice(workflow.indexOf('\n  watchdog:'), workflow.indexOf('\n  uses-resolve:'));
+-  assert.match(job, /timeout-minutes: \$\{\{ github\.event_name == 'pull_request' && 5 \|\| 60 \}\}/);
+-  assert.match(job, /WATCH_MAX_MINUTES: \$\{\{ github\.event_name == 'pull_request' && 4\.5 \|\| 55 \}\}/);
+-  // The PR watch window must end before the 5-minute PR job ceiling.
+-  const window = Number(job.match(/'pull_request' && (\d+(?:\.\d+)?) \|\| 55/)[1]);
+-  assert.ok(window < 5, `watch window ${window} must be below the 5-minute ceiling`);
+-});
+-
+-test('the watchdog cancels a queued pull_request run after 3 minutes', () => {
+-  const workflow = readFileSync(path.join(__dirname, '../.github/workflows/_ci-gate.yml'), 'utf8');
+-  const job = workflow.slice(workflow.indexOf('\n  watchdog:'), workflow.indexOf('\n  uses-resolve:'));
+-  assert.match(job, /QUEUE_TIMEOUT_MINUTES: \$\{\{ github\.event_name == 'pull_request' && 3 \|\| inputs\.queue_timeout_minutes \}\}/);
+-});
+-
+-test('the watchdog polls the queue every 10 seconds', () => {
+-  assert.match(readFileSync(script, 'utf8'), /^poll_interval=10$/m);
+-});
