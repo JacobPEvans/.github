@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.56.0](https://github.com/JacobPEvans/.github/compare/v1.55.0...v1.56.0) (2026-11-15)
+
+
+### Features
+
+* **gate:** agent patch guard for agent-authored pull requests ([#247](https://github.com/JacobPEvans/.github/issues/247)) ([32b37c5](https://github.com/JacobPEvans/.github/commit/32b37c583a2121fcb0096d55e035074b74f3d619))
+
 ## [1.55.0](https://github.com/JacobPEvans/.github/compare/v1.54.0...v1.55.0) (2026-11-15)
 
 
