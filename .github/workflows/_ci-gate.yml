@@ -437,6 +437,27 @@ on:
         type: number
         default: 10
 
+      # The three lane path lists below are forwarded to _lane.yml. Their
+      # defaults repeat that workflow's; tests/ci-gate-lane-paths.test.js
+      # keeps the two in step.
+      low_risk_paths:
+        description: >-
+          Comma-separated dorny/paths-filter globs for paths safe to merge
+          on a tiny diff.
+        type: string
+        default: 'docs/**,**.md,**.mdx,tests/**'
+      instruction_paths:
+        description: >-
+          Comma-separated globs for agent-instruction files, which are never
+          tiny even when they are otherwise low-risk.
+        type: string
+        default: 'AGENTS.md,**/AGENTS.md,**/prompts/**,**/skills/**,**/rules/**'
+      guarded_paths:
+        description: >-
+          Comma-separated globs whose change always takes the guarded lane.
+        type: string
+        default: '.github/workflows/**,**/*secret*,**/*credential*,**/*token*,**/vault/**,*.sops.*,.sops.yaml'
+
     # Export the change detection this workflow already performs. Without
     # these, a caller that needs to gate a job of its own has no way to reach
     # the answer and has to re-run dorny/paths-filter in a duplicate `changes`
@@ -559,6 +580,10 @@ jobs:
   lane:
     name: Classify Lane
     uses: ./.github/workflows/_lane.yml
+    with:
+      low_risk_paths: ${{ inputs.low_risk_paths }}
+      instruction_paths: ${{ inputs.instruction_paths }}
+      guarded_paths: ${{ inputs.guarded_paths }}
     secrets:
       GH_APP_PRIVATE_KEY: ${{ secrets.GH_APP_PRIVATE_KEY }}
 
