@@ -145,6 +145,7 @@
 # AGENT AND MODEL LABELS - Which local agent and model worked on a pull request
 # A pull request the OpenHands agent opened is identified by its author, not by a label.
 # model:* names the model family and size only, never a quantisation or a serving backend; one label is added per model that worked on the pull request.
+# Source of the names: the local entries in the model router menu, read 2026-11-15. Add a label when a new local model is served; keep labels that pull requests already carry.
 # =============================================================================
 - name: "openhands:assisted"
   color: "F0ABFC"
