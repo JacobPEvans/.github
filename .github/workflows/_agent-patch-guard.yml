@@ -178,7 +178,7 @@ jobs:
       - name: Fetch agent-patch-guard semgrep rules
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          repository: JacobPEvans/.github
+          repository: ${{ job.workflow_repository }}
           # The commit this reusable workflow was loaded from, NOT main, so a
           # caller pinned to a release keeps running that release's rules.
           ref: ${{ job.workflow_sha }}
