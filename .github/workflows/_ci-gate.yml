@@ -415,9 +415,10 @@ on:
 
       queue_timeout_minutes:
         description: >-
-          Minutes the watchdog waits before cancelling sibling jobs still in
-          `queued` state. Default 10. Cap your slowest gate-path job at well
-          below this value or it will be killed before it starts.
+          Deprecated compatibility input. The queue watchdog is gone; each
+          job's own timeout-minutes and the merge queue's
+          check_response_timeout_minutes cover stalls. Callers may still pass
+          it; the gate ignores it.
         type: number
         default: 10
 
@@ -941,42 +942,6 @@ jobs:
       config_file: ${{ inputs.osv_config_file }}
       runner_label: ${{ (!github.event.pull_request || github.event.pull_request.head.repo.full_name == github.repository) && inputs.runner_label || 'ubuntu-24.04' }}
 
-  # ============================================================================
-  # WATCHDOG
-  # Cancels the run if queued sibling jobs remain after queue_timeout_minutes.
-  # This leaves the required gate non-green rather than accepting partial CI.
-  # ============================================================================
-  watchdog:
-    name: Queue Watchdog
-    needs: changes
-    runs-on: ${{ (!github.event.pull_request || github.event.pull_request.head.repo.full_name == github.repository) && inputs.orchestration_runner || 'ubuntu-24.04' }}
-    permissions:
-      actions: write   # required to cancel this run on a queue timeout
-      contents: read   # required for actions/checkout sparse-checkout
-    # Hardcoded ceiling — GHA expressions don't support arithmetic so this
-    # can't be derived from `queue_timeout_minutes`. The watchdog lives as long
-    # as the run and stops itself at WATCH_MAX_MINUTES (55), inside this ceiling.
-    timeout-minutes: ${{ github.event_name == 'pull_request' && 5 || 60 }}
-    steps:
-      - name: Sparse-checkout watchdog script from this repo
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          repository: JacobPEvans/.github
-          ref: ${{ job.workflow_sha }}
-          path: .gh-shared
-          sparse-checkout: scripts/ci-gate-watchdog.sh
-          sparse-checkout-cone-mode: false
-      - name: Poll queue, then cancel the run if jobs remain queued
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Pull requests cancel a queued job after 3 minutes; other events keep the input.
-          QUEUE_TIMEOUT_MINUTES: ${{ github.event_name == 'pull_request' && 3 || inputs.queue_timeout_minutes }}
-          # Stop watching inside this job's PR ceiling (5) so its timeout never cancels the run.
-          WATCH_MAX_MINUTES: ${{ github.event_name == 'pull_request' && 4.5 || 55 }}
-          REPO: ${{ github.repository }}
-          RUN_ID: ${{ github.run_id }}
-        run: bash .gh-shared/scripts/ci-gate-watchdog.sh
-
   # Every reusable-workflow `uses:` in the caller must resolve: a missing local
   # file, or a dryvist ref absent at its ref, fails the gate. Not filter-gated
   # and never skipped, so a broken reference cannot merge green.
@@ -1065,7 +1030,7 @@ jobs:
   # ============================================================================
   gate:
     name: Merge Gate
-    needs: [changes, scope, watchdog, flake-lock-fresh, nix-validate, nix-build, markdown-lint, file-size, token-limits, python-security, python-ci, ansible-ci, renovate-annotations, tofu-ci, osv-scan, dependency-review, zizmor, uses-resolve, repo-tests, workflow-lint]
+    needs: [changes, scope, flake-lock-fresh, nix-validate, nix-build, markdown-lint, file-size, token-limits, python-security, python-ci, ansible-ci, renovate-annotations, tofu-ci, osv-scan, dependency-review, zizmor, uses-resolve, repo-tests, workflow-lint]
     # Run after workflow cancellation too, so cancelled sibling checks aggregate
     # to a failing required status instead of a skipped (successful) job.
     if: ${{ always() }}
@@ -1103,7 +1068,7 @@ jobs:
             flake-lock-fresh,
             nix-validate, nix-build, markdown-lint, file-size, token-limits,
             python-security, python-ci, ansible-ci, renovate-annotations,
-            tofu-ci, osv-scan, dependency-review, zizmor, watchdog,
+            tofu-ci, osv-scan, dependency-review, zizmor,
             repo-tests, workflow-lint
           CI_GATE_ALLOWED_FAILURES: scope
         run: node .gh-shared/scripts/ci-gate-aggregate.mts
