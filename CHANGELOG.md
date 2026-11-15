@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.54.0](https://github.com/JacobPEvans/.github/compare/v1.53.0...v1.54.0) (2026-11-15)
+
+
+### Features
+
+* **labels:** add an OpenHands involvement label and local model labels ([#231](https://github.com/JacobPEvans/.github/issues/231)) ([2975054](https://github.com/JacobPEvans/.github/commit/2975054c63df43e7accaf74b01fe7479143c0497))
+
 ## [1.53.0](https://github.com/JacobPEvans/.github/compare/v1.52.0...v1.53.0) (2026-11-15)
 
 
