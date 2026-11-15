@@ -311,7 +311,7 @@
       "minimumReleaseAge": "7 days"
     },
     {
-      "description": "Auto-merge first-party updates, including majors, with no release-age hold once green checks pass.",
+      "description": "Group first-party updates, including majors, into one pull request per repository every four hours. Native auto-merge lands it once the required checks pass; no release-age hold.",
       "matchPackageNames": [
         "JacobPEvans/**",
         "JacobPEvans-*/**",
@@ -324,7 +324,13 @@
         "https://github.com/jpe-nix/**",
         "https://github.com/jpe-*/**"
       ],
+      "groupName": "first-party pins",
+      "groupSlug": "first-party",
+      "schedule": [
+        "* */4 * * *"
+      ],
       "automerge": true,
+      "platformAutomerge": true,
       "minimumReleaseAge": "0 days"
     },
     {
