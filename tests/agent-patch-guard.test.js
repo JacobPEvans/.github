@@ -299,7 +299,7 @@ test('a modified test file that loses assertions fails when enforced', (t) => {
   const { directory, base } = gitFixture(t, 'pkg/calc.test.js', baseTest, shrunkTest);
   const script = stepScript(guardWorkflow, 'Check assertion counts in modified test files');
   const { run, outputs } = runScript(t, script, {
-    BASE_SHA: base, MODIFIED: JSON.stringify(['pkg/calc.test.js']),
+    BASE_SHA: base, MODIFIED: JSON.stringify(['pkg/calc.test.js']), ENFORCE: 'true', APPROVED: 'false',
   }, { directory, cwd: directory });
   assert.equal(run.status, 0, run.stderr);
   assert.match(run.stdout, /::error file=pkg\/calc\.test\.js::Agent PR dropped assertions in a test file \(3 -> 1\)/);
@@ -310,21 +310,45 @@ test('an equal or grown assertion count passes, and new or non-test files are ig
   const script = stepScript(guardWorkflow, 'Check assertion counts in modified test files');
   const grown = gitFixture(t, 'pkg/calc.test.js', baseTest, `${baseTest}expect(w).toBe(3);\n`);
   const grownRun = runScript(t, script, {
-    BASE_SHA: grown.base, MODIFIED: JSON.stringify(['pkg/calc.test.js']),
+    BASE_SHA: grown.base, MODIFIED: JSON.stringify(['pkg/calc.test.js']), ENFORCE: 'true', APPROVED: 'false',
   }, { directory: grown.directory, cwd: grown.directory });
   assert.equal(grownRun.outputs.violated, 'false');
 
   const addedFile = gitFixture(t, 'pkg/new.test.js', 'x();\n', 'x();\nassert(x);\n');
   const addedRun = runScript(t, script, {
-    BASE_SHA: addedFile.base, MODIFIED: JSON.stringify(['src/other.js']),
+    BASE_SHA: addedFile.base, MODIFIED: JSON.stringify(['src/other.js']), ENFORCE: 'true', APPROVED: 'false',
   }, { directory: addedFile.directory, cwd: addedFile.directory });
   assert.equal(addedRun.outputs.violated, 'false', 'a file not in the modified list is not counted');
 
   const nonTest = gitFixture(t, 'src/app.js', baseTest, 'a();\n');
   const nonTestRun = runScript(t, script, {
-    BASE_SHA: nonTest.base, MODIFIED: JSON.stringify(['src/app.js']),
+    BASE_SHA: nonTest.base, MODIFIED: JSON.stringify(['src/app.js']), ENFORCE: 'true', APPROVED: 'false',
   }, { directory: nonTest.directory, cwd: nonTest.directory });
   assert.equal(nonTestRun.outputs.violated, 'false', 'a non-test path is not counted');
+});
+
+test('the assertion-count annotation severity derives from ENFORCE and APPROVED', (t) => {
+  const script = stepScript(guardWorkflow, 'Check assertion counts in modified test files');
+  const cases = [
+    { enforce: 'true', approved: 'false', level: 'error', subject: 'Agent PR' },
+    { enforce: 'true', approved: 'true', level: 'warning', subject: 'Agent PR' },
+    { enforce: 'false', approved: 'false', level: 'warning', subject: 'PR' },
+    { enforce: 'false', approved: 'true', level: 'warning', subject: 'PR' },
+  ];
+  for (const { enforce, approved, level, subject } of cases) {
+    const { directory, base } = gitFixture(t, 'pkg/calc.test.js', baseTest, shrunkTest);
+    const { run, outputs } = runScript(t, script, {
+      BASE_SHA: base, MODIFIED: JSON.stringify(['pkg/calc.test.js']), ENFORCE: enforce, APPROVED: approved,
+    }, { directory, cwd: directory });
+    assert.equal(run.status, 0, run.stderr);
+    assert.match(
+      run.stdout,
+      new RegExp(`::${level} file=pkg/calc\\.test\\.js::${subject} dropped assertions in a test file \\(3 -> 1\\)`),
+    );
+    if (level === 'warning') assert.doesNotMatch(run.stdout, /::error/);
+    if (enforce === 'false') assert.doesNotMatch(run.stdout, /Agent PR/);
+    assert.equal(outputs.violated, 'true');
+  }
 });
 
 test('the assertion-count rung stays a 15-line shell body', () => {

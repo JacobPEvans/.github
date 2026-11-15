@@ -255,7 +255,13 @@ jobs:
         env:
           BASE_SHA: ${{ steps.base.outputs.sha }}
           MODIFIED: ${{ steps.base.outputs.modified }}
+          ENFORCE: ${{ steps.policy.outputs.enforce }}
+          APPROVED: ${{ steps.policy.outputs.approved }}
         run: |
+          set -euo pipefail
+          mode=warning
+          [ "$ENFORCE" = true ] && [ "$APPROVED" != true ] && mode=error
+          who=$([ "$ENFORCE" = true ] && echo 'Agent PR' || echo 'PR')
           violated=false
           while IFS= read -r f; do
             case "$f" in
@@ -264,10 +270,7 @@ jobs:
             esac
             before=$(git show "$BASE_SHA:$f" 2>/dev/null | grep -Ec 'assert|expect\(' || true)
             after=$(grep -Ec 'assert|expect\(' "$f" || true)
-            if [ "$after" -lt "$before" ]; then
-              echo "::error file=$f::Agent PR dropped assertions in a test file ($before -> $after)"
-              violated=true
-            fi
+            [ "$after" -lt "$before" ] && { echo "::$mode file=$f::$who dropped assertions in a test file ($before -> $after)"; violated=true; }
           done < <(jq -r '.[]' <<< "${MODIFIED:-[]}")
           echo "violated=$violated" >> "$GITHUB_OUTPUT"
 
