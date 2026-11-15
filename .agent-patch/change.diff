@@ -1,0 +1,405 @@
+diff --git a/.github/workflows/_ansible-ci.yml b/.github/workflows/_ansible-ci.yml
+index 3625b62..7e33d8e 100644
+--- a/.github/workflows/_ansible-ci.yml
++++ b/.github/workflows/_ansible-ci.yml
+@@ -154,6 +154,17 @@ on:
+           and every fork PR always fall back to ubuntu-24.04.
+         type: string
+         default: ubuntu-24.04
++      galaxy_requirements_override:
++        description: >-
++          Install-time Galaxy requirements override, applied after the
++          committed requirements.yml on every collection and role install in
++          the lint and Molecule jobs. The YAML body of a requirements file;
++          it is written to an untracked runner temp path at run time, never
++          into the checkout, and the Galaxy cache is bypassed so restored
++          content cannot shadow the override. Empty (default) keeps the
++          committed requirements as the only source.
++        type: string
++        default: ""
+     secrets:
+       doppler_token:
+         description: Doppler service token, only needed when molecule_doppler is true.
+@@ -235,8 +246,12 @@ jobs:
+       # requirements.yml digest. ansible-lint's implicit install does not
+       # force-replace those restored versions, so only an exact cache hit may
+       # skip installing the current requirements before lint.
++      # Bypassed entirely on an override run: content saved under the base
++      # requirements.yml key must never mix with override-installed pins, and
++      # a hit here would skip the installs the override needs.
+       - name: Cache Ansible Galaxy content
+         id: galaxy-cache
++        if: ${{ inputs.galaxy_requirements_override == '' }}
+         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+         with:
+           path: |
+@@ -270,6 +285,30 @@ jobs:
+           retry_wait_seconds: 30
+           timeout_minutes: 1
+           command: ansible-galaxy role install -r requirements.yml --force -p "$HOME/.ansible/roles"
++      # Run-time topic-branch testing: the override file lives OUTSIDE the
++      # checkout and force-installs after the committed requirements.yml, so
++      # the override pins win at install time and nothing tracked changes.
++      - name: Write Galaxy requirements override
++        if: ${{ inputs.galaxy_requirements_override != '' }}
++        env:
++          GALAXY_REQUIREMENTS_OVERRIDE: ${{ inputs.galaxy_requirements_override }}
++        run: printf '%s\n' "$GALAXY_REQUIREMENTS_OVERRIDE" > "$RUNNER_TEMP/galaxy-requirements-override.yml"
++      - name: Install overridden Ansible collections
++        if: ${{ inputs.galaxy_requirements_override != '' }}
++        uses: nick-fields/retry@ad984534de44a9489a53aefd81eb77f87c70dc60 # v4.0.0
++        with:
++          max_attempts: 3
++          retry_wait_seconds: 30
++          timeout_minutes: 1
++          command: ansible-galaxy collection install -r "$RUNNER_TEMP/galaxy-requirements-override.yml" --force
++      - name: Install overridden Ansible roles
++        if: ${{ inputs.galaxy_requirements_override != '' }}
++        uses: nick-fields/retry@ad984534de44a9489a53aefd81eb77f87c70dc60 # v4.0.0
++        with:
++          max_attempts: 3
++          retry_wait_seconds: 30
++          timeout_minutes: 1
++          command: ansible-galaxy role install -r "$RUNNER_TEMP/galaxy-requirements-override.yml" --force -p "$HOME/.ansible/roles"
+       # Runs on every hit or miss: ansible.cfg's roles_path would otherwise
+       # hide ~/.ansible/roles. Repo roles/ stays first in the search path,
+       # then the repo's own ansible.cfg roles_path (if any), then Galaxy roles.
+@@ -306,6 +345,9 @@ jobs:
+       - uses: ansible/ansible-lint@b74fb6f73d234bf92672372cb1c10768e4018d16 # v26
+         with:
+           args: ${{ inputs.lint_args }}
++      - name: Verify the override stayed out of tracked files
++        if: ${{ inputs.galaxy_requirements_override != '' }}
++        run: git diff --exit-code
+ 
+   molecule:
+     name: Molecule (${{ matrix.scenario }})
+@@ -346,8 +388,12 @@ jobs:
+       # Cache Galaxy content keyed on requirements.yml. On a hit the collections
+       # and roles are already present, so the forced reinstalls below are skipped;
+       # on a miss (requirements.yml changed) they run and repopulate the cache.
++      # Bypassed entirely on an override run, same as the lint job: saved
++      # base-pinned content must never mix with override installs, and a hit
++      # here would skip the installs the override needs.
+       - name: Cache Ansible Galaxy content
+         id: galaxy-cache
++        if: ${{ inputs.galaxy_requirements_override == '' }}
+         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+         with:
+           path: |
+@@ -376,6 +422,29 @@ jobs:
+           retry_wait_seconds: 30
+           timeout_minutes: 1
+           command: ansible-galaxy role install -r requirements.yml --force -p "$HOME/.ansible/roles"
++      # Run-time topic-branch testing: same override as the lint job, written
++      # outside the checkout and force-installed last so the override wins.
++      - name: Write Galaxy requirements override
++        if: ${{ inputs.galaxy_requirements_override != '' }}
++        env:
++          GALAXY_REQUIREMENTS_OVERRIDE: ${{ inputs.galaxy_requirements_override }}
++        run: printf '%s\n' "$GALAXY_REQUIREMENTS_OVERRIDE" > "$RUNNER_TEMP/galaxy-requirements-override.yml"
++      - name: Install overridden Ansible collections
++        if: ${{ inputs.galaxy_requirements_override != '' }}
++        uses: nick-fields/retry@ad984534de44a9489a53aefd81eb77f87c70dc60 # v4.0.0
++        with:
++          max_attempts: 3
++          retry_wait_seconds: 30
++          timeout_minutes: 1
++          command: ansible-galaxy collection install -r "$RUNNER_TEMP/galaxy-requirements-override.yml" --force
++      - name: Install overridden Ansible roles
++        if: ${{ inputs.galaxy_requirements_override != '' }}
++        uses: nick-fields/retry@ad984534de44a9489a53aefd81eb77f87c70dc60 # v4.0.0
++        with:
++          max_attempts: 3
++          retry_wait_seconds: 30
++          timeout_minutes: 1
++          command: ansible-galaxy role install -r "$RUNNER_TEMP/galaxy-requirements-override.yml" --force -p "$HOME/.ansible/roles"
+       - name: Set Ansible roles path
+         run: echo "ANSIBLE_ROLES_PATH=$GITHUB_WORKSPACE/roles:$HOME/.ansible/roles" >> "$GITHUB_ENV"
+       - name: Fetch Doppler secrets
+@@ -393,6 +462,9 @@ jobs:
+           ANSIBLE_ALLOW_BROKEN_CONDITIONALS: "1"
+           MOLECULE_SCENARIO: ${{ matrix.scenario }}
+         run: molecule test -s "$MOLECULE_SCENARIO"
++      - name: Verify the override stayed out of tracked files
++        if: ${{ inputs.galaxy_requirements_override != '' }}
++        run: git diff --exit-code
+ 
+   # Token budgets reach the Ansible fleet only from here. _token-limits.yml is
+   # otherwise only wired through _ci-gate.yml, and no Ansible repo calls that —
+diff --git a/.github/workflows/_ci-gate.yml b/.github/workflows/_ci-gate.yml
+index 8582d95..0ba7542 100644
+--- a/.github/workflows/_ci-gate.yml
++++ b/.github/workflows/_ci-gate.yml
+@@ -212,6 +212,18 @@ on:
+         type: string
+         required: false
+         default: ''
++      nix_override_input:
++        description: >-
++          Run-time flake input override for `Nix Validate` and `Nix Build`,
++          forwarded to both as `override_input`: whitespace-separated
++          "input=flake-ref" pairs passed as --override-input (e.g.
++          nixpkgs=github:NixOS/nixpkgs/topic), so a caller can evaluate
++          against an upstream topic branch without committing the pin. Both
++          children verify afterwards that the override wrote nothing into a
++          tracked file. Empty (default) keeps today's behaviour.
++        type: string
++        required: false
++        default: ''
+       nix_skip_deps_only:
+         description: >-
+           Skip `nix-validate`/`nix-build` on dependency-only bot PRs (see
+@@ -298,6 +310,18 @@ on:
+         description: JSON array of directories `_tofu-ci.yml` validates
+         type: string
+         default: '["."]'
++      tofu_module_source_var:
++        description: >-
++          Run-time module source override for `OpenTofu CI`, forwarded as
++          `module_source_var`: a "name=value" pair exported as TF_VAR_<name>
++          around init/validate/tflint, so a caller whose module block reads
++          `source = var.<name>` can resolve the module from an upstream topic
++          branch without editing the tracked configuration. The job verifies
++          afterwards that nothing leaked into a tracked file. Empty (default)
++          keeps today's behaviour.
++        type: string
++        required: false
++        default: ''
+       osv_scan:
+         description: >-
+           Enable `OSV Scanner` on every pull_request (differential scan; not
+@@ -394,6 +418,20 @@ on:
+         required: false
+         default: ''
+ 
++      galaxy_requirements_override:
++        description: >-
++          Install-time Galaxy requirements override for `Ansible CI`,
++          forwarded as `galaxy_requirements_override`: the YAML body of a
++          requirements file force-installed after the committed
++          requirements.yml in the lint and Molecule jobs, written to an
++          untracked runner path so a caller can pin an upstream topic branch
++          without committing the pin. The Galaxy cache is bypassed on an
++          override run, and the jobs verify afterwards that nothing leaked
++          into a tracked file. Empty (default) keeps today's behaviour.
++        type: string
++        required: false
++        default: ''
++
+       workflow_lint:
+         description: >-
+           Enable `Workflow Lint`: actionlint over the caller's `.github/workflows/`,
+@@ -771,6 +809,7 @@ jobs:
+     with:
+       all_systems: ${{ github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && inputs.all_systems }}
+       focused_checks: ${{ github.event_name != 'push' || github.ref != format('refs/heads/{0}', github.event.repository.default_branch) }}
++      override_input: ${{ inputs.nix_override_input }}
+       runner_label: ${{ (!github.event.pull_request || github.event.pull_request.head.repo.full_name == github.repository) && (inputs.nix_validate_runner_label || inputs.runner_label) || 'ubuntu-24.04' }}
+       timeout_minutes: ${{ inputs.nix_validate_timeout_minutes }}
+ 
+@@ -794,6 +833,7 @@ jobs:
+     uses: ./.github/workflows/_nix-build.yml
+     with:
+       build-command: ${{ inputs.nix_build_command }}
++      override_input: ${{ inputs.nix_override_input }}
+ 
+   markdown-lint:
+     name: Markdown Lint
+@@ -899,6 +939,7 @@ jobs:
+     uses: ./.github/workflows/_ansible-ci.yml
+     with:
+       emit_gate: false
++      galaxy_requirements_override: ${{ inputs.galaxy_requirements_override }}
+       lint_args: ${{ inputs.ansible_lint_args }}
+       # scope's `molecule` output is a second layer on `_ansible-ci.yml`'s
+       # own molecule toggle - only turns it off when scope definitively
+@@ -928,6 +969,7 @@ jobs:
+     if: ${{ !cancelled() && (inputs.tofu_ci || inputs.profile == 'tofu') && needs.changes.outputs.terraform == 'true' && (needs.changes.outputs.test_tier == 'full' || needs.changes.outputs.profile-unmapped == 'true' || needs.scope.result != 'success' || needs.scope.outputs.ci != 'none') }}
+     uses: ./.github/workflows/_tofu-ci.yml
+     with:
++      module_source_var: ${{ inputs.tofu_module_source_var }}
+       working_directories: ${{ inputs.tofu_working_directories }}
+       runner_label: ${{ (!github.event.pull_request || github.event.pull_request.head.repo.full_name == github.repository) && inputs.runner_label || 'ubuntu-24.04' }}
+ 
+diff --git a/.github/workflows/_nix-build.yml b/.github/workflows/_nix-build.yml
+index e00770e..c85ce34 100644
+--- a/.github/workflows/_nix-build.yml
++++ b/.github/workflows/_nix-build.yml
+@@ -20,6 +20,19 @@ on:
+         type: string
+         required: false
+         default: macos-26
++      override_input:
++        description: >-
++          Run-time flake input override, appended to the build command as
++          --override-input pairs so a caller can build against an upstream
++          topic branch without committing the pin. Whitespace-separated
++          "input=flake-ref" pairs, e.g. nixpkgs=github:NixOS/nixpkgs/topic
++          (a compound custom build command must leave its last command in a
++          form that accepts the appended flags). Nothing is written to
++          flake.lock; the trailing diff step fails the job if the override
++          leaked into a tracked file anyway. Empty (default) builds unchanged.
++        type: string
++        required: false
++        default: ''
+ 
+ permissions: {}
+ 
+@@ -87,9 +100,22 @@ jobs:
+       - name: Build
+         env:
+           BUILD_COMMAND: ${{ inputs.build-command }}
++          OVERRIDE_INPUT: ${{ inputs.override_input }}
+         run: |
+           # Empty build-command (the default) runs the home-manager build.
+           if [ -z "$BUILD_COMMAND" ]; then
+             BUILD_COMMAND="nix build .#homeConfigurations.$(whoami).activationPackage --print-build-logs"
+           fi
+-          eval "$BUILD_COMMAND"
++          # Run-time flake input overrides, resolved during evaluation and
++          # never written to flake.lock (the trailing diff step fails the job
++          # on a leak). Intentional word splitting: input=flake-ref pairs.
++          override_args=()
++          # shellcheck disable=SC2086
++          for pair in $OVERRIDE_INPUT; do
++            override_args+=(--override-input "${pair%%=*}" "${pair#*=}")
++          done
++          eval "$BUILD_COMMAND ${override_args[*]}"
++
++      - name: Verify the override stayed out of tracked files
++        if: ${{ inputs.override_input != '' }}
++        run: git diff --exit-code
+diff --git a/.github/workflows/_nix-validate.yml b/.github/workflows/_nix-validate.yml
+index 3312447..ee8244d 100644
+--- a/.github/workflows/_nix-validate.yml
++++ b/.github/workflows/_nix-validate.yml
+@@ -53,6 +53,18 @@ on:
+         type: number
+         required: false
+         default: 0
++      override_input:
++        description: >-
++          Run-time flake input override, passed as --override-input to the
++          flake evaluations below so a caller can test against an upstream
++          topic branch without committing the pin. Whitespace-separated
++          "input=flake-ref" pairs, e.g. nixpkgs=github:NixOS/nixpkgs/topic.
++          Nothing is written to flake.lock; the trailing diff step fails the
++          job if the override leaked into a tracked file anyway. Empty
++          (default) runs the checks unchanged.
++        type: string
++        required: false
++        default: ''
+ 
+ permissions:
+   contents: read
+@@ -153,21 +165,35 @@ jobs:
+         # derivations (require darwin binaries).
+         env:
+           ALL_SYSTEMS_FLAG: ${{ inputs.all_systems && '--all-systems' || '' }}
++          OVERRIDE_INPUT: ${{ inputs.override_input }}
+         run: |
++          override_args=()
++          # Intentional word splitting: whitespace-separated input=flake-ref pairs.
++          # shellcheck disable=SC2086
++          for pair in $OVERRIDE_INPUT; do
++            override_args+=(--override-input "${pair%%=*}" "${pair#*=}")
++          done
+           # shellcheck disable=SC2086 # Expands deliberately to zero or one flag.
+-          nix flake check $ALL_SYSTEMS_FLAG --print-build-logs --show-trace --keep-going
++          nix flake check "${override_args[@]}" $ALL_SYSTEMS_FLAG --print-build-logs --show-trace --keep-going
+ 
+       - name: Check focused flake checks
+         if: inputs.focused_checks
+         env:
+           ALL_SYSTEMS_FLAG: ${{ inputs.all_systems && '--all-systems' || '' }}
+           FOCUSED_CHECKS_SHARD: ${{ inputs.focused_checks_shard }}
++          OVERRIDE_INPUT: ${{ inputs.override_input }}
+         run: |
++          override_args=()
++          # Intentional word splitting: whitespace-separated input=flake-ref pairs.
++          # shellcheck disable=SC2086
++          for pair in $OVERRIDE_INPUT; do
++            override_args+=(--override-input "${pair%%=*}" "${pair#*=}")
++          done
+           # Evaluate flake outputs but build only the current system's check derivations.
+           # `checks` is an optional flake output; only a missing output or system
+           # yields an empty list. Flake evaluation errors still fail this step.
+           # shellcheck disable=SC2086 # Expands deliberately to zero or one flag.
+-          nix flake check --no-build $ALL_SYSTEMS_FLAG --print-build-logs --show-trace --keep-going
++          nix flake check "${override_args[@]}" --no-build $ALL_SYSTEMS_FLAG --print-build-logs --show-trace --keep-going
+           system="$(nix eval --impure --raw --expr builtins.currentSystem)"
+           check_names="$(
+             nix eval --raw --impure --expr '
+@@ -215,5 +241,9 @@ jobs:
+               check_installables+=(".#checks.${system}.${check}")
+             done <<< "$check_names"
+             nix build --no-link --print-build-logs --show-trace --keep-going \
+-              "${check_installables[@]}"
++              "${override_args[@]}" "${check_installables[@]}"
+           fi
++
++      - name: Verify the override stayed out of tracked files
++        if: ${{ inputs.override_input != '' }}
++        run: git diff --exit-code
+diff --git a/.github/workflows/_tofu-ci.yml b/.github/workflows/_tofu-ci.yml
+index 11898af..c6245b9 100644
+--- a/.github/workflows/_tofu-ci.yml
++++ b/.github/workflows/_tofu-ci.yml
+@@ -31,6 +31,19 @@ on:
+         type: string
+         required: false
+         default: ubuntu-24.04
++      module_source_var:
++        description: >-
++          Run-time module source override, exported as TF_VAR_<name> around
++          init/validate/tflint so a caller whose module block reads
++          `source = var.<name>` can resolve the module from an upstream topic
++          branch without editing the tracked configuration. One "name=value"
++          pair, e.g. module_source=git::https://github.com/org/repo//modules/x?ref=topic.
++          Nothing tracked changes; the trailing diff step fails the job if
++          the override leaked into a tracked file anyway. Empty (default)
++          runs the checks unchanged.
++        type: string
++        required: false
++        default: ''
+ 
+ permissions: {}
+ 
+@@ -73,7 +86,14 @@ jobs:
+       - name: OpenTofu Init + Validate
+         env:
+           DIRS: ${{ inputs.working_directories }}
++          MODULE_SOURCE_VAR: ${{ inputs.module_source_var }}
+         run: |
++          # Run-time module source override: exported before init so the module
++          # resolves from the topic branch without any tracked file edit.
++          # shellcheck disable=SC2086 # Intentional splitting of name=value pairs.
++          for pair in $MODULE_SOURCE_VAR; do
++            export "TF_VAR_${pair%%=*}=${pair#*=}"
++          done
+           for dir in $(jq -r '.[]' <<<"$DIRS"); do
+             echo "::group::$dir"
+             (cd "$dir" && tofu init -backend=false -input=false && tofu validate -no-color)
+@@ -94,11 +114,21 @@ jobs:
+         env:
+           GITHUB_TOKEN: ${{ github.token }}
+           DIRS: ${{ inputs.working_directories }}
++          MODULE_SOURCE_VAR: ${{ inputs.module_source_var }}
+         run: |
+           config="$GITHUB_WORKSPACE/.tflint.hcl"
+           [ -f "$config" ] || config="$GITHUB_WORKSPACE/.gh-shared/precommit/configs/tflint.hcl"
++          # Same override as init above, so tflint evaluates the topic module.
++          # shellcheck disable=SC2086 # Intentional splitting of name=value pairs.
++          for pair in $MODULE_SOURCE_VAR; do
++            export "TF_VAR_${pair%%=*}=${pair#*=}"
++          done
+           for dir in $(jq -r '.[]' <<<"$DIRS"); do
+             echo "::group::$dir"
+             (cd "$dir" && tflint --config "$config" --init && tflint --config "$config" -f compact)
+             echo "::endgroup::"
+           done
++
++      - name: Verify the override stayed out of tracked files
++        if: ${{ inputs.module_source_var != '' }}
++        run: git diff --exit-code
