@@ -829,14 +829,17 @@ jobs:
 
   python-ci:
     name: Python CI
-    needs: [changes, scope]
+    needs: [changes, scope, lane]
     # Full-tier: this runs the full lint/format/type/test matrix, not just
     # a fast validate - only narrows when scope succeeded and said
     # something other than full.
     if: ${{ !cancelled() && (inputs.python_ci || inputs.profile == 'python') && needs.changes.outputs.python == 'true' && (needs.changes.outputs.test_tier == 'full' || needs.changes.outputs.profile-unmapped == 'true' || needs.scope.result != 'success' || (needs.scope.outputs.ci != 'lint-only' && needs.scope.outputs.ci != 'none')) }}
     uses: ./.github/workflows/_python-ci.yml
     with:
-      python_versions: ${{ inputs.python_ci_versions }}
+      # In a standard or hot repository, a pull request outside the full tier
+      # tests the ends of the default range (min + latest). The full tier and
+      # a legacy repository keep the caller's array.
+      python_versions: ${{ github.event_name == 'pull_request' && needs.lane.outputs.tier != 'legacy' && needs.changes.outputs.test_tier != 'full' && '["3.10","3.14"]' || inputs.python_ci_versions }}
       runner_label: ${{ (!github.event.pull_request || github.event.pull_request.head.repo.full_name == github.repository) && inputs.runner_label || 'ubuntu-24.04' }}
 
   # dependency-review is intentionally NOT `needs: changes` / filter-gated —
