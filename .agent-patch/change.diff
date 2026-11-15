@@ -1,0 +1,95 @@
+diff --git a/.github/workflows/_ci-gate.yml b/.github/workflows/_ci-gate.yml
+index e4ca620..881df8b 100644
+--- a/.github/workflows/_ci-gate.yml
++++ b/.github/workflows/_ci-gate.yml
+@@ -766,7 +766,7 @@ jobs:
+     with:
+       all_systems: ${{ github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && inputs.all_systems }}
+       focused_checks: ${{ github.event_name != 'push' || github.ref != format('refs/heads/{0}', github.event.repository.default_branch) }}
+-      runner_label: ${{ (!github.event.pull_request || github.event.pull_request.head.repo.full_name == github.repository) && (inputs.nix_validate_runner_label || inputs.runner_label) || 'ubuntu-24.04' }}
++      runner_label: ${{ github.event_name == 'pull_request' && 'ubuntu-24.04' || ((!github.event.pull_request || github.event.pull_request.head.repo.full_name == github.repository) && (inputs.nix_validate_runner_label || inputs.runner_label) || 'ubuntu-24.04') }}
+       timeout_minutes: ${{ inputs.nix_validate_timeout_minutes }}
+ 
+   # macos-latest is hardcoded in _nix-build.yml (no runner_label input), so
+@@ -789,6 +789,9 @@ jobs:
+     uses: ./.github/workflows/_nix-build.yml
+     with:
+       build-command: ${{ inputs.nix_build_command }}
++      # Linux on pull_request events; other events keep the macOS default of
++      # _nix-build.yml (macos-26).
++      runner_label: ${{ github.event_name == 'pull_request' && 'ubuntu-24.04' || 'macos-26' }}
+ 
+   markdown-lint:
+     name: Markdown Lint
+@@ -836,7 +839,9 @@ jobs:
+     if: ${{ !cancelled() && (inputs.python_ci || inputs.profile == 'python') && needs.changes.outputs.python == 'true' && (needs.changes.outputs.test_tier == 'full' || needs.changes.outputs.profile-unmapped == 'true' || needs.scope.result != 'success' || (needs.scope.outputs.ci != 'lint-only' && needs.scope.outputs.ci != 'none')) }}
+     uses: ./.github/workflows/_python-ci.yml
+     with:
+-      python_versions: ${{ inputs.python_ci_versions }}
++      # A pull request outside the full tier tests the ends of the default
++      # range (min + latest); the full tier keeps the caller's array.
++      python_versions: ${{ github.event_name == 'pull_request' && needs.changes.outputs.test_tier != 'full' && '["3.10","3.14"]' || inputs.python_ci_versions }}
+       runner_label: ${{ (!github.event.pull_request || github.event.pull_request.head.repo.full_name == github.repository) && inputs.runner_label || 'ubuntu-24.04' }}
+ 
+   # dependency-review is intentionally NOT `needs: changes` / filter-gated —
+diff --git a/tests/ci-gate-pr-matrix.test.js b/tests/ci-gate-pr-matrix.test.js
+new file mode 100644
+index 0000000..e18e1ae
+--- /dev/null
++++ b/tests/ci-gate-pr-matrix.test.js
+@@ -0,0 +1,55 @@
++import assert from 'node:assert/strict';
++import { execFileSync } from 'node:child_process';
++import { readFileSync } from 'node:fs';
++import test from 'node:test';
++
++function parseWorkflow(path) {
++  return JSON.parse(execFileSync(
++    'python3',
++    ['-c', 'import json, sys, yaml; print(json.dumps(yaml.load(sys.stdin, Loader=yaml.BaseLoader)))'],
++    { input: readFileSync(new URL(path, import.meta.url), 'utf8'), encoding: 'utf8' },
++  ));
++}
++
++const workflow = parseWorkflow('../.github/workflows/_ci-gate.yml');
++const nixValidate = parseWorkflow('../.github/workflows/_nix-validate.yml');
++const nixBuild = parseWorkflow('../.github/workflows/_nix-build.yml');
++
++test('the full tier keeps the whole default Python version array', () => {
++  const versions = JSON.parse(workflow.on.workflow_call.inputs.python_ci_versions.default);
++  assert.equal(versions.length, 5);
++  assert.deepEqual(versions, ['3.10', '3.11', '3.12', '3.13', '3.14']);
++});
++
++test('a non-full-tier pull request runs the ends of the default Python range', () => {
++  const expression = workflow.jobs['python-ci'].with.python_versions;
++  // PR + relevance (or lint-only): the narrow array. Everything else — other
++  // events, the full tier, a caller-supplied array — falls through to the
++  // caller's input, i.e. the behaviour before the narrow array existed.
++  assert.match(
++    expression,
++    /github\.event_name == 'pull_request' && needs\.changes\.outputs\.test_tier != 'full' && '\["3\.10","3\.14"\]' \|\| inputs\.python_ci_versions/,
++  );
++  const narrow = JSON.parse(expression.match(/'(\["3\.10","3\.14"\])'/)[1]);
++  const versions = JSON.parse(workflow.on.workflow_call.inputs.python_ci_versions.default);
++  assert.deepEqual(narrow, [versions[0], versions[versions.length - 1]]);
++});
++
++test('Nix validation runs on Linux for every pull request event', () => {
++  const label = workflow.jobs['nix-validate'].with.runner_label;
++  assert.match(label, /github\.event_name == 'pull_request' && 'ubuntu-24\.04' \|\| \(/);
++  // Non-PR events keep today's selection: the guarded caller label.
++  assert.match(label, /inputs\.nix_validate_runner_label \|\| inputs\.runner_label/);
++  assert.match(label, /github\.event\.pull_request\.head\.repo\.full_name == github\.repository/);
++  // The label the PR branch resolves to is the validate workflow's own Linux
++  // default, so the gate and the reusable workflow cannot drift apart.
++  assert.equal(nixValidate.on.workflow_call.inputs.runner_label.default, 'ubuntu-24.04');
++});
++
++test('Nix build passes a Linux label on pull requests and keeps macOS otherwise', () => {
++  const label = workflow.jobs['nix-build'].with.runner_label;
++  assert.equal(label, "${{ github.event_name == 'pull_request' && 'ubuntu-24.04' || 'macos-26' }}");
++  // 'macos-26' restates the build workflow's default, so non-PR events run
++  // where they ran before.
++  assert.equal(nixBuild.on.workflow_call.inputs.runner_label.default, 'macos-26');
++});
