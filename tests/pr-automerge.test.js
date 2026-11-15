@@ -56,7 +56,8 @@ test('the legacy tier keeps the release App scope and the agent sandbox exclusio
   const legacyBranch = flat(`
     (github.event.repository.custom_properties.merge_tier == 'standard'
     || github.event.repository.custom_properties.merge_tier == 'hot'
-    || (github.event.pull_request.user.login == 'jacobpevans-release-please[bot]'
+    || (github.event.action != 'synchronize' && github.event.action != 'unlabeled'
+    && github.event.pull_request.user.login == 'jacobpevans-release-please[bot]'
     && !startsWith(github.event.pull_request.head.ref, 'agent/zcode/')))`);
   assert.ok(
     expression.includes(legacyBranch.trim()),
