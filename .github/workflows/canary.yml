@@ -96,6 +96,8 @@ jobs:
       ansible_ci: true
       # Scopes lint to the fixture.
       ansible_lint_args: tests/canary/ansible
+      markdown_lint: false
+      file_size: false
       dependency_review: false
       zizmor: false
 
@@ -113,6 +115,8 @@ jobs:
           - '**'
       nix_validate: true
       all_systems: false
+      markdown_lint: false
+      file_size: false
       dependency_review: false
       zizmor: false
 
@@ -134,6 +138,8 @@ jobs:
           - '**'
       tofu_ci: true
       tofu_working_directories: '["tests/canary/tofu"]'
+      markdown_lint: false
+      file_size: false
       dependency_review: false
       zizmor: false
 
@@ -154,6 +160,8 @@ jobs:
           - '**'
       python_security: true
       python_security_dirs: tests/canary/python
+      markdown_lint: false
+      file_size: false
       dependency_review: false
       zizmor: false
 
