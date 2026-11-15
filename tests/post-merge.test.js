@@ -31,11 +31,21 @@ test('the workflow is callable only: no trigger of its own', () => {
   );
 });
 
-test('runs are serial per ref and never cancelled', () => {
-  const block = workflow.match(/^concurrency:\n  group: (.*)\n  cancel-in-progress: (.*)$/m);
-  assert.ok(block, 'top-level concurrency block exists');
-  assert.equal(block[1], 'post-merge-${{ github.ref }}');
-  assert.equal(block[2], 'false');
+test('no concurrency lock, and a cancelled run reverts nothing', () => {
+  assert.doesNotMatch(workflow, /^concurrency:/m);
+  assert.doesNotMatch(workflow, /always\(\)/);
+  assert.equal((workflow.match(/!cancelled\(\) && needs\.verify\.result == 'success'/g) || []).length, 3);
+});
+
+test('a reverted pull request leaves the deferred set', () => {
+  for (const name of ['revert', 'revert-changes']) {
+    assert.match(jobBodies[name], /gh pr edit "\$pr" --remove-label checks:deferred/);
+  }
+});
+
+test('green is not moved back when a later run already moved it past this commit', () => {
+  assert.match(jobBodies.settle, /compare\/\$HEAD_SHA\.\.\.\$green" --jq \.status/);
+  assert.match(jobBodies.settle, /green already contains \$HEAD_SHA/);
 });
 
 test('only the delayed revert job waits in the revert-delay environment', () => {
@@ -78,7 +88,8 @@ test('a red run posts to chat and dispatches post-merge-red with commit id and r
   assert.match(settle, /-f event_type=post-merge-red/);
   assert.match(settle, /client_payload\[commit\]="\$RED_SHA"/);
   assert.match(settle, /client_payload\[run_url\]="\$RUN_URL"/);
-  assert.match(settle, /no slack_webhook_url secret; skipping the chat post/);
+  assert.match(settle, /uses: slackapi\/slack-github-action@[0-9a-f]{40} # v4\.0\.0/);
+  assert.match(settle, /if: steps\.decide\.outputs\.revert != '' && env\.HAS_SLACK == 'true'/);
 });
 
 test('the AI Merge Gate verdict is required for every deferred pull request', () => {
