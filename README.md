@@ -4,6 +4,10 @@ Reusable GitHub workflows for generic CI, releases, linting, validation, and rep
 
 AI review and agent automation workflows live in [JacobPEvans/.github-ai](https://github.com/JacobPEvans/.github-ai).
 
+## Pull request descriptions
+
+Every pull request description follows the [pull request template](.github/PULL_REQUEST_TEMPLATE/pull_request_template.md).
+
 ## Reusable workflows
 
 | Workflow | Purpose | Inputs |
