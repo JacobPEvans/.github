@@ -22,8 +22,7 @@
 #      job's 10-minute cap), then treated as red. All green -> green is
 #      fast-forwarded to HEAD.
 #   5. Red -> the failure is posted to chat (skipped when the optional
-#      slack_webhook_url secret is empty; this repository uses no
-#      slack-github-action anywhere), a post-merge-red repository_dispatch
+#      slack_webhook_url secret is empty), a post-merge-red repository_dispatch
 #      with the commit id and the run URL is sent to the calling
 #      repository, and a revert job waits in the revert-delay environment
 #      (the 15-minute wait timer lives on that environment; no runner is
@@ -49,7 +48,6 @@
 #         contents: write    # green ref moves, post-merge-red dispatches
 #         pull-requests: write
 #         checks: read       # AI Merge Gate verdicts on the head commits
-#         actions: write     # forwarded to _ci-gate.yml's queue watchdog
 #       uses: JacobPEvans/.github/.github/workflows/_post-merge.yml@v1
 #       with:
 #         profile: nix       # the caller's gate stack, forwarded verbatim
@@ -103,14 +101,14 @@ on:
           post step.
         required: false
 
-concurrency:
-  group: post-merge-${{ github.ref }}
-  cancel-in-progress: false
+# No concurrency block: the delayed revert waits 15 minutes inside the run,
+# and a lock would hold back the run that verifies the fix. Overlapping runs
+# are safe because green only moves by a fast-forward.
 
 jobs:
   verify:
     name: Verify Deferred Merges
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 10
     permissions:
       contents: write
@@ -151,9 +149,13 @@ jobs:
             if [[ -z "$seed" ]]; then
               seed="$HEAD_SHA"
             fi
-            gh api -X POST "repos/$REPO/git/refs" -f ref=refs/heads/green -f sha="$seed"
-            green="$seed"
-            echo "seeded green at $seed"
+            if gh api -X POST "repos/$REPO/git/refs" -f ref=refs/heads/green -f sha="$seed" >/dev/null; then
+              green="$seed"
+              echo "seeded green at $seed"
+            else
+              # Another run created it first.
+              green="$(gh api "repos/$REPO/git/ref/heads/green" --jq .object.sha)"
+            fi
           fi
           echo "green=$green" >> "$GITHUB_OUTPUT"
 
@@ -214,7 +216,7 @@ jobs:
     name: Read AI Verdicts
     needs: [verify]
     if: needs.verify.outputs.has_deferred == 'true'
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 10
     permissions:
       checks: read
@@ -267,13 +269,14 @@ jobs:
   settle:
     name: Settle Green
     needs: [verify, gate, verdicts]
-    if: ${{ always() && needs.verify.result == 'success' }}
-    runs-on: ubuntu-24.04
+    if: ${{ !cancelled() && needs.verify.result == 'success' }}
+    runs-on: ubuntu-26.04
     timeout-minutes: 10
     permissions:
       contents: write
     env:
       HAS_APP_KEY: ${{ secrets.GH_APP_PRIVATE_KEY != '' }}
+      HAS_SLACK: ${{ secrets.slack_webhook_url != '' }}
     outputs:
       revert: ${{ steps.decide.outputs.revert }}
       deferred: ${{ needs.verify.outputs.deferred }}
@@ -317,12 +320,13 @@ jobs:
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token || github.token }}
           REPO: ${{ github.repository }}
-          GREEN_SHA: ${{ needs.verify.outputs.green_sha }}
           HEAD_SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
-          if [[ "$GREEN_SHA" == "$HEAD_SHA" ]]; then
-            echo "green is already at $HEAD_SHA"
+          green="$(gh api "repos/$REPO/git/ref/heads/green" --jq .object.sha)"
+          status="$(gh api "repos/$REPO/compare/$HEAD_SHA...$green" --jq .status)"
+          if [[ "$status" == ahead || "$status" == identical ]]; then
+            echo "green already contains $HEAD_SHA"
             exit 0
           fi
           # force=false makes the API reject the update unless it is a plain
@@ -330,19 +334,13 @@ jobs:
           gh api -X PATCH "repos/$REPO/git/refs/heads/green" -F sha="$HEAD_SHA" -F force=false
 
       - name: Post the red result to chat
-        if: steps.decide.outputs.revert == 'delay'
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.slack_webhook_url }}
-          RED_SHA: ${{ github.sha }}
-          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-        run: |
-          set -euo pipefail
-          if [[ -z "$SLACK_WEBHOOK_URL" ]]; then
-            echo 'no slack_webhook_url secret; skipping the chat post'
-            exit 0
-          fi
-          payload="$(jq -rn --arg text "post-merge verification failed for $RED_SHA; the deferred merges will be reverted. $RUN_URL" '{text: $text}')"
-          curl -fsSL --max-time 10 -X POST -H 'Content-Type: application/json' -d "$payload" "$SLACK_WEBHOOK_URL"
+        if: steps.decide.outputs.revert != '' && env.HAS_SLACK == 'true'
+        uses: slackapi/slack-github-action@dcb1066f776dd043e64d0e8ba94ca15cc7e1875d # v4.0.0
+        with:
+          webhook: ${{ secrets.slack_webhook_url }}
+          webhook-type: incoming-webhook
+          payload: |
+            text: "Post-merge checks failed in ${{ github.repository }} at ${{ github.sha }} (revert: ${{ steps.decide.outputs.revert }}). ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
 
       - name: Dispatch the CI-fix reaction
         if: steps.decide.outputs.revert == 'delay'
@@ -367,10 +365,10 @@ jobs:
     name: Revert Deferred Merges
     needs: [verify, settle]
     if: >-
-      always() && needs.verify.result == 'success' &&
+      !cancelled() && needs.verify.result == 'success' &&
       needs.settle.outputs.revert == 'delay'
     environment: revert-delay
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 10
     permissions:
       contents: read
@@ -404,6 +402,9 @@ jobs:
             echo "green already contains $RED_SHA; nothing to revert"
             exit 0
           fi
+          if [[ "$HAS_APP_KEY" != true ]]; then
+            echo "::warning::GH_APP_PRIVATE_KEY is not set; a revert pull request opened with github.token starts no checks and cannot merge by itself."
+          fi
           failures=0
           for pr in $(jq -r '.[].number' <<<"$DEFERRED"); do
             if ! out="$(gh pr revert "$pr" 2>&1)"; then
@@ -419,6 +420,8 @@ jobs:
             fi
             gh pr edit "$revert_pr" --add-label auto-revert
             gh pr merge "$revert_pr" --auto --squash
+            # The next run must not count the reverted pull request again.
+            gh pr edit "$pr" --remove-label checks:deferred
             echo "reverted #$pr as #$revert_pr; auto-merge armed"
           done
           exit "$failures"
@@ -430,9 +433,9 @@ jobs:
     name: Revert Deferred Merges (Changes Verdict)
     needs: [verify, settle]
     if: >-
-      always() && needs.verify.result == 'success' &&
+      !cancelled() && needs.verify.result == 'success' &&
       needs.settle.outputs.revert == 'now'
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 10
     permissions:
       contents: read
@@ -466,6 +469,9 @@ jobs:
             echo "green already contains $RED_SHA; nothing to revert"
             exit 0
           fi
+          if [[ "$HAS_APP_KEY" != true ]]; then
+            echo "::warning::GH_APP_PRIVATE_KEY is not set; a revert pull request opened with github.token starts no checks and cannot merge by itself."
+          fi
           failures=0
           for pr in $(jq -r '.[].number' <<<"$DEFERRED"); do
             if ! out="$(gh pr revert "$pr" 2>&1)"; then
@@ -481,6 +487,8 @@ jobs:
             fi
             gh pr edit "$revert_pr" --add-label auto-revert
             gh pr merge "$revert_pr" --auto --squash
+            # The next run must not count the reverted pull request again.
+            gh pr edit "$pr" --remove-label checks:deferred
             echo "reverted #$pr as #$revert_pr; auto-merge armed"
           done
           exit "$failures"
