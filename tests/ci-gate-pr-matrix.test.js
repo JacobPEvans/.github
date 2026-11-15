@@ -26,7 +26,7 @@ test('a non-full-tier pull request runs the ends of the default Python range', (
   // caller's input, i.e. the behaviour before the narrow array existed.
   assert.match(
     expression,
-    /github\.event_name == 'pull_request' && needs\.lane\.outputs\.tier != 'legacy' && needs\.changes\.outputs\.test_tier != 'full' && '\["3\.10","3\.14"\]' \|\| inputs\.python_ci_versions/,
+    /github\.event_name == 'pull_request' && \(needs\.lane\.outputs\.tier == 'standard' \|\| needs\.lane\.outputs\.tier == 'hot'\) && needs\.changes\.outputs\.test_tier != 'full' && '\["3\.10","3\.14"\]' \|\| inputs\.python_ci_versions/,
   );
   const narrow = JSON.parse(expression.match(/'(\["3\.10","3\.14"\])'/)[1]);
   const versions = JSON.parse(workflow.on.workflow_call.inputs.python_ci_versions.default);
