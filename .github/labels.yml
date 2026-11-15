@@ -9,7 +9,7 @@
 #   priority:* - Urgency level
 #   size:*     - Effort estimation
 #   ai:*       - AI workflow state
-#   openhands:* - Work by the OpenHands agent (assisted or authored)
+#   openhands:* - Pull requests the OpenHands agent took part in
 #   model:*    - Local model that did agent work
 #   (ungrouped) - Triage/admin labels
 #
@@ -143,16 +143,12 @@
 
 # =============================================================================
 # AGENT AND MODEL LABELS - Which local agent and model worked on a pull request
-# A pull request carries at most one openhands:* label; authored wins over assisted.
+# A pull request the OpenHands agent opened is identified by its author, not by a label.
 # model:* names the model family and size only, never a quantisation or a serving backend; one label is added per model that worked on the pull request.
 # =============================================================================
 - name: "openhands:assisted"
   color: "F0ABFC"
   description: "OpenHands assisted - the OpenHands agent pushed a commit or a reply on this pull request"
-
-- name: "openhands:authored"
-  color: "C026D3"
-  description: "OpenHands authored - the OpenHands agent created this pull request and every commit on it"
 
 - name: "model:qwen3.8-27b"
   color: "6366F1"
