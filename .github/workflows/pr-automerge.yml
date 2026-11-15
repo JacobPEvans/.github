@@ -1,27 +1,33 @@
 # PR Auto-Merge
 #
 # Injected into every repository as an organization required workflow. It turns
-# on native auto-merge for pull requests opened by the release App
-# (jacobpevans-release-please[bot]) when they open, reopen or leave draft.
-# Pull requests from any other author, including agent Apps, are never armed;
-# Renovate pull requests follow the Renovate preset's own automerge rules.
+# on native auto-merge for pull requests when they open, reopen, leave draft,
+# gain a commit or drop a label. The repository's custom_properties.merge_tier
+# decides the scope: the standard and hot tiers arm every same-repository pull
+# request, while the legacy tier (or an unset property) keeps the historical
+# release App scope (jacobpevans-release-please[bot]); any other author there,
+# including agent Apps, is never armed, and Renovate pull requests follow the
+# Renovate preset's own automerge rules.
 #
-# Auto-merge is not enabled for draft PRs, PRs from forks, promotions (develop
-# into main, which merge by merge commit through their own flow), agent
-# sandbox PRs (head branches under agent/zcode/, merged by hand after review)
-# or PRs carrying human:review. A late human:review label disables an armed
-# request.
+# Auto-merge is not enabled for draft PRs or PRs from forks in any tier. The
+# legacy tier additionally skips promotions (develop into main, which merge by
+# merge commit through their own flow) and agent sandbox PRs (head branches
+# under agent/zcode/, merged by hand after review). PRs carrying human:review
+# are never armed, and a late human:review label disables an armed request;
+# removing the label rearms on the unlabeled event, and every synchronize event
+# rearms a PR that left the merge queue.
 #
 # The opened event's labels are a snapshot that can miss a label added just
 # after creation. Before arming, the workflow reads the live labels with gh.
 # Adding human:review later triggers a hold run that disables auto-merge. Runs
 # for arming and human:review share a PR-scoped concurrency group. If a later
 # PR transition replaces a pending hold run, its live-state check also disables
-# auto-merge on a held PR. Unrelated label events use unique groups.
+# auto-merge on a held PR. Unrelated label-add events use unique groups.
 #
-# Auto-merge waits only for checks an active rule requires, so it is armed only
-# when the base branch's active rules require a "Merge Gate" status check.
-# Without one, the job warns and arms nothing.
+# Auto-merge waits only for checks an active rule requires. The legacy tier
+# arms only when the base branch's active rules require a "Merge Gate" status
+# check; the standard and hot tiers require both "gate / Merge Gate" and
+# "AI Merge Gate". Without the tier's checks, the job warns and arms nothing.
 #
 # The merge is armed with the release App's token, not github.token, so the
 # resulting push still triggers the base branch's workflows. Without the App
@@ -33,7 +39,7 @@ name: PR Auto-Merge
 
 on:
   pull_request:
-    types: [opened, reopened, ready_for_review, labeled]
+    types: [opened, reopened, ready_for_review, synchronize, unlabeled, labeled]
 
 permissions: {}
 
@@ -51,8 +57,10 @@ jobs:
     if: >-
       ${{ github.event.action != 'labeled'
       && github.event.pull_request.head.repo.full_name == github.repository
-      && github.event.pull_request.user.login == 'jacobpevans-release-please[bot]'
-      && !startsWith(github.event.pull_request.head.ref, 'agent/zcode/') }}
+      && (github.event.repository.custom_properties.merge_tier == 'standard'
+      || github.event.repository.custom_properties.merge_tier == 'hot'
+      || (github.event.pull_request.user.login == 'jacobpevans-release-please[bot]'
+      && !startsWith(github.event.pull_request.head.ref, 'agent/zcode/'))) }}
     runs-on: ubuntu-26.04
     timeout-minutes: 2
     permissions:
@@ -62,6 +70,15 @@ jobs:
       # Secrets are not allowed in if: expressions; expose only whether the App is configured.
       HAS_APP: ${{ vars.GH_ACTION_RELEASE_PLEASE_APP_ID != '' && secrets.GH_ACTION_RELEASE_PLEASE_PRIVATE_KEY != '' }}
     steps:
+      - name: Read the merge tier property
+        id: tier
+        env:
+          MERGE_TIER: ${{ github.event.repository.custom_properties.merge_tier }}
+        run: |
+          set -euo pipefail
+          tier="${MERGE_TIER:-}"
+          [[ -n "$tier" ]] || tier=legacy
+          printf 'tier=%s\n' "$tier" >> "$GITHUB_OUTPUT"
       - name: Check live labels and auto-merge state
         id: state
         env:
@@ -69,33 +86,48 @@ jobs:
           GH_REPO: ${{ github.repository }}
           PR: ${{ github.event.pull_request.number }}
         run: gh pr view "$PR" --json labels,autoMergeRequest --jq '"state=" + (if (.labels | map(.name) | contains(["human:review"])) then "held" else "clear" end) + "," + (if .autoMergeRequest == null then "unarmed" else "armed" end)' >> "$GITHUB_OUTPUT"
-      - name: Check for a required Merge Gate
+      - name: Check for the required Merge Gate checks
         id: gate
         if: >-
           ${{ steps.state.outputs.state == 'clear,unarmed'
           && !github.event.pull_request.draft
-          && !(github.event.pull_request.head.ref == 'develop' && github.event.pull_request.base.ref == 'main') }}
+          && !(steps.tier.outputs.tier == 'legacy'
+          && github.event.pull_request.head.ref == 'develop' && github.event.pull_request.base.ref == 'main') }}
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
           BASE: ${{ github.event.pull_request.base.ref }}
-        run: gh api "repos/$REPO/rules/branches/$BASE" --jq '"ready=" + ((([.[] | select(.type == "required_status_checks") | .parameters.required_status_checks[]?.context | select(type == "string" and test("(^|/ )Merge Gate$"))] | length) > 0) | tostring)' >> "$GITHUB_OUTPUT"
+          TIER: ${{ steps.tier.outputs.tier }}
+        run: |
+          if [[ "$TIER" == legacy ]]; then
+            gh api "repos/$REPO/rules/branches/$BASE" --jq '"ready=" + ((([.[] | select(.type == "required_status_checks") | .parameters.required_status_checks[]?.context | select(type == "string" and test("(^|/ )Merge Gate$"))] | length) > 0) | tostring)' >> "$GITHUB_OUTPUT"
+          else
+            gh api "repos/$REPO/rules/branches/$BASE" --jq '"ready=" + (([.[] | select(.type == "required_status_checks") | .parameters.required_status_checks[]?.context | select(type == "string")] as $have | (["gate / Merge Gate", "AI Merge Gate"] - $have | length) == 0) | tostring)' >> "$GITHUB_OUTPUT"
+          fi
       - name: Warn when no required Merge Gate is active
         if: >-
           ${{ steps.state.outputs.state == 'clear,unarmed'
           && !github.event.pull_request.draft
-          && !(github.event.pull_request.head.ref == 'develop' && github.event.pull_request.base.ref == 'main')
+          && !(steps.tier.outputs.tier == 'legacy'
+          && github.event.pull_request.head.ref == 'develop' && github.event.pull_request.base.ref == 'main')
           && steps.gate.outputs.ready != 'true' }}
         env:
           BASE: ${{ github.event.pull_request.base.ref }}
-        run: echo "::warning::No active rule on $BASE requires a Merge Gate check; auto-merge not enabled."
+          TIER: ${{ steps.tier.outputs.tier }}
+        run: |
+          if [[ "$TIER" == legacy ]]; then
+            echo "::warning::No active rule on $BASE requires a Merge Gate check; auto-merge not enabled."
+          else
+            echo "::warning::No active rule on $BASE requires gate / Merge Gate and AI Merge Gate; auto-merge not enabled."
+          fi
       - name: Warn when the release App is not configured
         if: >-
           ${{ (steps.state.outputs.state == 'held,armed'
           || (steps.state.outputs.state == 'clear,unarmed'
           && steps.gate.outputs.ready == 'true'
           && !github.event.pull_request.draft
-          && !(github.event.pull_request.head.ref == 'develop' && github.event.pull_request.base.ref == 'main')))
+          && !(steps.tier.outputs.tier == 'legacy'
+          && github.event.pull_request.head.ref == 'develop' && github.event.pull_request.base.ref == 'main')))
           && (env.HAS_APP != 'true') }}
         run: echo "::warning::GH_ACTION_RELEASE_PLEASE_APP_ID or GH_ACTION_RELEASE_PLEASE_PRIVATE_KEY is not set; auto-merge not enabled."
       - name: Mint the App token
@@ -105,7 +137,8 @@ jobs:
           || (steps.state.outputs.state == 'clear,unarmed'
           && steps.gate.outputs.ready == 'true'
           && !github.event.pull_request.draft
-          && !(github.event.pull_request.head.ref == 'develop' && github.event.pull_request.base.ref == 'main')))
+          && !(steps.tier.outputs.tier == 'legacy'
+          && github.event.pull_request.head.ref == 'develop' && github.event.pull_request.base.ref == 'main')))
           && env.HAS_APP == 'true' }}
         uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3
         with:
@@ -118,7 +151,8 @@ jobs:
           ${{ steps.state.outputs.state == 'clear,unarmed'
           && steps.gate.outputs.ready == 'true'
           && !github.event.pull_request.draft
-          && !(github.event.pull_request.head.ref == 'develop' && github.event.pull_request.base.ref == 'main')
+          && !(steps.tier.outputs.tier == 'legacy'
+          && github.event.pull_request.head.ref == 'develop' && github.event.pull_request.base.ref == 'main')
           && steps.app-token.outputs.token != '' }}
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
