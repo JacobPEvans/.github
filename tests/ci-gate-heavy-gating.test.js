@@ -271,8 +271,8 @@ test('the tier-and-event table decides every heavy job the same way', () => {
 
 test('a skipped heavy job never fails the gate', () => {
   const gateStep = workflow.jobs.gate.steps.find((step) => step.name === 'Aggregate results');
-  assert.ok(gateStep, 'gate aggregates with the shared script');
+  assert.ok(gateStep, 'gate aggregates with alls-green');
   for (const jobName of HEAVY_JOBS) {
-    assert.match(gateStep.env.CI_GATE_ALLOWED_SKIPS, new RegExp(`\\b${jobName}\\b`), `${jobName} stays in allowed-skips`);
+    assert.match(gateStep.with['allowed-skips'], new RegExp(`\\b${jobName}\\b`), `${jobName} stays in allowed-skips`);
   }
 });

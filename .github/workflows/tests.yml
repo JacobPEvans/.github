@@ -7,7 +7,6 @@ on:
   pull_request:
     paths:
       - '.github/scripts/**'
-      - 'scripts/ci-gate-aggregate.mts'
       - 'scripts/flake-lock-fresh.sh'
       - 'tests/**'
       - '.github/workflows/_ci-gate.yml'
@@ -39,7 +38,7 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '22'
-      - run: node --test 'tests/**/*.test.js' tests/ci-gate-aggregate.test.mts
+      - run: node --test 'tests/**/*.test.js'
 
   python:
     name: python -m unittest

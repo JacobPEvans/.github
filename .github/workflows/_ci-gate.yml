@@ -529,7 +529,9 @@ on:
       GH_APP_PRIVATE_KEY:
         description: >-
           Optional. Lets the flake freshness check resolve private flake
-          inputs; public inputs resolve without it.
+          inputs; public inputs resolve without it. The tiny and land-first
+          lanes need it: the gate labels their pull requests checks:deferred
+          with an App token.
         required: false
 
 permissions:
@@ -564,6 +566,8 @@ jobs:
   lane:
     name: Classify Lane
     uses: ./.github/workflows/_lane.yml
+    secrets:
+      GH_APP_PRIVATE_KEY: ${{ secrets.GH_APP_PRIVATE_KEY }}
 
   # ============================================================================
   # CHANGE DETECTION
@@ -1069,7 +1073,7 @@ jobs:
   # ============================================================================
   gate:
     name: Merge Gate
-    needs: [changes, scope, flake-lock-fresh, nix-validate, nix-build, markdown-lint, file-size, token-limits, python-security, python-ci, ansible-ci, renovate-annotations, tofu-ci, osv-scan, dependency-review, zizmor, uses-resolve, repo-tests, workflow-lint]
+    needs: [changes, scope, lane, flake-lock-fresh, nix-validate, nix-build, markdown-lint, file-size, token-limits, python-security, python-ci, ansible-ci, renovate-annotations, tofu-ci, osv-scan, dependency-review, zizmor, uses-resolve, repo-tests, workflow-lint]
     # Run after workflow cancellation too, so cancelled sibling checks aggregate
     # to a failing required status instead of a skipped (successful) job.
     if: ${{ always() }}
@@ -1084,11 +1088,11 @@ jobs:
       actions: read
       contents: read
     steps:
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+      # alls-green runs `python`; a self-hosted runner may only carry python3.
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
         with:
-          node-version: '22'
-      # The run report is non-blocking; the aggregator is required to produce
-      # the Merge Gate result.
+          python-version: '3.x'
+      # The run report is non-blocking.
       - name: Sparse-checkout gate scripts from this repo
         if: ${{ always() }}
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -1097,20 +1101,40 @@ jobs:
           ref: ${{ job.workflow_sha }}
           path: .gh-shared
           sparse-checkout: |
-            scripts/ci-gate-aggregate.mts
             scripts/ci-gate-run-report.sh
           sparse-checkout-cone-mode: false
       - name: Aggregate results
-        env:
-          CI_GATE_JOBS: ${{ toJSON(needs) }}
-          CI_GATE_ALLOWED_SKIPS: >-
+        uses: re-actors/alls-green@b5b5b37504aa4183270bd3d855c52a67f212be35 # v1.3.0
+        with:
+          jobs: ${{ toJSON(needs) }}
+          allowed-skips: >-
             flake-lock-fresh,
             nix-validate, nix-build, markdown-lint, file-size, token-limits,
             python-security, python-ci, ansible-ci, renovate-annotations,
             tofu-ci, osv-scan, dependency-review, zizmor,
             repo-tests, workflow-lint
-          CI_GATE_ALLOWED_FAILURES: scope
-        run: node .gh-shared/scripts/ci-gate-aggregate.mts
+          # A failed lane job leaves the heavy jobs running, so it does not
+          # fail the gate by itself.
+          allowed-failures: scope, lane
+      # A tiny or land-first pull request skips its heavy checks; the label
+      # tells the post-merge workflow to run them. The lane classifier grants
+      # those two lanes only when the App key is set.
+      - name: Mint the App token for the deferred-check label
+        id: deferred-token
+        if: ${{ github.event_name == 'pull_request' && (needs.lane.outputs.lane == 'tiny' || needs.lane.outputs.lane == 'land-first') }}
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3
+        with:
+          client-id: ${{ vars.GH_APP_CLIENT_ID }}
+          private-key: ${{ secrets.GH_APP_PRIVATE_KEY }}
+          repositories: ${{ github.event.repository.name }}
+          permission-pull-requests: write
+      - name: Label the pull request checks:deferred
+        if: ${{ github.event_name == 'pull_request' && (needs.lane.outputs.lane == 'tiny' || needs.lane.outputs.lane == 'land-first') }}
+        env:
+          GH_TOKEN: ${{ steps.deferred-token.outputs.token }}
+          GH_REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+        run: gh pr edit "$PR" --add-label checks:deferred
       # Run after every sibling is terminal, when timestamps are final.
       - name: Job durations + queue-delay summary
         if: ${{ always() }}

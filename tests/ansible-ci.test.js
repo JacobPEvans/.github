@@ -115,7 +115,7 @@ test('lint false skips validation jobs; the gate runs and default lint keeps exi
   assert.equal(jobRuns('gate', lintDefault[1] === 'true'), true, 'the aggregate gate runs with default lint');
   assert.match(
     ansibleCi,
-    /CI_GATE_ALLOWED_SKIPS: ansible-lint, molecule, token-limits, renovate-annotations, renovate_config/,
+    /allowed-skips: ansible-lint, molecule, token-limits, renovate-annotations, renovate_config/,
   );
 });
 
@@ -171,7 +171,7 @@ test('shared Ansible CI runs strict Renovate validation for renovate.json change
   );
   assert.match(ansibleCi, /uses: \.\/\.github\/workflows\/renovate-config-validate\.yml/);
   assert.match(ansibleCi, /needs: \[changes, ansible-lint, molecule, token-limits, renovate-annotations, renovate_config\]/);
-  assert.match(ansibleCi, /CI_GATE_ALLOWED_SKIPS: .*renovate_config/);
+  assert.match(ansibleCi, /allowed-skips: .*renovate_config/);
   assert.match(renovateValidator, /workflow_call:/);
   assert.match(renovateValidator, /config_file:/);
   assert.match(renovateValidator, /RENOVATE_CONFIG_FILE/);
