@@ -64,10 +64,10 @@ test('a fast-lane pull request is labelled checks:deferred with an App token aft
 
 test('the lane classifier grants the fast lanes only when the App key is set', () => {
   const lane = load('_lane.yml');
-  assert.equal(lane.parsed.on.workflow_call.secrets.GH_APP_PRIVATE_KEY.required, 'false');
-  assert.equal(lane.parsed.jobs.classify.env.HAS_APP_KEY, "${{ secrets.GH_APP_PRIVATE_KEY != '' }}");
+  assert.equal(lane.parsed.on.workflow_call.secrets.AUTOMATION_APP_PRIVATE_KEY.required, 'false');
+  assert.equal(lane.parsed.jobs.classify.env.HAS_APP_KEY, "${{ secrets.AUTOMATION_APP_PRIVATE_KEY != '' }}");
   assert.match(lane.text, /^          TIER: \$\{\{ env\.HAS_APP_KEY == 'true' && steps\.tier\.outputs\.tier \|\| 'legacy' \}\}$/m);
   // The tier output itself stays the repository's real tier.
   assert.equal(lane.parsed.jobs.classify.outputs.tier, '${{ steps.tier.outputs.tier }}');
-  assert.equal(gateWorkflow.parsed.jobs.lane.secrets.GH_APP_PRIVATE_KEY, '${{ secrets.GH_APP_PRIVATE_KEY }}');
+  assert.equal(gateWorkflow.parsed.jobs.lane.secrets.AUTOMATION_APP_PRIVATE_KEY, '${{ secrets.AUTOMATION_APP_PRIVATE_KEY }}');
 });

@@ -53,12 +53,12 @@
 #       with:
 #         profile: nix       # the caller's gate stack, forwarded verbatim
 #       secrets:
-#         GH_APP_PRIVATE_KEY: ${{ secrets.GH_APP_PRIVATE_KEY }}
+#         AUTOMATION_APP_PRIVATE_KEY: ${{ secrets.GH_ACTION_RELEASE_PLEASE_PRIVATE_KEY }}
 #         slack_webhook_url: ${{ secrets.SLACK_WEBHOOK_URL }}
 #
-# The App token copies _flake-lock-fresh.yml: minted from
-# vars.GH_APP_CLIENT_ID and secrets.GH_APP_PRIVATE_KEY when the key is set,
-# with github.token as the fallback.
+# The App token is minted from vars.GH_ACTION_RELEASE_PLEASE_APP_ID and
+# secrets.AUTOMATION_APP_PRIVATE_KEY when the key is set, with github.token
+# as the fallback.
 
 name: _post-merge
 
@@ -91,10 +91,11 @@ on:
         required: false
         default: ubuntu-24.04
     secrets:
-      GH_APP_PRIVATE_KEY:
+      AUTOMATION_APP_PRIVATE_KEY:
         description: >-
-          Optional private key of the automation App (vars.GH_APP_CLIENT_ID).
-          Empty falls back to github.token, like _flake-lock-fresh.yml.
+          Optional private key of the automation App
+          (vars.GH_ACTION_RELEASE_PLEASE_APP_ID). Empty falls back to
+          github.token.
         required: false
       slack_webhook_url:
         description: >-
@@ -115,7 +116,7 @@ jobs:
       contents: write
       pull-requests: read
     env:
-      HAS_APP_KEY: ${{ secrets.GH_APP_PRIVATE_KEY != '' }}
+      HAS_APP_KEY: ${{ secrets.AUTOMATION_APP_PRIVATE_KEY != '' }}
     outputs:
       has_deferred: ${{ steps.deferred.outputs.has_deferred }}
       deferred: ${{ steps.deferred.outputs.deferred }}
@@ -126,8 +127,8 @@ jobs:
         if: env.HAS_APP_KEY == 'true'
         uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3
         with:
-          client-id: ${{ vars.GH_APP_CLIENT_ID }}
-          private-key: ${{ secrets.GH_APP_PRIVATE_KEY }}
+          client-id: ${{ vars.GH_ACTION_RELEASE_PLEASE_APP_ID }}
+          private-key: ${{ secrets.AUTOMATION_APP_PRIVATE_KEY }}
           repositories: ${{ github.event.repository.name }}
           permission-contents: write
           permission-pull-requests: write
@@ -276,7 +277,7 @@ jobs:
     permissions:
       contents: write
     env:
-      HAS_APP_KEY: ${{ secrets.GH_APP_PRIVATE_KEY != '' }}
+      HAS_APP_KEY: ${{ secrets.AUTOMATION_APP_PRIVATE_KEY != '' }}
       HAS_SLACK: ${{ secrets.slack_webhook_url != '' }}
     outputs:
       revert: ${{ steps.decide.outputs.revert }}
@@ -288,8 +289,8 @@ jobs:
         if: env.HAS_APP_KEY == 'true'
         uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3
         with:
-          client-id: ${{ vars.GH_APP_CLIENT_ID }}
-          private-key: ${{ secrets.GH_APP_PRIVATE_KEY }}
+          client-id: ${{ vars.GH_ACTION_RELEASE_PLEASE_APP_ID }}
+          private-key: ${{ secrets.AUTOMATION_APP_PRIVATE_KEY }}
           repositories: ${{ github.event.repository.name }}
           permission-contents: write
           permission-pull-requests: write
@@ -375,7 +376,7 @@ jobs:
       contents: read
       pull-requests: write
     env:
-      HAS_APP_KEY: ${{ secrets.GH_APP_PRIVATE_KEY != '' }}
+      HAS_APP_KEY: ${{ secrets.AUTOMATION_APP_PRIVATE_KEY != '' }}
       GH_REPO: ${{ github.repository }}
     steps:
       - name: Mint the App token
@@ -383,8 +384,8 @@ jobs:
         if: env.HAS_APP_KEY == 'true'
         uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3
         with:
-          client-id: ${{ vars.GH_APP_CLIENT_ID }}
-          private-key: ${{ secrets.GH_APP_PRIVATE_KEY }}
+          client-id: ${{ vars.GH_ACTION_RELEASE_PLEASE_APP_ID }}
+          private-key: ${{ secrets.AUTOMATION_APP_PRIVATE_KEY }}
           repositories: ${{ github.event.repository.name }}
           permission-contents: write
           permission-pull-requests: write
@@ -404,7 +405,7 @@ jobs:
             exit 0
           fi
           if [[ "$HAS_APP_KEY" != true ]]; then
-            echo "::error::GH_APP_PRIVATE_KEY is not set; the revert needs the App token to create its branch and start checks."
+            echo "::error::AUTOMATION_APP_PRIVATE_KEY is not set; the revert needs the App token to create its branch and start checks."
             exit 1
           fi
           failures=0
@@ -449,7 +450,7 @@ jobs:
       contents: read
       pull-requests: write
     env:
-      HAS_APP_KEY: ${{ secrets.GH_APP_PRIVATE_KEY != '' }}
+      HAS_APP_KEY: ${{ secrets.AUTOMATION_APP_PRIVATE_KEY != '' }}
       GH_REPO: ${{ github.repository }}
     steps:
       - name: Mint the App token
@@ -457,8 +458,8 @@ jobs:
         if: env.HAS_APP_KEY == 'true'
         uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3
         with:
-          client-id: ${{ vars.GH_APP_CLIENT_ID }}
-          private-key: ${{ secrets.GH_APP_PRIVATE_KEY }}
+          client-id: ${{ vars.GH_ACTION_RELEASE_PLEASE_APP_ID }}
+          private-key: ${{ secrets.AUTOMATION_APP_PRIVATE_KEY }}
           repositories: ${{ github.event.repository.name }}
           permission-contents: write
           permission-pull-requests: write
@@ -478,7 +479,7 @@ jobs:
             exit 0
           fi
           if [[ "$HAS_APP_KEY" != true ]]; then
-            echo "::error::GH_APP_PRIVATE_KEY is not set; the revert needs the App token to create its branch and start checks."
+            echo "::error::AUTOMATION_APP_PRIVATE_KEY is not set; the revert needs the App token to create its branch and start checks."
             exit 1
           fi
           failures=0

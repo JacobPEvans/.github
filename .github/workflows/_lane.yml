@@ -81,11 +81,12 @@ on:
         type: string
         default: 'jacobs-agent-smith[bot]'
     secrets:
-      GH_APP_PRIVATE_KEY:
+      AUTOMATION_APP_PRIVATE_KEY:
         description: >-
-          Optional. The gate labels a tiny or land-first pull request
-          checks:deferred with an App token; without the key those two lanes
-          are not granted.
+          Optional private key of the automation App
+          (vars.GH_ACTION_RELEASE_PLEASE_APP_ID). The gate labels a tiny or
+          land-first pull request checks:deferred with that App's token;
+          without the key those two lanes are not granted.
         required: false
     outputs:
       lane:
@@ -125,7 +126,7 @@ jobs:
     timeout-minutes: 5
     env:
       # Secrets are not allowed in if: expressions; expose only whether the key is set.
-      HAS_APP_KEY: ${{ secrets.GH_APP_PRIVATE_KEY != '' }}
+      HAS_APP_KEY: ${{ secrets.AUTOMATION_APP_PRIVATE_KEY != '' }}
     outputs:
       lane: ${{ steps.classify.outputs.lane }}
       tier: ${{ steps.tier.outputs.tier }}

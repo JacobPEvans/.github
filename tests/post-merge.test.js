@@ -113,7 +113,7 @@ test('a red deferred merge is reverted, labelled auto-revert and auto-merged', (
 test('both secrets are optional and the App token step copies _flake-lock-fresh.yml', () => {
   const secretsBlock = workflow.match(/^    secrets:\n((?:      .*\n?)+)/m);
   assert.ok(secretsBlock, 'workflow_call secrets block exists');
-  assert.match(secretsBlock[1], /^      GH_APP_PRIVATE_KEY:$/m);
+  assert.match(secretsBlock[1], /^      AUTOMATION_APP_PRIVATE_KEY:$/m);
   assert.match(secretsBlock[1], /^      slack_webhook_url:$/m);
   assert.equal((secretsBlock[1].match(/required: false/g) || []).length, 2);
   assert.equal(
@@ -121,8 +121,8 @@ test('both secrets are optional and the App token step copies _flake-lock-fresh.
     4,
     'one App token step per privileged job',
   );
-  assert.match(workflow, /client-id: \$\{\{ vars\.GH_APP_CLIENT_ID \}\}/);
-  assert.match(workflow, /private-key: \$\{\{ secrets\.GH_APP_PRIVATE_KEY \}\}/);
+  assert.match(workflow, /client-id: \$\{\{ vars\.GH_ACTION_RELEASE_PLEASE_APP_ID \}\}/);
+  assert.match(workflow, /private-key: \$\{\{ secrets\.AUTOMATION_APP_PRIVATE_KEY \}\}/);
 });
 
 test('the deferred run re-runs the shared gate on HEAD with the caller config', () => {

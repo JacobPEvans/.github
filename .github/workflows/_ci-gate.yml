@@ -581,9 +581,14 @@ on:
       GH_APP_PRIVATE_KEY:
         description: >-
           Optional. Lets the flake freshness check resolve private flake
-          inputs; public inputs resolve without it. The tiny and land-first
+          inputs; public inputs resolve without it.
+        required: false
+      AUTOMATION_APP_PRIVATE_KEY:
+        description: >-
+          Optional private key of the automation App
+          (vars.GH_ACTION_RELEASE_PLEASE_APP_ID). The tiny and land-first
           lanes need it: the gate labels their pull requests checks:deferred
-          with an App token.
+          with that App's token.
         required: false
 
 permissions:
@@ -623,7 +628,7 @@ jobs:
       instruction_paths: ${{ inputs.instruction_paths }}
       guarded_paths: ${{ inputs.guarded_paths }}
     secrets:
-      GH_APP_PRIVATE_KEY: ${{ secrets.GH_APP_PRIVATE_KEY }}
+      AUTOMATION_APP_PRIVATE_KEY: ${{ secrets.AUTOMATION_APP_PRIVATE_KEY }}
 
   # ============================================================================
   # CHANGE DETECTION
@@ -1184,8 +1189,8 @@ jobs:
         if: ${{ github.event_name == 'pull_request' && (needs.lane.outputs.lane == 'tiny' || needs.lane.outputs.lane == 'land-first') }}
         uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3
         with:
-          client-id: ${{ vars.GH_APP_CLIENT_ID }}
-          private-key: ${{ secrets.GH_APP_PRIVATE_KEY }}
+          client-id: ${{ vars.GH_ACTION_RELEASE_PLEASE_APP_ID }}
+          private-key: ${{ secrets.AUTOMATION_APP_PRIVATE_KEY }}
           repositories: ${{ github.event.repository.name }}
           permission-pull-requests: write
       - name: Label the pull request checks:deferred
