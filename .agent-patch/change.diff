@@ -1,0 +1,423 @@
+diff --git a/.github/workflows/_ci-gate.yml b/.github/workflows/_ci-gate.yml
+index bd4a357..4ffc903 100644
+--- a/.github/workflows/_ci-gate.yml
++++ b/.github/workflows/_ci-gate.yml
+@@ -1062,7 +1062,7 @@ jobs:
+   # ============================================================================
+   gate:
+     name: Merge Gate
+-    needs: [changes, scope, watchdog, flake-lock-fresh, nix-validate, nix-build, markdown-lint, file-size, token-limits, python-security, python-ci, ansible-ci, renovate-annotations, tofu-ci, osv-scan, dependency-review, zizmor, uses-resolve, repo-tests, workflow-lint]
++    needs: [changes, scope, lane, watchdog, flake-lock-fresh, nix-validate, nix-build, markdown-lint, file-size, token-limits, python-security, python-ci, ansible-ci, renovate-annotations, tofu-ci, osv-scan, dependency-review, zizmor, uses-resolve, repo-tests, workflow-lint]
+     # Run after workflow cancellation too, so cancelled sibling checks aggregate
+     # to a failing required status instead of a skipped (successful) job.
+     if: ${{ always() }}
+@@ -1071,11 +1071,14 @@ jobs:
+     permissions:
+       # `actions: read` lets the run-report step read this run's jobs (durations
+       # + queue delays) via the Actions API; `contents: read` is for the sparse
+-      # checkout of the report script. Both stay within the STANDARD caller grant
++      # checkout of the report script; `pull-requests: read` lets the
++      # deferred-check label step read the pull request's live labels from the
++      # API. All stay within the STANDARD caller grant
+       # (contents: read, pull-requests: read, actions: write), so this never
+       # exceeds what the caller granted — see the PERMISSIONS INVARIANT header.
+       actions: read
+       contents: read
++      pull-requests: read
+     steps:
+       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+         with:
+@@ -1090,20 +1093,61 @@ jobs:
+           ref: ${{ job.workflow_sha }}
+           path: .gh-shared
+           sparse-checkout: |
+-            scripts/ci-gate-aggregate.mts
+             scripts/ci-gate-run-report.sh
+           sparse-checkout-cone-mode: false
+       - name: Aggregate results
++        id: aggregate
++        uses: re-actors/alls-green@b5b5b37504aa4183270bd3d855c52a67f212be35 # v1.3.0
++        with:
++          jobs: ${{ toJSON(needs) }}
++          # One inline expression: every conditional job may skip, except the
++          # lane-gated heavy jobs (nix-build) on a merge_group entry of a
++          # non-legacy repository — there the queue requires them to run, so a
++          # skipped mapped heavy job fails the gate. Legacy keeps the exact
++          # skip set the previous aggregate script allowed. A job in
++          # allowed-skips is still a failure when it fails or is cancelled.
++          allowed-skips: >-
++            ${{ needs.lane.outputs.tier != 'legacy' && github.event_name == 'merge_group' && 'flake-lock-fresh, nix-validate, markdown-lint, file-size, token-limits, python-security, python-ci, ansible-ci, renovate-annotations, tofu-ci, osv-scan, dependency-review, zizmor, watchdog, repo-tests, workflow-lint' || 'flake-lock-fresh, nix-validate, nix-build, markdown-lint, file-size, token-limits, python-security, python-ci, ansible-ci, renovate-annotations, tofu-ci, osv-scan, dependency-review, zizmor, watchdog, repo-tests, workflow-lint' }}
++          allowed-failures: scope
++      # Tiny and land-first pull requests defer the heavy checks to the
++      # post-merge workflow; mark them so post-merge knows to verify them.
++      # Never label guarded, fork or sandbox-author pull requests (the
++      # sandbox identity literals mirror _lane.yml's sandbox_logins default
++      # and its `agent/` head-branch rule). The label write needs
++      # `pull-requests: write`, which a called workflow can never grant
++      # itself (PERMISSIONS INVARIANT): within the standard grant the API
++      # refuses the edit and this step fails loudly naming the missing
++      # permission — a caller that wants the label adds
++      # `pull-requests: write` to its own gate job grant.
++      - name: Label deferred checks on fast-lane pull requests
++        if: >-
++          ${{ steps.aggregate.conclusion == 'success' &&
++          (needs.lane.outputs.lane == 'tiny' || needs.lane.outputs.lane == 'land-first') &&
++          github.event_name == 'pull_request' &&
++          github.event.pull_request.head.repo.full_name == github.repository &&
++          github.event.pull_request.user.login != 'jacobs-agent-smith[bot]' &&
++          !startsWith(github.head_ref, 'agent/') &&
++          needs.lane.outputs.lane != 'guarded' }}
+         env:
+-          CI_GATE_JOBS: ${{ toJSON(needs) }}
+-          CI_GATE_ALLOWED_SKIPS: >-
+-            flake-lock-fresh,
+-            nix-validate, nix-build, markdown-lint, file-size, token-limits,
+-            python-security, python-ci, ansible-ci, renovate-annotations,
+-            tofu-ci, osv-scan, dependency-review, zizmor, watchdog,
+-            repo-tests, workflow-lint
+-          CI_GATE_ALLOWED_FAILURES: scope
+-        run: node .gh-shared/scripts/ci-gate-aggregate.mts
++          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
++          REPO: ${{ github.repository }}
++          PR_NUMBER: ${{ github.event.pull_request.number }}
++        run: |
++          set -euo pipefail
++          # Read the labels live from the API, never from the event payload,
++          # which a concurrent labelling or a stale trigger event can make
++          # out of date.
++          labelled="$(gh pr view "$PR_NUMBER" --repo "$REPO" --json labels \
++            --jq 'any(.labels[]?; .name == "checks:deferred")')"
++          if [[ "$labelled" == "true" ]]; then
++            echo "pull request #$PR_NUMBER already carries checks:deferred"
++            exit 0
++          fi
++          if ! gh pr edit "$PR_NUMBER" --repo "$REPO" --add-label checks:deferred; then
++            echo "::error::labelling pull request #$PR_NUMBER with checks:deferred failed; the caller must grant the pull-requests: write permission to the gate job"
++            exit 1
++          fi
++          echo "labelled pull request #$PR_NUMBER with checks:deferred"
+       # Run after every sibling is terminal, when timestamps are final.
+       - name: Job durations + queue-delay summary
+         if: ${{ always() }}
+diff --git a/scripts/ci-gate-aggregate.mts b/scripts/ci-gate-aggregate.mts
+deleted file mode 100644
+index 9ed4361..0000000
+--- a/scripts/ci-gate-aggregate.mts
++++ /dev/null
+@@ -1,68 +0,0 @@
+-import { pathToFileURL } from 'node:url';
+-
+-type JobResult = {
+-  result?: unknown;
+-};
+-
+-type Needs = Record<string, JobResult>;
+-
+-const knownResults = new Set(['success', 'failure', 'cancelled', 'skipped']);
+-
+-function gateFailures(
+-  needs: Needs,
+-  allowedSkips: ReadonlySet<string>,
+-  allowedFailures: ReadonlySet<string>,
+-): string[] {
+-  return Object.entries(needs).flatMap(([name, job]) => {
+-    const result = job.result;
+-    if (result === 'success' || (result === 'skipped' && allowedSkips.has(name))) return [];
+-    if (result === 'failure' && allowedFailures.has(name)) return [];
+-    if (typeof result !== 'string' || !knownResults.has(result)) {
+-      return [`job "${name}" returned unknown result ${JSON.stringify(result) ?? String(result)}`];
+-    }
+-    return [`job "${name}" returned ${result}`];
+-  });
+-}
+-
+-function parseSet(value: string | undefined): ReadonlySet<string> {
+-  return new Set((value ?? '').split(',').map((entry) => entry.trim()).filter(Boolean));
+-}
+-
+-function isNeeds(value: unknown): value is Needs {
+-  return (
+-    typeof value === 'object' &&
+-    value !== null &&
+-    !Array.isArray(value) &&
+-    Object.values(value).every((job) => typeof job === 'object' && job !== null && !Array.isArray(job))
+-  );
+-}
+-
+-function main(): void {
+-  let parsed: unknown;
+-  try {
+-    parsed = JSON.parse(process.env.CI_GATE_JOBS ?? '');
+-  } catch {
+-    console.error('Merge Gate failed: CI_GATE_JOBS is not valid JSON.');
+-    process.exitCode = 1;
+-    return;
+-  }
+-  if (!isNeeds(parsed)) {
+-    console.error('Merge Gate failed: CI_GATE_JOBS must be an object of job results.');
+-    process.exitCode = 1;
+-    return;
+-  }
+-
+-  const failures = gateFailures(
+-    parsed,
+-    parseSet(process.env.CI_GATE_ALLOWED_SKIPS),
+-    parseSet(process.env.CI_GATE_ALLOWED_FAILURES),
+-  );
+-  if (failures.length > 0) {
+-    console.error(`Merge Gate failed: ${failures.join('; ')}.`);
+-    process.exitCode = 1;
+-    return;
+-  }
+-  console.log(`Merge Gate passed: ${Object.keys(parsed).length} jobs checked.`);
+-}
+-
+-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) main();
+diff --git a/tests/ci-gate-aggregate.test.mts b/tests/ci-gate-aggregate.test.mts
+deleted file mode 100644
+index 59f873f..0000000
+--- a/tests/ci-gate-aggregate.test.mts
++++ /dev/null
+@@ -1,80 +0,0 @@
+-import assert from 'node:assert/strict';
+-import { spawnSync } from 'node:child_process';
+-import { fileURLToPath } from 'node:url';
+-import { test } from 'node:test';
+-
+-const script = fileURLToPath(new URL('../scripts/ci-gate-aggregate.mts', import.meta.url));
+-
+-function runAggregator(jobs: object, allowedSkips = '', allowedFailures = '') {
+-  return spawnSync(process.execPath, [script], {
+-    encoding: 'utf8',
+-    env: {
+-      ...process.env,
+-      CI_GATE_JOBS: JSON.stringify(jobs),
+-      CI_GATE_ALLOWED_SKIPS: allowedSkips,
+-      CI_GATE_ALLOWED_FAILURES: allowedFailures,
+-    },
+-  });
+-}
+-
+-test('unknown results fail with the job name and result', () => {
+-  const run = runAggregator({ detect_changes: { result: 'abandoned' } });
+-
+-  assert.equal(run.status, 1);
+-  assert.equal(run.stderr.trim(), 'Merge Gate failed: job "detect_changes" returned unknown result "abandoned".');
+-});
+-
+-test('cancelled jobs remain named failures', () => {
+-  const run = runAggregator({ changes: { result: 'cancelled' } });
+-
+-  assert.equal(run.status, 1);
+-  assert.equal(run.stderr.trim(), 'Merge Gate failed: job "changes" returned cancelled.');
+-});
+-
+-test('a cancelled watchdog remains a failure even though watchdog skips are allowed', () => {
+-  const run = runAggregator({ watchdog: { result: 'cancelled' } }, 'watchdog');
+-
+-  assert.equal(run.status, 1);
+-  assert.equal(run.stderr.trim(), 'Merge Gate failed: job "watchdog" returned cancelled.');
+-});
+-
+-test('successes and explicitly allowed skips and failures pass', () => {
+-  const run = runAggregator(
+-    {
+-      changes: { result: 'success' },
+-      lint: { result: 'skipped' },
+-      scope: { result: 'failure' },
+-    },
+-    'lint',
+-    'scope',
+-  );
+-
+-  assert.equal(run.status, 0);
+-  assert.match(run.stdout, /Merge Gate passed/);
+-});
+-
+-test('focused PR passes when ci succeeds and Molecule has no selected scenarios', () => {
+-  const run = runAggregator(
+-    {
+-      ci: { result: 'success' },
+-      molecule: { result: 'skipped' },
+-    },
+-    'molecule',
+-  );
+-
+-  assert.equal(run.status, 0);
+-  assert.match(run.stdout, /Merge Gate passed: 2 jobs checked\./);
+-});
+-
+-test('focused PR still fails if ci fails while Molecule has no selected scenarios', () => {
+-  const run = runAggregator(
+-    {
+-      ci: { result: 'failure' },
+-      molecule: { result: 'skipped' },
+-    },
+-    'molecule',
+-  );
+-
+-  assert.equal(run.status, 1);
+-  assert.equal(run.stderr.trim(), 'Merge Gate failed: job "ci" returned failure.');
+-});
+diff --git a/tests/ci-gate-gate-job.test.js b/tests/ci-gate-gate-job.test.js
+new file mode 100644
+index 0000000..8d43abb
+--- /dev/null
++++ b/tests/ci-gate-gate-job.test.js
+@@ -0,0 +1,142 @@
++import assert from 'node:assert/strict';
++import { execFileSync } from 'node:child_process';
++import { existsSync, readFileSync } from 'node:fs';
++import { fileURLToPath } from 'node:url';
++import test from 'node:test';
++
++const workflowText = readFileSync(
++  new URL('../.github/workflows/_ci-gate.yml', import.meta.url),
++  'utf8',
++);
++
++const workflow = JSON.parse(execFileSync(
++  'python3',
++  ['-c', 'import json, sys, yaml; print(json.dumps(yaml.load(sys.stdin, Loader=yaml.BaseLoader)))'],
++  { input: workflowText, encoding: 'utf8' },
++));
++
++const gate = workflow.jobs.gate;
++const stepByName = (name) => gate.steps.find((step) => step.name === name);
++
++// Folded (`>-`) scalars parse to one string; normalise the whitespace so the
++// pins below do not depend on how the expression is wrapped across lines.
++const flat = (value) => String(value).replace(/\s+/g, ' ').trim();
++
++test('the gate aggregates with re-actors/alls-green pinned to the v1.3.0 release commit', () => {
++  const aggregate = stepByName('Aggregate results');
++  assert.ok(aggregate, 'an Aggregate results step exists');
++  assert.match(
++    workflowText,
++    /uses: re-actors\/alls-green@[0-9a-f]{40} # v1\.3\.0$/m,
++    'the action is pinned to a full commit id with a version comment',
++  );
++  assert.equal(aggregate.id, 'aggregate');
++  assert.equal(aggregate.with.jobs, '${{ toJSON(needs) }}');
++  assert.equal(aggregate.with['allowed-failures'], 'scope');
++});
++
++// The jobs that only the lane gates (heavy jobs) must fail a skipped run of
++// theirs on a merge_group entry of a non-legacy repository; every other
++// conditional job keeps its configured skip, and legacy keeps the exact set
++// the deleted aggregate script allowed.
++test('allowed-skips bars the mapped heavy jobs only on non-legacy merge_group entries', () => {
++  const aggregate = stepByName('Aggregate results');
++  const skips = flat(aggregate.with['allowed-skips']);
++  assert.match(
++    skips,
++    /^\$\{\{ needs\.lane\.outputs\.tier != 'legacy' && github\.event_name == 'merge_group' &&/,
++    'one inline expression reads the lane tier and the event',
++  );
++  // The expression's quoted literals are its two short operands ('legacy',
++  // 'merge_group') and the two comma-separated skip lists; keep the lists.
++  const skipLists = [...skips.matchAll(/'([^']*)'/g)]
++    .map((match) => match[1])
++    .filter((literal) => literal.includes(','));
++  assert.equal(skipLists.length, 2, 'the expression picks between two skip lists');
++  const [mergeQueueSkips, legacySkips] = skipLists.map(
++    (list) => list.split(',').map((name) => name.trim()),
++  );
++  assert.ok(!mergeQueueSkips.includes('nix-build'), 'the mapped heavy job may not skip on merge_group');
++  const conditionalJobs = [
++    'flake-lock-fresh',
++    'nix-validate',
++    'markdown-lint',
++    'file-size',
++    'token-limits',
++    'python-security',
++    'python-ci',
++    'ansible-ci',
++    'renovate-annotations',
++    'tofu-ci',
++    'osv-scan',
++    'dependency-review',
++    'zizmor',
++    'watchdog',
++    'repo-tests',
++    'workflow-lint',
++  ];
++  assert.deepEqual(mergeQueueSkips, conditionalJobs, 'every other conditional job may still skip');
++  assert.deepEqual(
++    [...legacySkips].sort(),
++    [...conditionalJobs, 'nix-build'].sort(),
++    'legacy keeps the exact skip set the aggregate script allowed',
++  );
++  for (const alwaysRequired of ['changes', 'uses-resolve', 'scope']) {
++    assert.ok(!legacySkips.includes(alwaysRequired), `${alwaysRequired} is never skippable`);
++    assert.ok(!mergeQueueSkips.includes(alwaysRequired), `${alwaysRequired} is never skippable`);
++  }
++});
++
++test('the shared aggregate script and its test are deleted while the run report stays', () => {
++  assert.equal(existsSync(new URL('../scripts/ci-gate-aggregate.mts', import.meta.url)), false);
++  assert.equal(existsSync(new URL('../tests/ci-gate-aggregate.test.mts', import.meta.url)), false);
++  assert.doesNotMatch(workflowText, /ci-gate-aggregate/);
++  const checkout = stepByName('Sparse-checkout gate scripts from this repo');
++  assert.match(checkout.with['sparse-checkout'], /scripts\/ci-gate-run-report\.sh/);
++  assert.ok(stepByName('Job durations + queue-delay summary'), 'the run-report step stays');
++});
++
++test('the label step follows aggregation and only fast same-repo non-sandbox pull requests get it', () => {
++  const label = stepByName('Label deferred checks on fast-lane pull requests');
++  assert.ok(label, 'a label step exists');
++  const names = gate.steps.map((step) => step.name);
++  assert.ok(names.indexOf('Aggregate results') < names.indexOf(label.name), 'it runs after the aggregate step');
++  const condition = flat(label.if);
++  for (const clause of [
++    "steps.aggregate.conclusion == 'success'",
++    "needs.lane.outputs.lane == 'tiny'",
++    "needs.lane.outputs.lane == 'land-first'",
++    "github.event_name == 'pull_request'",
++    'github.event.pull_request.head.repo.full_name == github.repository',
++    "github.event.pull_request.user.login != 'jacobs-agent-smith[bot]'",
++    "!startsWith(github.head_ref, 'agent/')",
++    "needs.lane.outputs.lane != 'guarded'",
++  ]) {
++    assert.ok(condition.includes(clause), `the label condition pins: ${clause}`);
++  }
++});
++
++test('the label step reads the labels live and fails loudly naming the missing permission', () => {
++  const label = stepByName('Label deferred checks on fast-lane pull requests');
++  assert.match(label.run, /gh pr view "\$PR_NUMBER" --repo "\$REPO" --json labels/);
++  assert.match(label.run, /--add-label checks:deferred/);
++  assert.match(label.run, /pull-requests: write/);
++  assert.equal(
++    label.env.GH_TOKEN,
++    '${{ secrets.GITHUB_TOKEN }}',
++    'the step uses the token the gate job already has',
++  );
++});
++
++test('the gate keeps its required shape and never declares the label write itself', () => {
++  assert.equal(gate.name, 'Merge Gate');
++  assert.equal(gate.if, '${{ always() }}');
++  assert.equal(gate.permissions.actions, 'read');
++  assert.equal(gate.permissions.contents, 'read');
++  assert.equal(gate.permissions['pull-requests'], 'read');
++  assert.doesNotMatch(
++    workflowText,
++    /^ {6}pull-requests: write$/m,
++    'the write scope must come from the caller, per the permissions invariant',
++  );
++});
+diff --git a/tests/reusable-workflows.test.js b/tests/reusable-workflows.test.js
+index 6233e83..b0cda65 100644
+--- a/tests/reusable-workflows.test.js
++++ b/tests/reusable-workflows.test.js
+@@ -75,5 +75,8 @@ test('flake lock freshness is optional and included in the merge gate', () => {
+     /^  flake-lock-fresh:\n    name: Flake Lock Fresh\n    if: \$\{\{ inputs\.flake_lock_max_age_days > 0 \}\}\n    permissions:\n      contents: read\n    uses: dryvist\/\.github\/\.github\/workflows\/_flake-lock-fresh\.yml@[0-9a-f]{40} # PR #426 merge commit\n    with:\n      max_age_days: \$\{\{ inputs\.flake_lock_max_age_days \}\}$/m,
+   );
+   assert.match(gate, /^    needs: \[.*\bflake-lock-fresh\b.*\]$/m);
+-  assert.match(gate, /^          CI_GATE_ALLOWED_SKIPS: >-\n(?:^            .*\n)*?^            .*flake-lock-fresh/m);
++  assert.match(
++    gate,
++    /^          allowed-skips: >-\n            \$\{\{ needs\.lane\.outputs\.tier != 'legacy' && github\.event_name == 'merge_group' && 'flake-lock-fresh,/m,
++  );
+ });
