@@ -1,0 +1,178 @@
+diff --git a/.github/workflows/_ansible-ci.yml b/.github/workflows/_ansible-ci.yml
+index 3625b62..8b5d323 100644
+--- a/.github/workflows/_ansible-ci.yml
++++ b/.github/workflows/_ansible-ci.yml
+@@ -231,10 +231,10 @@ jobs:
+         env:
+           REQ: ${{ inputs.molecule_requirements }}
+         run: uv pip install --system -r "$REQ"
+-      # A restore-key hit can contain dependencies from a different
+-      # requirements.yml digest. ansible-lint's implicit install does not
+-      # force-replace those restored versions, so only an exact cache hit may
+-      # skip installing the current requirements before lint.
++      # Exact key only: a partial restore could hold dependencies from a
++      # different requirements.yml digest, and ansible-lint's implicit install
++      # does not force-replace restored versions. A miss restores nothing, so
++      # the installs below populate clean paths without --force.
+       - name: Cache Ansible Galaxy content
+         id: galaxy-cache
+         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+@@ -243,11 +243,6 @@ jobs:
+             ~/.ansible/collections
+             ~/.ansible/roles
+           key: ansible-galaxy-v2-${{ runner.os }}-${{ hashFiles('requirements.yml') }}
+-          # A branch that edits requirements.yml gets a new key. A partial
+-          # restore keeps unchanged dependencies warm; the explicit install
+-          # below force-reconciles restored content against the current pins.
+-          restore-keys: |
+-            ansible-galaxy-v2-${{ runner.os }}-
+       - name: Note when there is nothing to install
+         if: ${{ hashFiles('requirements.yml') == '' }}
+         run: echo "::notice::no requirements.yml, nothing to install"
+@@ -258,7 +253,7 @@ jobs:
+           max_attempts: 3
+           retry_wait_seconds: 30
+           timeout_minutes: 1
+-          command: ansible-galaxy collection install -r requirements.yml --force
++          command: ansible-galaxy collection install -r requirements.yml
+       # Roles install to ~/.ansible/roles, outside the checkout, so ansible-lint
+       # never lints vendored Galaxy role code. Without -p, ansible-galaxy writes
+       # to the first roles_path in ansible.cfg (roles/), inside the linted tree.
+@@ -269,7 +264,7 @@ jobs:
+           max_attempts: 3
+           retry_wait_seconds: 30
+           timeout_minutes: 1
+-          command: ansible-galaxy role install -r requirements.yml --force -p "$HOME/.ansible/roles"
++          command: ansible-galaxy role install -r requirements.yml -p "$HOME/.ansible/roles"
+       # Runs on every hit or miss: ansible.cfg's roles_path would otherwise
+       # hide ~/.ansible/roles. Repo roles/ stays first in the search path,
+       # then the repo's own ansible.cfg roles_path (if any), then Galaxy roles.
+diff --git a/.github/workflows/_osv-scan.yml b/.github/workflows/_osv-scan.yml
+index f76d6d9..269963b 100644
+--- a/.github/workflows/_osv-scan.yml
++++ b/.github/workflows/_osv-scan.yml
+@@ -56,11 +56,21 @@ jobs:
+           fetch-depth: 0
+           persist-credentials: false
+ 
++      # The key pins the scanner release that the download step installs, so a
++      # version bump downloads fresh instead of restoring a stale binary.
++      - name: Cache osv-scanner
++        id: osv-cache
++        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
++        with:
++          path: ~/.cache/osv-scanner
++          key: osv-${{ runner.os }}-${{ runner.arch }}-v2.7.1
++
+       - name: Download osv-scanner
+         id: osv-download
+         uses: nick-fields/retry@ad984534de44a9489a53aefd81eb77f87c70dc60 # v4.0.0
+         env:
+           GH_TOKEN: ${{ github.token }}
++          CACHE_HIT: ${{ steps.osv-cache.outputs.cache-hit }}
+         with:
+           max_attempts: 3
+           retry_wait_seconds: 30
+@@ -80,16 +90,20 @@ jobs:
+               *) echo "::error::unsupported arch: $(uname -m)"; exit 1 ;;
+             esac
+             asset="osv-scanner_${os}_${arch}"
+-            base="https://github.com/google/osv-scanner/releases/download/${OSV_SCANNER_VERSION}"
+-            if command -v gh >/dev/null 2>&1; then
+-              gh release download "$OSV_SCANNER_VERSION" --repo google/osv-scanner \
+-                --pattern "$asset" --pattern osv-scanner_SHA256SUMS --dir "$RUNNER_TEMP" --clobber
+-            else
+-              unset GH_TOKEN
+-              curl -fsSL --retry 5 --retry-all-errors --retry-delay 10 --connect-timeout 20 \
+-                -o "${RUNNER_TEMP}/${asset}" "${base}/${asset}"
+-              curl -fsSL --retry 5 --retry-all-errors --retry-delay 10 --connect-timeout 20 \
+-                -o "${RUNNER_TEMP}/osv-scanner_SHA256SUMS" "${base}/osv-scanner_SHA256SUMS"
++            dir="${HOME}/.cache/osv-scanner"
++            mkdir -p "${dir}"
++            if [ "${CACHE_HIT}" != "true" ]; then
++              base="https://github.com/google/osv-scanner/releases/download/${OSV_SCANNER_VERSION}"
++              if command -v gh >/dev/null 2>&1; then
++                gh release download "$OSV_SCANNER_VERSION" --repo google/osv-scanner \
++                  --pattern "$asset" --pattern osv-scanner_SHA256SUMS --dir "$dir" --clobber
++              else
++                unset GH_TOKEN
++                curl -fsSL --retry 5 --retry-all-errors --retry-delay 10 --connect-timeout 20 \
++                  -o "${dir}/${asset}" "${base}/${asset}"
++                curl -fsSL --retry 5 --retry-all-errors --retry-delay 10 --connect-timeout 20 \
++                  -o "${dir}/osv-scanner_SHA256SUMS" "${base}/osv-scanner_SHA256SUMS"
++              fi
+             fi
+             echo "asset=${asset}" >> "$GITHUB_OUTPUT"
+ 
+@@ -98,14 +112,14 @@ jobs:
+           asset: ${{ steps.osv-download.outputs.asset }}
+         run: |
+           set -euo pipefail
+-          cd "${RUNNER_TEMP}"
++          cd "${HOME}/.cache/osv-scanner"
+           if command -v sha256sum >/dev/null; then
+             grep " ${asset}\$" osv-scanner_SHA256SUMS | sha256sum -c -
+           else
+             grep " ${asset}\$" osv-scanner_SHA256SUMS | shasum -a 256 -c -
+           fi
+           chmod +x "${asset}"
+-          echo "OSV_BIN=${RUNNER_TEMP}/${asset}" >> "${GITHUB_ENV}"
++          echo "OSV_BIN=${HOME}/.cache/osv-scanner/${asset}" >> "${GITHUB_ENV}"
+ 
+       - name: Scan
+         env:
+diff --git a/.github/workflows/_zizmor.yml b/.github/workflows/_zizmor.yml
+index 84ee24f..2d5086f 100644
+--- a/.github/workflows/_zizmor.yml
++++ b/.github/workflows/_zizmor.yml
+@@ -38,6 +38,16 @@ jobs:
+         # only v8.x.x full tags exist today, so this pins the latest full v8.
+         uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+ 
++      # uvx resolves the pinned zizmor into the uv cache, so caching that
++      # directory reuses the tool environment across runs. The key carries the
++      # version input: a bump downloads fresh instead of restoring a stale env.
++      - name: Cache zizmor
++        id: zizmor-cache
++        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
++        with:
++          path: ~/.cache/uv
++          key: zizmor-${{ runner.os }}-${{ runner.arch }}-${{ inputs.zizmor_version }}
++
+       # zizmor runs centrally against the org's canonical policy, fetched here —
+       # the consumer never copies zizmor.yml.
+       - name: Fetch central zizmor policy
+diff --git a/.github/workflows/pr-policy.yml b/.github/workflows/pr-policy.yml
+index fe81b97..108806c 100644
+--- a/.github/workflows/pr-policy.yml
++++ b/.github/workflows/pr-policy.yml
+@@ -32,8 +32,17 @@ jobs:
+             scripts/pr-policy.py
+             scripts/pr-policy-diff.sh
+           sparse-checkout-cone-mode: false
++      # The key pins the spec: a hit means the target dir already holds the
++      # pinned PyYAML and the install is skipped; a bump reinstalls fresh.
++      - name: Cache the YAML parser
++        id: pyyaml-cache
++        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
++        with:
++          path: ~/.cache/pr-policy-deps
++          key: "pr-policy-pyyaml-${{ runner.os }}-PyYAML>=6.0.2,<7"
+       - name: Install the YAML parser
+-        run: python3 -m pip install --disable-pip-version-check --no-warn-script-location --target "$RUNNER_TEMP/pr-policy-deps" 'PyYAML>=6.0.2,<7'
++        if: ${{ steps.pyyaml-cache.outputs.cache-hit != 'true' }}
++        run: python3 -m pip install --disable-pip-version-check --no-warn-script-location --target "$HOME/.cache/pr-policy-deps" 'PyYAML>=6.0.2,<7'
+       # Only lines the PR adds or changes are checked, so existing debt never blocks an unrelated PR.
+       # A diff the API cannot return in full falls back to checking every file.
+       - name: Fetch the PR diff
+@@ -49,9 +58,7 @@ jobs:
+             echo "::warning::PR diff unavailable; checking every workflow file."
+           fi
+       - name: Check workflow policy
+-        env:
+-          PYTHONPATH: ${{ runner.temp }}/pr-policy-deps
+-        run: python3 .pr-policy/scripts/pr-policy.py "$GITHUB_WORKSPACE" ${PR_POLICY_DIFF:+--diff "$PR_POLICY_DIFF"}
++        run: PYTHONPATH="$HOME/.cache/pr-policy-deps" python3 .pr-policy/scripts/pr-policy.py "$GITHUB_WORKSPACE" ${PR_POLICY_DIFF:+--diff "$PR_POLICY_DIFF"}
+ 
+   pr-title:
+     name: PR Title
