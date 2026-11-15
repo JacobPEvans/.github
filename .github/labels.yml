@@ -151,6 +151,25 @@
   description: "Opt-in: skip heavy suites when the diff is under 15 lines and 5 files."
 
 # =============================================================================
+# MERGE LANE LABELS - Read and set by the merge gate
+# =============================================================================
+- name: "land-first"
+  color: "16A34A"
+  description: "Land first - merge on fast checks; heavy checks and review run after merge"
+
+- name: "preflight"
+  color: "0284C7"
+  description: "Preflight - run the heavy checks on this pull request now"
+
+- name: "checks:deferred"
+  color: "C4B5FD"
+  description: "Checks deferred - set by the gate on a fast-lane merge; settled after merge"
+
+- name: "auto-revert"
+  color: "E11D48"
+  description: "Automatic revert of a merged pull request"
+
+# =============================================================================
 # HUMAN REVIEW LABEL - The human counterpart to ai:* review state
 # Applied by an AI flow to a main-targeted PR to request a human before merge.
 # Neon lime stands out from the crowded amber/red ramps on purpose.
