@@ -1,0 +1,390 @@
+diff --git a/.github/workflows/_ci-gate.yml b/.github/workflows/_ci-gate.yml
+index e4ca620..85b954c 100644
+--- a/.github/workflows/_ci-gate.yml
++++ b/.github/workflows/_ci-gate.yml
+@@ -785,7 +785,12 @@ jobs:
+     needs: [changes, scope, lane]
+     # Full-tier events bypass dependency-only and scope narrowing; other PRs
+     # retain the existing relevance and default-branch gates.
+-    if: ${{ !cancelled() && inputs.nix_build && (github.event_name != 'pull_request' || needs.changes.outputs.production_pr == 'true') && needs.changes.outputs.nix == 'true' && needs.lane.outputs.fast_path != 'true' && (needs.changes.outputs.test_tier == 'full' || inputs.nix_skip_deps_only == false || needs.changes.outputs.is-deps-only != 'true' || needs.changes.outputs.is-flake-lock-change == 'true' || needs.changes.outputs.is-nix-source-change == 'true') && (needs.changes.outputs.test_tier == 'full' || needs.changes.outputs.profile-unmapped == 'true' || needs.scope.result != 'success' || (needs.scope.outputs.ci != 'lint-only' && needs.scope.outputs.ci != 'none')) }}
++    if: >-
++      ${{ !cancelled() && inputs.nix_build && (github.event_name != 'pull_request' || needs.changes.outputs.production_pr == 'true') && needs.changes.outputs.nix == 'true' && needs.lane.outputs.fast_path != 'true' &&
++      (needs.changes.outputs.test_tier == 'full' || inputs.nix_skip_deps_only == false || needs.changes.outputs.is-deps-only != 'true' || needs.changes.outputs.is-flake-lock-change == 'true' || needs.changes.outputs.is-nix-source-change == 'true') &&
++      (needs.changes.outputs.test_tier == 'full' || needs.changes.outputs.profile-unmapped == 'true' || needs.scope.result != 'success' || (needs.scope.outputs.ci != 'lint-only' && needs.scope.outputs.ci != 'none')) &&
++      (needs.lane.outputs.tier == 'legacy' || ((needs.lane.outputs.tier == 'standard' && github.event_name == 'pull_request') || (needs.lane.outputs.tier == 'hot' && (github.event_name == 'merge_group' || contains(github.event.pull_request.labels.*.name, 'preflight')))) &&
++      !startsWith(github.head_ref, 'release-please') && !startsWith(github.head_ref, 'promote/') && !startsWith(github.event.pull_request.title, 'chore(main): release ') && github.event.action != 'labeled' && github.event.action != 'unlabeled') }}
+     uses: ./.github/workflows/_nix-build.yml
+     with:
+       build-command: ${{ inputs.nix_build_command }}
+@@ -829,11 +834,15 @@ jobs:
+ 
+   python-ci:
+     name: Python CI
+-    needs: [changes, scope]
++    needs: [changes, scope, lane]
+     # Full-tier: this runs the full lint/format/type/test matrix, not just
+     # a fast validate - only narrows when scope succeeded and said
+     # something other than full.
+-    if: ${{ !cancelled() && (inputs.python_ci || inputs.profile == 'python') && needs.changes.outputs.python == 'true' && (needs.changes.outputs.test_tier == 'full' || needs.changes.outputs.profile-unmapped == 'true' || needs.scope.result != 'success' || (needs.scope.outputs.ci != 'lint-only' && needs.scope.outputs.ci != 'none')) }}
++    if: >-
++      ${{ !cancelled() && (inputs.python_ci || inputs.profile == 'python') && needs.changes.outputs.python == 'true' &&
++      (needs.changes.outputs.test_tier == 'full' || needs.changes.outputs.profile-unmapped == 'true' || needs.scope.result != 'success' || (needs.scope.outputs.ci != 'lint-only' && needs.scope.outputs.ci != 'none')) &&
++      (needs.lane.outputs.tier == 'legacy' || ((needs.lane.outputs.tier == 'standard' && github.event_name == 'pull_request') || (needs.lane.outputs.tier == 'hot' && (github.event_name == 'merge_group' || contains(github.event.pull_request.labels.*.name, 'preflight')))) &&
++      !startsWith(github.head_ref, 'release-please') && !startsWith(github.head_ref, 'promote/') && !startsWith(github.event.pull_request.title, 'chore(main): release ') && github.event.action != 'labeled' && github.event.action != 'unlabeled') }}
+     uses: ./.github/workflows/_python-ci.yml
+     with:
+       python_versions: ${{ inputs.python_ci_versions }}
+@@ -890,7 +899,11 @@ jobs:
+   ansible-ci:
+     name: Ansible CI
+     needs: [changes, scope, lane]
+-    if: ${{ !cancelled() && (inputs.ansible_ci || inputs.profile == 'ansible') && needs.changes.outputs.ansible == 'true' && (needs.changes.outputs.test_tier == 'full' || needs.changes.outputs.profile-unmapped == 'true' || needs.scope.result != 'success' || needs.scope.outputs.ci != 'none') }}
++    if: >-
++      ${{ !cancelled() && (inputs.ansible_ci || inputs.profile == 'ansible') && needs.changes.outputs.ansible == 'true' &&
++      (needs.changes.outputs.test_tier == 'full' || needs.changes.outputs.profile-unmapped == 'true' || needs.scope.result != 'success' || needs.scope.outputs.ci != 'none') &&
++      (needs.lane.outputs.tier == 'legacy' || ((needs.lane.outputs.tier == 'standard' && github.event_name == 'pull_request') || (needs.lane.outputs.tier == 'hot' && (github.event_name == 'merge_group' || contains(github.event.pull_request.labels.*.name, 'preflight')))) &&
++      !startsWith(github.head_ref, 'release-please') && !startsWith(github.head_ref, 'promote/') && !startsWith(github.event.pull_request.title, 'chore(main): release ') && github.event.action != 'labeled' && github.event.action != 'unlabeled') }}
+     uses: ./.github/workflows/_ansible-ci.yml
+     with:
+       emit_gate: false
+@@ -921,8 +934,12 @@ jobs:
+ 
+   tofu-ci:
+     name: OpenTofu CI
+-    needs: [changes, scope]
+-    if: ${{ !cancelled() && (inputs.tofu_ci || inputs.profile == 'tofu') && needs.changes.outputs.terraform == 'true' && (needs.changes.outputs.test_tier == 'full' || needs.changes.outputs.profile-unmapped == 'true' || needs.scope.result != 'success' || needs.scope.outputs.ci != 'none') }}
++    needs: [changes, scope, lane]
++    if: >-
++      ${{ !cancelled() && (inputs.tofu_ci || inputs.profile == 'tofu') && needs.changes.outputs.terraform == 'true' &&
++      (needs.changes.outputs.test_tier == 'full' || needs.changes.outputs.profile-unmapped == 'true' || needs.scope.result != 'success' || needs.scope.outputs.ci != 'none') &&
++      (needs.lane.outputs.tier == 'legacy' || ((needs.lane.outputs.tier == 'standard' && github.event_name == 'pull_request') || (needs.lane.outputs.tier == 'hot' && (github.event_name == 'merge_group' || contains(github.event.pull_request.labels.*.name, 'preflight')))) &&
++      !startsWith(github.head_ref, 'release-please') && !startsWith(github.head_ref, 'promote/') && !startsWith(github.event.pull_request.title, 'chore(main): release ') && github.event.action != 'labeled' && github.event.action != 'unlabeled') }}
+     uses: ./.github/workflows/_tofu-ci.yml
+     with:
+       working_directories: ${{ inputs.tofu_working_directories }}
+diff --git a/tests/ci-gate-heavy-gating.test.js b/tests/ci-gate-heavy-gating.test.js
+new file mode 100644
+index 0000000..c6bcac6
+--- /dev/null
++++ b/tests/ci-gate-heavy-gating.test.js
+@@ -0,0 +1,269 @@
++import assert from 'node:assert/strict';
++import { execFileSync } from 'node:child_process';
++import { readFileSync } from 'node:fs';
++import test from 'node:test';
++
++const workflowText = readFileSync(
++  new URL('../.github/workflows/_ci-gate.yml', import.meta.url),
++  'utf8',
++);
++
++const workflow = JSON.parse(execFileSync(
++  'python3',
++  ['-c', 'import json, sys, yaml; print(json.dumps(yaml.load(sys.stdin, Loader=yaml.BaseLoader)))'],
++  { input: workflowText, encoding: 'utf8' },
++));
++
++// The one shared condition every heavy job ANDs onto its pre-existing if: a
++// legacy-tier repository keeps the behaviour it had before the lane existed,
++// a standard repository runs heavy jobs on the pull request only, a hot
++// repository runs them in the merge queue or behind the preflight label, and
++// release, promotion and metadata events never run them on either tier.
++const SHARED_CONDITION = "(needs.lane.outputs.tier == 'legacy' || ((needs.lane.outputs.tier == 'standard' && github.event_name == 'pull_request') || (needs.lane.outputs.tier == 'hot' && (github.event_name == 'merge_group' || contains(github.event.pull_request.labels.*.name, 'preflight')))) && !startsWith(github.head_ref, 'release-please') && !startsWith(github.head_ref, 'promote/') && !startsWith(github.event.pull_request.title, 'chore(main): release ') && github.event.action != 'labeled' && github.event.action != 'unlabeled')";
++
++const HEAVY_JOBS = ['nix-build', 'python-ci', 'ansible-ci', 'tofu-ci'];
++
++const FAST_JOBS = [
++  'markdown-lint',
++  'file-size',
++  'token-limits',
++  'python-security',
++  'zizmor',
++  'osv-scan',
++  'dependency-review',
++  'uses-resolve',
++  'workflow-lint',
++];
++
++// Minimal evaluator for the GitHub Actions expression subset the heavy-job
++// ifs use: literals, parentheses, !, ==, !=, &&, ||, dotted paths (including
++// the .* array filter) and the startsWith, contains and cancelled functions.
++// startsWith and contains are case-insensitive, like GitHub's.
++function evaluate(expression, context) {
++  const src = expression;
++  let pos = 0;
++
++  const asString = (value) => (value == null ? '' : String(value));
++  const callFunction = (name, args) => {
++    if (name === 'cancelled') return context.cancelled === true;
++    if (name === 'startsWith') return asString(args[0]).toLowerCase().startsWith(asString(args[1]).toLowerCase());
++    if (name === 'contains') {
++      return Array.isArray(args[0])
++        ? args[0].some((entry) => asString(entry).toLowerCase() === asString(args[1]).toLowerCase())
++        : asString(args[0]).toLowerCase().includes(asString(args[1]).toLowerCase());
++    }
++    throw new Error(`unsupported function ${name}()`);
++  };
++
++  function lookup(name) {
++    return name.split('.').reduce((value, part) => {
++      if (part === '*') {
++        if (value == null) return null;
++        if (!Array.isArray(value)) throw new Error(`.* on a non-array: ${name}`);
++        return value;
++      }
++      if (Array.isArray(value)) return value.map((entry) => (entry == null ? null : entry[part]));
++      if (value == null) return null;
++      return value[part];
++    }, context);
++  }
++
++  function skipSpaces() {
++    while (src[pos] === ' ') pos += 1;
++  }
++
++  function parsePrimary() {
++    skipSpaces();
++    if (src[pos] === '(') {
++      pos += 1;
++      const value = parseOr();
++      skipSpaces();
++      if (src[pos] !== ')') throw new Error(`expected ) at ${pos}: ${src.slice(pos)}`);
++      pos += 1;
++      return value;
++    }
++    if (src[pos] === "'") {
++      const end = src.indexOf("'", pos + 1);
++      if (end === -1) throw new Error('unterminated string literal');
++      const value = src.slice(pos + 1, end);
++      pos = end + 1;
++      return value;
++    }
++    const match = /^[A-Za-z][A-Za-z0-9_.\-*]*/.exec(src.slice(pos));
++    if (!match) throw new Error(`cannot parse at ${pos}: ${src.slice(pos)}`);
++    const name = match[0];
++    pos += name.length;
++    skipSpaces();
++    if (src[pos] === '(') {
++      pos += 1;
++      const args = [];
++      skipSpaces();
++      if (src[pos] !== ')') {
++        args.push(parseOr());
++        skipSpaces();
++        while (src[pos] === ',') {
++          pos += 1;
++          args.push(parseOr());
++          skipSpaces();
++        }
++      }
++      if (src[pos] !== ')') throw new Error(`expected ) after ${name}( at ${pos}`);
++      pos += 1;
++      return callFunction(name, args);
++    }
++    if (name === 'true') return true;
++    if (name === 'false') return false;
++    if (name === 'null') return null;
++    return lookup(name);
++  }
++
++  function parseUnary() {
++    skipSpaces();
++    if (src[pos] === '!') {
++      pos += 1;
++      return !parseUnary();
++    }
++    return parsePrimary();
++  }
++
++  function parseEquality() {
++    const left = parseUnary();
++    skipSpaces();
++    if (src.startsWith('==', pos)) {
++      pos += 2;
++      return left === parseUnary();
++    }
++    if (src.startsWith('!=', pos)) {
++      pos += 2;
++      return left !== parseUnary();
++    }
++    return left;
++  }
++
++  function parseAnd() {
++    let left = parseEquality();
++    for (;;) {
++      skipSpaces();
++      if (!src.startsWith('&&', pos)) return left;
++      pos += 2;
++      // Parse the right side even when left is already false: the parser must
++      // always advance, like GitHub's (only evaluation short-circuits).
++      const right = parseEquality();
++      left = left && right;
++    }
++  }
++
++  function parseOr() {
++    let left = parseAnd();
++    for (;;) {
++      skipSpaces();
++      if (!src.startsWith('||', pos)) return left;
++      pos += 2;
++      const right = parseAnd();
++      left = left || right;
++    }
++  }
++
++  const result = parseOr();
++  skipSpaces();
++  if (pos !== src.length) throw new Error(`trailing input at ${pos}: ${src.slice(pos)}`);
++  return result;
++}
++
++// Permissive fixture: every non-lane gate is held open, so each table case's
++// outcome is decided by the shared tier-and-event condition alone.
++function fixture({ tier, event, head = 'feature/change', title = 'a change', action, labels = [] }) {
++  const eventAction = action ?? (event === 'pull_request' ? 'synchronize' : 'checks_requested');
++  return {
++    cancelled: false,
++    inputs: {
++      nix_build: true,
++      nix_validate: true,
++      python_ci: true,
++      ansible_ci: true,
++      tofu_ci: true,
++      nix_skip_deps_only: false,
++      profile: '',
++    },
++    needs: {
++      changes: {
++        result: 'success',
++        outputs: {
++          nix: 'true',
++          markdown: 'true',
++          python: 'true',
++          ansible: 'true',
++          terraform: 'true',
++          extra: 'true',
++          test_tier: 'full',
++          production_pr: 'true',
++          'is-deps-only': 'false',
++          'is-flake-lock-change': 'true',
++          'is-nix-source-change': 'true',
++          'profile-unmapped': 'false',
++        },
++      },
++      scope: { result: 'success', outputs: { ci: 'full', molecule: 'full' } },
++      lane: { result: 'success', outputs: { lane: 'normal', tier, heavy_jobs: 'true', fast_path: 'false' } },
++    },
++    github: {
++      event_name: event,
++      head_ref: event === 'pull_request' ? head : '',
++      event: event === 'pull_request'
++        ? { action: eventAction, pull_request: { title, labels: labels.map((name) => ({ name })) } }
++        : { action: eventAction },
++    },
++  };
++}
++
++const CASES = [
++  { name: 'hot pull_request without preflight runs fast checks only', tier: 'hot', event: 'pull_request', runs: false },
++  { name: 'hot merge_group runs the heavy jobs in the queue', tier: 'hot', event: 'merge_group', runs: true },
++  { name: 'hot pull_request labeled preflight runs the heavy jobs', tier: 'hot', event: 'pull_request', labels: ['preflight'], runs: true },
++  { name: 'standard pull_request runs the heavy jobs', tier: 'standard', event: 'pull_request', runs: true },
++  { name: 'legacy pull_request keeps its heavy jobs', tier: 'legacy', event: 'pull_request', runs: true },
++  { name: 'legacy merge_group keeps its heavy jobs (the release rule is standard and hot only)', tier: 'legacy', event: 'merge_group', runs: true },
++  { name: 'legacy labeled event keeps its heavy jobs (the release rule is standard and hot only)', tier: 'legacy', event: 'pull_request', action: 'labeled', runs: true },
++  { name: 'promote/ branch on standard runs fast checks only', tier: 'standard', event: 'pull_request', head: 'promote/2026-11-15', runs: false },
++  { name: 'release-please branch on standard runs fast checks only', tier: 'standard', event: 'pull_request', head: 'release-please--branches--main', runs: false },
++  { name: 'release title on standard runs fast checks only', tier: 'standard', event: 'pull_request', title: 'chore(main): release 1.53.0', runs: false },
++  { name: 'labeled event on standard runs fast checks only', tier: 'standard', event: 'pull_request', action: 'labeled', labels: ['preflight'], runs: false },
++  { name: 'labeled preflight event on hot runs fast checks only', tier: 'hot', event: 'pull_request', action: 'labeled', labels: ['preflight'], runs: false },
++];
++
++test('every heavy job ANDs the one shared tier-and-event condition and waits for the lane', () => {
++  for (const jobName of HEAVY_JOBS) {
++    const job = workflow.jobs[jobName];
++    assert.ok(job, `${jobName} exists`);
++    assert.ok(job.if.includes(SHARED_CONDITION), `${jobName} carries the shared condition`);
++    assert.equal(job.if.split(SHARED_CONDITION).length, 2, `${jobName} carries the shared condition exactly once`);
++    assert.ok(job.needs.includes('lane'), `${jobName} waits for the lane job`);
++  }
++});
++
++test('fast checks stay free of the tier-and-event condition', () => {
++  for (const jobName of FAST_JOBS) {
++    assert.doesNotMatch(
++      JSON.stringify(workflow.jobs[jobName]),
++      /needs\.lane\.outputs\.tier/,
++      `${jobName} keeps its event behaviour`,
++    );
++  }
++});
++
++test('the tier-and-event table decides every heavy job the same way', () => {
++  for (const jobName of HEAVY_JOBS) {
++    const expression = workflow.jobs[jobName].if.replace(/^\$\{\{/, '').replace(/\}\}$/, '');
++    for (const tableCase of CASES) {
++      assert.equal(evaluate(expression, fixture(tableCase)), tableCase.runs, `${jobName}: ${tableCase.name}`);
++    }
++  }
++});
++
++test('a skipped heavy job never fails the gate', () => {
++  const gateStep = workflow.jobs.gate.steps.find((step) => step.name === 'Aggregate results');
++  assert.ok(gateStep, 'gate aggregates with the shared script');
++  for (const jobName of HEAVY_JOBS) {
++    assert.match(gateStep.env.CI_GATE_ALLOWED_SKIPS, new RegExp(`\\b${jobName}\\b`), `${jobName} stays in allowed-skips`);
++  }
++});
+diff --git a/tests/ci-gate-nix-build-opt-in.test.js b/tests/ci-gate-nix-build-opt-in.test.js
+index 5d8bd22..4f1bb98 100644
+--- a/tests/ci-gate-nix-build-opt-in.test.js
++++ b/tests/ci-gate-nix-build-opt-in.test.js
+@@ -1,28 +1,35 @@
+ import assert from 'node:assert/strict';
++import { execFileSync } from 'node:child_process';
+ import { readFileSync } from 'node:fs';
+ import test from 'node:test';
+ 
+-const workflow = readFileSync(
++const workflowText = readFileSync(
+   new URL('../.github/workflows/_ci-gate.yml', import.meta.url),
+   'utf8',
+ );
+ 
+-const nixBuildJob = workflow.slice(
+-  workflow.indexOf('\n  nix-build:\n'),
+-  workflow.indexOf('\n  markdown-lint:\n'),
++const workflow = JSON.parse(execFileSync(
++  'python3',
++  ['-c', 'import json, sys, yaml; print(json.dumps(yaml.load(sys.stdin, Loader=yaml.BaseLoader)))'],
++  { input: workflowText, encoding: 'utf8' },
++));
++
++const nixBuildJob = workflowText.slice(
++  workflowText.indexOf('\n  nix-build:\n'),
++  workflowText.indexOf('\n  markdown-lint:\n'),
+ );
+ 
+ test('nix-build is gated on the nix_build toggle alone, not on profile nix', () => {
+-  const ifLine = nixBuildJob.match(/^\s+if: \$\{\{ (.*) \}\}$/m);
+-  assert.ok(ifLine, 'nix-build job has an if: expression');
+-  assert.match(ifLine[1], /inputs\.nix_build\b/);
+-  assert.doesNotMatch(ifLine[1], /inputs\.profile == 'nix'/);
++  const ifValue = workflow.jobs['nix-build'].if;
++  assert.ok(ifValue, 'nix-build job has an if: expression');
++  assert.match(ifValue, /inputs\.nix_build\b/);
++  assert.doesNotMatch(ifValue, /inputs\.profile == 'nix'/);
+ });
+ 
+ test('nix_build_command is an empty-by-default string input forwarded as build-command', () => {
+-  const input = workflow.slice(
+-    workflow.indexOf('\n      nix_build_command:\n'),
+-    workflow.indexOf('\n      nix_skip_deps_only:\n'),
++  const input = workflowText.slice(
++    workflowText.indexOf('\n      nix_build_command:\n'),
++    workflowText.indexOf('\n      nix_skip_deps_only:\n'),
+   );
+   assert.match(input, /type: string/);
+   assert.match(input, /default: ''/);
