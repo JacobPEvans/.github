@@ -33,7 +33,7 @@ jobs:
         with:
           # A merge queue entry diffs its own base_sha..head_sha pair, which
           # can reach back past the two commits a pull_request diff needs.
-          fetch-depth: ${{ github.event_name == 'merge_group' && 0 || 2 }}
+          fetch-depth: ${{ github.event_name == 'merge_group' && '0' || 2 }}
 
       - name: Checkout org config (single source of truth)
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
