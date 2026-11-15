@@ -1,0 +1,281 @@
+# Shared lane classifier: ONE decision for the lane, the merge tier and
+# whether heavy jobs run, for every gate caller.
+#
+#   # Call it directly from a repo-local workflow:
+#   jobs:
+#     lane:
+#       uses: JacobPEvans/.github/.github/workflows/_lane.yml@v1
+#
+# Lanes, in precedence order:
+#   guarded    a guarded path changed (workflows, secret-adjacent files);
+#              the change always gets the full treatment
+#   bot        the author is a trusted automation login, or an automation
+#              App login whose pull request carries the auto-revert label
+#   tiny       10 changed lines or fewer, all low-risk paths, no instruction
+#              file
+#   land-first the pull request carries the land-first label and no guarded
+#              path changed
+#   normal     everything else
+#
+# Forks and sandbox executor authors (a sandbox login, or an `agent/` head
+# branch) never take the tiny or land-first lanes.
+#
+# Outputs:
+#   lane        the lane name itself
+#   tier        repository.custom_properties.merge_tier, `legacy` when unset
+#   heavy_jobs  'true' for the normal and guarded lanes; callers gate their
+#               heavy jobs (contract shards, site builds, full builds) with
+#               `heavy_jobs == 'true'`
+#   fast_path   lane alias, 'true' for the bot, tiny and land-first lanes;
+#               callers that already gate with `fast_path != 'true'` keep
+#               working unchanged
+#   tiny        lane alias, 'true' only for the tiny lane
+#
+# The decision itself lives in one jq program (.github/scripts/lane.jq) that
+# this workflow and tests/lane.test.js both read, so the tests exercise the
+# exact table the gate runs.
+#
+# Merge queue events have no pull_request payload, so the pull request
+# number is parsed from merge_group.head_ref
+# (refs/heads/gh-readonly-queue/<base>/pr-<number>-<commit>) and its
+# metadata is fetched from the API; a failed fetch classifies without the
+# metadata instead of failing the lane.
+
+name: _lane
+
+on:
+  workflow_call:
+    inputs:
+      low_risk_paths:
+        description: >-
+          Comma-separated dorny/paths-filter globs for paths safe to merge
+          on a tiny diff.
+        type: string
+        default: 'docs/**,**.md,**.mdx,tests/**'
+      instruction_paths:
+        description: >-
+          Comma-separated globs for agent-instruction files, which are never
+          tiny even when they are otherwise low-risk.
+        type: string
+        default: 'AGENTS.md,**/AGENTS.md,**/prompts/**,**/skills/**,**/rules/**'
+      guarded_paths:
+        description: >-
+          Comma-separated globs whose change always takes the guarded lane.
+        type: string
+        default: '.github/workflows/**,**/*secret*,**/*credential*,**/*token*,**/vault/**,*.sops.*,.sops.yaml'
+      bot_logins:
+        description: >-
+          Comma-separated author logins that always take the bot lane.
+        type: string
+        default: 'renovate[bot],jacobpevans-release-please[bot]'
+      automation_logins:
+        description: >-
+          Comma-separated automation App logins that take the bot lane when
+          the pull request carries the auto-revert label.
+        type: string
+        default: 'jacobpevans-claude[bot]'
+      sandbox_logins:
+        description: >-
+          Comma-separated sandbox executor logins; a login here, or an
+          `agent/` head branch, is never tiny or land-first.
+        type: string
+        default: 'jacobs-agent-smith[bot]'
+    outputs:
+      lane:
+        description: >-
+          guarded | bot | tiny | land-first | normal, decided by
+          .github/scripts/lane.jq.
+        value: ${{ jobs.classify.outputs.lane }}
+      tier:
+        description: >-
+          The repository.custom_properties.merge_tier property, 'legacy'
+          when the property is unset.
+        value: ${{ jobs.classify.outputs.tier }}
+      heavy_jobs:
+        description: >-
+          'true' when the change should run the caller's heavy jobs (the
+          normal and guarded lanes), 'false' for bot, tiny and land-first.
+        value: ${{ jobs.classify.outputs.heavy_jobs }}
+      fast_path:
+        description: >-
+          Lane alias: 'true' for the bot, tiny and land-first lanes. Callers
+          gate repo-local heavy jobs, such as contract shards or a site
+          build, with `fast_path != 'true'`.
+        value: ${{ jobs.classify.outputs.fast_path }}
+      tiny:
+        description: >-
+          Lane alias: 'true' only for the tiny lane.
+        value: ${{ jobs.classify.outputs.tiny }}
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  classify:
+    name: Classify Lane
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      lane: ${{ steps.classify.outputs.lane }}
+      tier: ${{ steps.tier.outputs.tier }}
+      heavy_jobs: ${{ steps.classify.outputs.heavy_jobs }}
+      fast_path: ${{ steps.classify.outputs.fast_path }}
+      tiny: ${{ steps.classify.outputs.tiny }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+          # Push and merge queue diffs are computed locally; a merge queue
+          # event needs both its comparison SHAs in history.
+          fetch-depth: ${{ (github.event_name == 'push' || github.event_name == 'merge_group') && '0' || '1' }}
+      - name: Check out the decision program from this workflow's commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          repository: JacobPEvans/.github
+          ref: ${{ job.workflow_sha }}
+          path: .gh-shared
+          sparse-checkout: .github/scripts/lane.jq
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+      - name: Build the paths-filter body from the caller's glob lists
+        id: resolve
+        env:
+          LOW_RISK_PATHS: ${{ inputs.low_risk_paths }}
+          INSTRUCTION_PATHS: ${{ inputs.instruction_paths }}
+          GUARDED_PATHS: ${{ inputs.guarded_paths }}
+        run: |
+          set -euo pipefail
+          # Comma-separated caller globs become one YAML filter body, plus a
+          # changed_all key listing every changed file so tiny can require
+          # the whole diff to be low-risk.
+          body="$(jq -rn '
+            def section($name; $csv):
+              if $csv == "" then empty
+              else ($csv | split(",") | map("  - '"'"'" + . + "'"'"'") | join("\n")) as $items
+              | "\($name):\n\($items)" end;
+            [
+              section("low_risk"; $low_risk),
+              section("instruction"; $instruction),
+              section("guarded"; $guarded),
+              "changed_all:\n  - '"'"'**'"'"'"
+            ] | join("\n")
+          ' \
+            --arg low_risk "$LOW_RISK_PATHS" \
+            --arg instruction "$INSTRUCTION_PATHS" \
+            --arg guarded "$GUARDED_PATHS")"
+          {
+            echo "filters<<RESOLVED_FILTERS_EOF"
+            printf '%s\n' "$body"
+            echo "RESOLVED_FILTERS_EOF"
+          } >> "$GITHUB_OUTPUT"
+      - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4
+        id: paths
+        with:
+          # PR events compare against their PR base branch. paths-filter does
+          # not know merge_group, so the queue event names its comparison by
+          # SHA; a push compares to its own branch, which makes the action
+          # use the commit immediately before the push.
+          base: ${{ github.event_name == 'merge_group' && github.event.merge_group.base_sha || (github.event_name == 'push' && github.ref || '') }}
+          filters: ${{ steps.resolve.outputs.filters }}
+          list-files: json
+      - name: Read the merge tier property
+        id: tier
+        env:
+          MERGE_TIER: ${{ github.event.repository.custom_properties.merge_tier }}
+        run: |
+          set -euo pipefail
+          tier="${MERGE_TIER:-}"
+          [[ -n "$tier" ]] || tier=legacy
+          printf 'tier=%s\n' "$tier" >> "$GITHUB_OUTPUT"
+      - name: Resolve the pull request number
+        id: pr
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          MERGE_HEAD_REF: ${{ github.event.merge_group.head_ref }}
+        run: |
+          set -euo pipefail
+          pr_number=""
+          if [[ "$EVENT_NAME" == pull_request && -n "${PR_NUMBER:-}" ]]; then
+            pr_number="$PR_NUMBER"
+          elif [[ "$EVENT_NAME" == merge_group && "${MERGE_HEAD_REF:-}" =~ pr-([0-9]+)-[0-9a-fA-F]+$ ]]; then
+            pr_number="${BASH_REMATCH[1]}"
+          elif [[ "$EVENT_NAME" == merge_group ]]; then
+            echo "::warning::cannot parse a pull request number from '${MERGE_HEAD_REF:-}'" >&2
+          fi
+          printf 'pr_number=%s\n' "$pr_number" >> "$GITHUB_OUTPUT"
+      - name: Fetch pull request metadata for merge queue events
+        id: meta
+        if: ${{ github.event_name == 'merge_group' && steps.pr.outputs.pr_number != '' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ steps.pr.outputs.pr_number }}
+        run: |
+          set -euo pipefail
+          # Fail-safe: an API miss classifies without the metadata (normal
+          # lane, no tiny) instead of failing the lane.
+          if ! pr_json="$(gh api "repos/$REPO/pulls/$PR_NUMBER")"; then
+            echo "::warning::unable to read pull request $PR_NUMBER; classifying without its metadata" >&2
+            pr_json='{}'
+          fi
+          {
+            echo "author=$(jq -r '.user.login // ""' <<<"$pr_json")"
+            echo "head_ref=$(jq -r '.head.ref // ""' <<<"$pr_json")"
+            echo "head_repo=$(jq -r '.head.repo.full_name // ""' <<<"$pr_json")"
+            echo "labels=$(jq -rc '[.labels[]?.name]' <<<"$pr_json")"
+            echo "additions=$(jq -r '.additions // ""' <<<"$pr_json")"
+            echo "deletions=$(jq -r '.deletions // ""' <<<"$pr_json")"
+          } >> "$GITHUB_OUTPUT"
+      - name: Classify the lane
+        id: classify
+        env:
+          JQ_PROGRAM: .gh-shared/.github/scripts/lane.jq
+          EVENT_NAME: ${{ github.event_name }}
+          REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ steps.pr.outputs.pr_number }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          PR_HEAD_REF: ${{ github.head_ref }}
+          PR_HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          PR_LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
+          PR_ADDITIONS: ${{ github.event.pull_request.additions }}
+          PR_DELETIONS: ${{ github.event.pull_request.deletions }}
+          QUEUE_AUTHOR: ${{ steps.meta.outputs.author }}
+          QUEUE_HEAD_REF: ${{ steps.meta.outputs.head_ref }}
+          QUEUE_HEAD_REPO: ${{ steps.meta.outputs.head_repo }}
+          QUEUE_LABELS: ${{ steps.meta.outputs.labels }}
+          QUEUE_ADDITIONS: ${{ steps.meta.outputs.additions }}
+          QUEUE_DELETIONS: ${{ steps.meta.outputs.deletions }}
+          LOW_RISK_FILES: ${{ steps.paths.outputs.low_risk_files }}
+          INSTRUCTION_FILES: ${{ steps.paths.outputs.instruction_files }}
+          GUARDED_FILES: ${{ steps.paths.outputs.guarded_files }}
+          CHANGED_FILES: ${{ steps.paths.outputs.changed_all_files }}
+          BOT_LOGINS: ${{ inputs.bot_logins }}
+          AUTOMATION_LOGINS: ${{ inputs.automation_logins }}
+          SANDBOX_LOGINS: ${{ inputs.sandbox_logins }}
+        run: |
+          set -euo pipefail
+          csv_array() { jq -cn --arg csv "$1" 'if $csv == "" then [] else [$csv | split(",")[] | gsub("^\\s+|\\s+$"; "")] end'; }
+          json_array() { jq -cn --arg raw "$1" 'if ($raw == "" or $raw == "null") then [] else ($raw | fromjson) end'; }
+          number_or_null() { jq -cn --arg raw "$1" 'if $raw == "" then null else ($raw | tonumber) end'; }
+          json_input="$(jq -n \
+            --arg event_name "$EVENT_NAME" \
+            --arg repository "$REPOSITORY" \
+            --arg author "${QUEUE_AUTHOR:-$PR_AUTHOR}" \
+            --arg head_ref "${QUEUE_HEAD_REF:-$PR_HEAD_REF}" \
+            --arg head_repo "${QUEUE_HEAD_REPO:-$PR_HEAD_REPO}" \
+            --argjson labels "$(json_array "${QUEUE_LABELS:-$PR_LABELS}")" \
+            --argjson additions "$(number_or_null "${QUEUE_ADDITIONS:-$PR_ADDITIONS}")" \
+            --argjson deletions "$(number_or_null "${QUEUE_DELETIONS:-$PR_DELETIONS}")" \
+            --argjson changed_paths "$(json_array "$CHANGED_FILES")" \
+            --argjson low_risk_paths "$(json_array "$LOW_RISK_FILES")" \
+            --argjson instruction_paths "$(json_array "$INSTRUCTION_FILES")" \
+            --argjson guarded_paths "$(json_array "$GUARDED_FILES")" \
+            --argjson bot_logins "$(csv_array "$BOT_LOGINS")" \
+            --argjson automation_logins "$(csv_array "$AUTOMATION_LOGINS")" \
+            --argjson sandbox_logins "$(csv_array "$SANDBOX_LOGINS")" \
+            '{event_name: $event_name, repository: $repository, author: $author, head_ref: $head_ref, head_repo: $head_repo, labels: $labels, additions: $additions, deletions: $deletions, changed_paths: $changed_paths, low_risk_paths: $low_risk_paths, instruction_paths: $instruction_paths, guarded_paths: $guarded_paths, bot_logins: $bot_logins, automation_logins: $automation_logins, sandbox_logins: $sandbox_logins}')"
+          decision="$(jq -f "$JQ_PROGRAM" <<<"$json_input")"
+          printf 'pull request %s: %s\n' "${PR_NUMBER:-n/a}" "$decision"
+          jq -rc 'to_entries[] | "\(.key)=\(.value)"' <<<"$decision" >> "$GITHUB_OUTPUT"

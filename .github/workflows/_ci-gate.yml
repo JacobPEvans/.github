@@ -472,9 +472,27 @@ on:
         value: ${{ jobs.scope.outputs.source }}
       fast_path:
         description: >-
-          Callers gate repo-local heavy jobs, such as contract shards or a
-          site build, with `fast_path != 'true'`.
-        value: ${{ jobs.changes.outputs.fast_path }}
+          Lane alias: 'true' for the bot, tiny and land-first lanes. Callers
+          gate repo-local heavy jobs, such as contract shards or a site
+          build, with `fast_path != 'true'`.
+        value: ${{ jobs.lane.outputs.fast_path }}
+      lane:
+        description: >-
+          Lane from the shared classifier: guarded (a guarded path changed),
+          bot (trusted automation), tiny (10 changed lines or fewer, all
+          low-risk, no instruction file), land-first (labeled), or normal.
+          See _lane.yml for precedence.
+        value: ${{ jobs.lane.outputs.lane }}
+      tier:
+        description: >-
+          Merge tier from repository.custom_properties.merge_tier, 'legacy'
+          when the property is unset.
+        value: ${{ jobs.lane.outputs.tier }}
+      heavy_jobs:
+        description: >-
+          'true' when the change should run the caller's heavy jobs (the
+          normal and guarded lanes), 'false' for bot, tiny and land-first.
+        value: ${{ jobs.lane.outputs.heavy_jobs }}
 
     secrets:
       TYPESAFE_API_KEY:
@@ -516,6 +534,15 @@ jobs:
       TYPESAFE_API_KEY: ${{ secrets.TYPESAFE_API_KEY }}
 
   # ============================================================================
+  # LANE CLASSIFIER
+  # One shared decision for the lane, the merge tier and whether heavy jobs
+  # run, for this gate and its callers. The fast-path logic this replaces is
+  # kept as the `fast_path` lane alias; the heavy jobs below gate on it.
+  lane:
+    name: Classify Lane
+    uses: ./.github/workflows/_lane.yml
+
+  # ============================================================================
   # CHANGE DETECTION
   # ============================================================================
   changes:
@@ -535,7 +562,6 @@ jobs:
       is-deps-only: ${{ steps.detect-deps.outputs.is-deps-only }}
       is-flake-lock-change: ${{ steps.lockfilter.outputs.flake-lock }}
       is-nix-source-change: ${{ steps.lockfilter.outputs.nix-source }}
-      fast_path: ${{ steps.tier.outputs.fast_path }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       # One filter body: an explicit `filters` input wins, else the profile's
@@ -643,38 +669,7 @@ jobs:
           PRODUCTION_BRANCH: ${{ inputs.production_branch }}
           DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
           NON_DOC: ${{ steps.lockfilter.outputs.non-doc }}
-          GH_TOKEN: ${{ github.token }}
-          REPO: ${{ github.repository }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
-          fast_path_decision() {
-            local event_name="$1" has_label="$2" additions="$3" deletions="$4" changed_files="$5"
-            local changed_lines=$((10#$additions + 10#$deletions))
-            if [[ "$event_name" == pull_request && "$has_label" == true && "$changed_lines" -lt 15 && "$changed_files" -lt 5 ]]; then
-              printf true
-            else
-              printf false
-            fi
-          }
-
-          fast_path=false
-          fast_path_lines=n/a
-          fast_path_files=n/a
-          if [[ "$EVENT_NAME" == pull_request ]]; then
-            if [[ -n "${REPO:-}" && -n "${PR_NUMBER:-}" ]] && pr_json="$(gh api "repos/$REPO/pulls/$PR_NUMBER")"; then
-              has_fast_path="$(jq -r '[.labels[]?.name] | index("fast-path") != null' <<< "$pr_json")"
-              additions="$(jq -r '.additions' <<< "$pr_json")"
-              deletions="$(jq -r '.deletions' <<< "$pr_json")"
-              fast_path_files="$(jq -r '.changed_files' <<< "$pr_json")"
-              fast_path_lines=$((10#$additions + 10#$deletions))
-              fast_path="$(fast_path_decision "$EVENT_NAME" "$has_fast_path" "$additions" "$deletions" "$fast_path_files")"
-            else
-              echo "::warning::Unable to read pull request metadata; fast_path is false."
-            fi
-          fi
-          printf 'fast_path size: %s lines / %s files; decision: %s\n' "$fast_path_lines" "$fast_path_files" "$fast_path"
-          echo "fast_path=$fast_path" >> "$GITHUB_OUTPUT"
-
           production_pr=false
           case "$EVENT_NAME" in
             push) test_tier=full ;;
@@ -787,10 +782,10 @@ jobs:
   # `github.base_ref`. Non-PR events (push, schedule, dispatch) keep building.
   nix-build:
     name: Nix Build
-    needs: [changes, scope]
+    needs: [changes, scope, lane]
     # Full-tier events bypass dependency-only and scope narrowing; other PRs
     # retain the existing relevance and default-branch gates.
-    if: ${{ !cancelled() && inputs.nix_build && (github.event_name != 'pull_request' || needs.changes.outputs.production_pr == 'true') && needs.changes.outputs.nix == 'true' && needs.changes.outputs.fast_path != 'true' && (needs.changes.outputs.test_tier == 'full' || inputs.nix_skip_deps_only == false || needs.changes.outputs.is-deps-only != 'true' || needs.changes.outputs.is-flake-lock-change == 'true' || needs.changes.outputs.is-nix-source-change == 'true') && (needs.changes.outputs.test_tier == 'full' || needs.changes.outputs.profile-unmapped == 'true' || needs.scope.result != 'success' || (needs.scope.outputs.ci != 'lint-only' && needs.scope.outputs.ci != 'none')) }}
+    if: ${{ !cancelled() && inputs.nix_build && (github.event_name != 'pull_request' || needs.changes.outputs.production_pr == 'true') && needs.changes.outputs.nix == 'true' && needs.lane.outputs.fast_path != 'true' && (needs.changes.outputs.test_tier == 'full' || inputs.nix_skip_deps_only == false || needs.changes.outputs.is-deps-only != 'true' || needs.changes.outputs.is-flake-lock-change == 'true' || needs.changes.outputs.is-nix-source-change == 'true') && (needs.changes.outputs.test_tier == 'full' || needs.changes.outputs.profile-unmapped == 'true' || needs.scope.result != 'success' || (needs.scope.outputs.ci != 'lint-only' && needs.scope.outputs.ci != 'none')) }}
     uses: ./.github/workflows/_nix-build.yml
     with:
       build-command: ${{ inputs.nix_build_command }}
@@ -894,7 +889,7 @@ jobs:
   # this wiring is inert today, kept correct for whenever one does.
   ansible-ci:
     name: Ansible CI
-    needs: [changes, scope]
+    needs: [changes, scope, lane]
     if: ${{ !cancelled() && (inputs.ansible_ci || inputs.profile == 'ansible') && needs.changes.outputs.ansible == 'true' && (needs.changes.outputs.test_tier == 'full' || needs.changes.outputs.profile-unmapped == 'true' || needs.scope.result != 'success' || needs.scope.outputs.ci != 'none') }}
     uses: ./.github/workflows/_ansible-ci.yml
     with:
@@ -903,7 +898,9 @@ jobs:
       # scope's `molecule` output is a second layer on `_ansible-ci.yml`'s
       # own molecule toggle - only turns it off when scope definitively
       # said "none"; any other answer, or a scope failure, leaves it on.
-      molecule: ${{ needs.changes.outputs.fast_path != 'true' && (needs.changes.outputs.test_tier == 'full' || needs.scope.result != 'success' || needs.scope.outputs.molecule != 'none') }}
+      # The lane classifier's fast_path alias turns it off for the bot,
+      # tiny and land-first lanes.
+      molecule: ${{ needs.lane.outputs.fast_path != 'true' && (needs.changes.outputs.test_tier == 'full' || needs.scope.result != 'success' || needs.scope.outputs.molecule != 'none') }}
       full_suite: ${{ needs.changes.outputs.test_tier == 'full' }}
       runner_label: ${{ (!github.event.pull_request || github.event.pull_request.head.repo.full_name == github.repository) && inputs.runner_label || 'ubuntu-24.04' }}
 
