@@ -254,6 +254,7 @@ jobs:
           BOT_LOGINS: ${{ inputs.bot_logins }}
           AUTOMATION_LOGINS: ${{ inputs.automation_logins }}
           SANDBOX_LOGINS: ${{ inputs.sandbox_logins }}
+          TIER: ${{ steps.tier.outputs.tier }}
         run: |
           set -euo pipefail
           csv_array() { jq -cn --arg csv "$1" 'if $csv == "" then [] else [$csv | split(",")[] | gsub("^\\s+|\\s+$"; "")] end'; }
@@ -275,7 +276,8 @@ jobs:
             --argjson bot_logins "$(csv_array "$BOT_LOGINS")" \
             --argjson automation_logins "$(csv_array "$AUTOMATION_LOGINS")" \
             --argjson sandbox_logins "$(csv_array "$SANDBOX_LOGINS")" \
-            '{event_name: $event_name, repository: $repository, author: $author, head_ref: $head_ref, head_repo: $head_repo, labels: $labels, additions: $additions, deletions: $deletions, changed_paths: $changed_paths, low_risk_paths: $low_risk_paths, instruction_paths: $instruction_paths, guarded_paths: $guarded_paths, bot_logins: $bot_logins, automation_logins: $automation_logins, sandbox_logins: $sandbox_logins}')"
+            --arg tier "$TIER" \
+            '{event_name: $event_name, repository: $repository, author: $author, head_ref: $head_ref, head_repo: $head_repo, labels: $labels, additions: $additions, deletions: $deletions, changed_paths: $changed_paths, low_risk_paths: $low_risk_paths, instruction_paths: $instruction_paths, guarded_paths: $guarded_paths, bot_logins: $bot_logins, automation_logins: $automation_logins, sandbox_logins: $sandbox_logins, tier: $tier}')"
           decision="$(jq -f "$JQ_PROGRAM" <<<"$json_input")"
           printf 'pull request %s: %s\n' "${PR_NUMBER:-n/a}" "$decision"
           jq -rc 'to_entries[] | "\(.key)=\(.value)"' <<<"$decision" >> "$GITHUB_OUTPUT"

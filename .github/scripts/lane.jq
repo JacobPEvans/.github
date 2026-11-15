@@ -19,6 +19,7 @@
 #   bot_logins        logins that always take the bot lane
 #   automation_logins logins that take the bot lane with the auto-revert label
 #   sandbox_logins    sandbox executor logins, never tiny or land-first
+#   tier              merge_tier of the repository; absent means legacy
 #
 # Output (JSON object): lane, heavy_jobs, fast_path, tiny. The three flags
 # are "true"/"false" strings, ready for GITHUB_OUTPUT.
@@ -46,11 +47,14 @@ def lines_changed:
   (($in.additions // 0) + ($in.deletions // 0));
 def counts_known:
   (($in.additions | type) == "number") and (($in.deletions | type) == "number");
+# The tiny and land-first lanes defer heavy checks to the post-merge workflow,
+# which only standard and hot repositories call. A legacy repository never
+# takes them.
 def may_go_light:
-  ((is_fork or is_sandbox) | not);
+  ((is_fork or is_sandbox) | not) and (($in.tier // "legacy") != "legacy");
 def tiny_lane:
   counts_known and (lines_changed <= 10) and only_low_risk
-  and ((instruction_changed or is_fork or is_sandbox) | not);
+  and (instruction_changed | not) and may_go_light;
 def land_first_lane:
   (($in.labels | index("land-first")) != null) and may_go_light;
 (if guarded_changed then "guarded"
@@ -60,10 +64,11 @@ elif land_first_lane then "land-first"
 else "normal" end) as $lane |
 {
   lane: $lane,
-  # Heavy jobs run for the normal and guarded lanes and skip for the bot,
-  # tiny and land-first lanes. fast_path is the legacy alias callers gate
-  # with `fast_path != 'true'`.
-  heavy_jobs: (if $lane == "normal" or $lane == "guarded" then "true" else "false" end),
-  fast_path: (if $lane == "normal" or $lane == "guarded" then "false" else "true" end),
+  # Heavy jobs run for the normal, guarded and bot lanes (each still mapped
+  # to the changed paths by its own filter) and skip for the tiny and
+  # land-first lanes. fast_path is the legacy alias callers gate with
+  # `fast_path != 'true'`.
+  heavy_jobs: (if $lane == "tiny" or $lane == "land-first" then "false" else "true" end),
+  fast_path: (if $lane == "tiny" or $lane == "land-first" then "true" else "false" end),
   tiny: (if $lane == "tiny" then "true" else "false" end)
 }

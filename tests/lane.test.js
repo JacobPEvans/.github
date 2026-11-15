@@ -32,6 +32,7 @@ function decide(overrides = {}) {
     low_risk_paths: [],
     instruction_paths: [],
     guarded_paths: [],
+    tier: 'standard',
     ...DEFAULT_LOGINS,
     ...overrides,
   };
@@ -154,15 +155,15 @@ test('a sandbox author never takes the land-first lane', () => {
 test('the Renovate author takes the bot lane', () => {
   const decision = decide({ author: 'renovate[bot]' });
   assert.equal(decision.lane, 'bot');
-  assert.equal(decision.fast_path, 'true');
-  assert.equal(decision.heavy_jobs, 'false');
+  assert.equal(decision.fast_path, 'false');
+  assert.equal(decision.heavy_jobs, 'true');
 });
 
 test('the release-please author takes the bot lane', () => {
   const decision = decide({ author: 'jacobpevans-release-please[bot]' });
   assert.equal(decision.lane, 'bot');
-  assert.equal(decision.fast_path, 'true');
-  assert.equal(decision.heavy_jobs, 'false');
+  assert.equal(decision.fast_path, 'false');
+  assert.equal(decision.heavy_jobs, 'true');
 });
 
 test('the automation App takes the bot lane only with the auto-revert label', () => {
@@ -173,6 +174,22 @@ test('the automation App takes the bot lane only with the auto-revert label', ()
   assert.equal(labeled.lane, 'bot');
   const unlabeled = decide({ author: 'jacobpevans-claude[bot]' });
   assert.equal(unlabeled.lane, 'normal');
+});
+
+test('a legacy repository never takes the tiny or land-first lane', () => {
+  const docs = {
+    additions: 6,
+    deletions: 4,
+    changed_paths: ['docs/guide.md'],
+    low_risk_paths: ['docs/guide.md'],
+  };
+  assert.equal(decide(docs).lane, 'tiny');
+  assert.equal(decide({ ...docs, tier: 'legacy' }).lane, 'normal');
+  assert.equal(decide({ ...docs, tier: undefined }).lane, 'normal');
+  assert.equal(decide({ labels: ['land-first'] }).lane, 'land-first');
+  const legacyLabel = decide({ labels: ['land-first'], tier: 'legacy' });
+  assert.equal(legacyLabel.lane, 'normal');
+  assert.equal(legacyLabel.heavy_jobs, 'true');
 });
 
 test('a merge_group event resolves the pull request number from head_ref', () => {
