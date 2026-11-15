@@ -57,7 +57,7 @@ test('the Workflow Policy job checks out the queue commit and diffs its pull req
 
 test('Markdown Lint diffs its queue entry shas and lints only those files', () => {
   const workflow = readWorkflow('markdownlint.yml');
-  assert.match(workflow, /^          fetch-depth: \$\{\{ github\.event_name == 'merge_group' && 0 \|\| 2 \}\}$/m);
+  assert.match(workflow, /^          fetch-depth: \$\{\{ github\.event_name == 'merge_group' && '0' \|\| 2 \}\}$/m);
   assert.match(workflow, /if: github\.event_name != 'push'\n {8}env:\n {10}EVENT_NAME: \$\{\{ github\.event_name \}\}\n {10}BASE_SHA: \$\{\{ github\.event\.merge_group\.base_sha \}\}\n {10}HEAD_SHA: \$\{\{ github\.event\.merge_group\.head_sha \}\}/);
   assert.match(workflow, /if \[\[ "\$EVENT_NAME" == merge_group \]\]; then\n {12}range=\("\$BASE_SHA" "\$HEAD_SHA"\)/);
   assert.match(workflow, /if: github\.event_name != 'push' && steps\.changed\.outputs\.files != ''/);
