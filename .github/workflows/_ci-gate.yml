@@ -50,6 +50,21 @@
 #
 # Caller requirements (thin consumer shape):
 #
+#   on:
+#     pull_request:
+#       types: [opened, synchronize, reopened, ready_for_review]
+#     merge_group:
+#   # No push trigger: the required checks report from pull_request and
+#   # merge_group runs only, so the native merge queue never stalls waiting on
+#   # a context that only a push run would produce.
+#
+#   # The caller owns cancellation; this workflow has no concurrency block,
+#   # because one caller run may call it several times. A queue entry is
+#   # never cancelled.
+#   concurrency:
+#     group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
+#     cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+#
 #   jobs:
 #     gate:
 #       permissions:
