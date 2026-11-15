@@ -1130,11 +1130,16 @@ jobs:
           permission-pull-requests: write
       - name: Label the pull request checks:deferred
         if: ${{ github.event_name == 'pull_request' && (needs.lane.outputs.lane == 'tiny' || needs.lane.outputs.lane == 'land-first') }}
-        env:
-          GH_TOKEN: ${{ steps.deferred-token.outputs.token }}
-          GH_REPO: ${{ github.repository }}
-          PR: ${{ github.event.pull_request.number }}
-        run: gh pr edit "$PR" --add-label checks:deferred
+        # github-script, not gh: the gate runner is not guaranteed to carry gh.
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
+        with:
+          github-token: ${{ steps.deferred-token.outputs.token }}
+          script: |
+            await github.rest.issues.addLabels({
+              ...context.repo,
+              issue_number: context.payload.pull_request.number,
+              labels: ['checks:deferred'],
+            });
       # Run after every sibling is terminal, when timestamps are final.
       - name: Job durations + queue-delay summary
         if: ${{ always() }}

@@ -53,8 +53,11 @@ test('a fast-lane pull request is labelled checks:deferred with an App token aft
   assert.equal(mint.if, FAST_LANE);
   assert.equal(label.if, FAST_LANE);
   assert.equal(mint.with['permission-pull-requests'], 'write');
-  assert.equal(label.env.GH_TOKEN, '${{ steps.deferred-token.outputs.token }}');
-  assert.equal(label.run, 'gh pr edit "$PR" --add-label checks:deferred');
+  assert.match(label.uses, /^actions\/github-script@[0-9a-f]{40}$/);
+  assert.equal(label.with['github-token'], '${{ steps.deferred-token.outputs.token }}');
+  assert.match(label.with.script, /issues\.addLabels\(/);
+  assert.match(label.with.script, /issue_number: context\.payload\.pull_request\.number/);
+  assert.match(label.with.script, /labels: \['checks:deferred'\]/);
   // The gate job itself asks for no write scope, so existing callers keep working.
   assert.equal(gate.permissions['pull-requests'], undefined);
 });
