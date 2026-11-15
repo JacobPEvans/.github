@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.53.0](https://github.com/JacobPEvans/.github/compare/v1.52.0...v1.53.0) (2026-11-15)
+
+
+### Features
+
+* **agent:** zcode run j-d686cae426422a00 ([76f77fd](https://github.com/JacobPEvans/.github/commit/76f77fddc60abda6ae4f355ce19aa967e75c2e56))
+* **templates:** pull request template with objective, approach, verification, related work and trace ([#230](https://github.com/JacobPEvans/.github/issues/230)) ([76f77fd](https://github.com/JacobPEvans/.github/commit/76f77fddc60abda6ae4f355ce19aa967e75c2e56))
+
 ## [1.52.0](https://github.com/JacobPEvans/.github/compare/v1.51.1...v1.52.0) (2026-11-15)
 
 
