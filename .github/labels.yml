@@ -168,7 +168,7 @@
 
 - name: "fast-path"
   color: "0e8a16"
-  description: "Opt-in: skip heavy suites when the diff is under 15 lines and 5 files."
+  description: "No effect. The gate picks the lane; use land-first to merge on fast checks."
 
 # =============================================================================
 # MERGE LANE LABELS - Read and set by the merge gate
