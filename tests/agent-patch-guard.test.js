@@ -122,9 +122,9 @@ test('the reusable is a workflow_call with exactly the standard permissions', ()
 });
 
 test('the semgrep pin is an immutable-style release tag, not a moving one', () => {
-  const tag = guardWorkflow.match(/default: (v\d+\.\d+\.\d+)\n/);
-  assert.ok(tag, `semgrep_tag default found: ${guardWorkflow.match(/default: v[^\n]*/)}`);
-  assert.equal(tag[1], 'v1.185.0');
+  const tag = guardWorkflow.match(/default: (\d+\.\d+\.\d+)\n/);
+  assert.ok(tag, `semgrep_tag default found: ${guardWorkflow.match(/default: \d+[^\n]*/)}`);
+  assert.equal(tag[1], '1.184.0');
   assert.doesNotMatch(guardWorkflow, /semgrep\/semgrep:(latest|\d+)/);
 });
 

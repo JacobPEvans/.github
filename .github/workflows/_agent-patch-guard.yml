@@ -51,7 +51,7 @@ on:
           never a moving one like latest.
         type: string
         required: false
-        default: v1.185.0
+        default: 1.184.0
       runner_label:
         description: >-
           Runner label. Defaults to ubuntu-24.04; pass a RunsOn label to opt
