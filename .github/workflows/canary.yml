@@ -78,8 +78,8 @@ jobs:
               - 'tests/canary/**'
 
   # Reusable-workflow caller jobs take no `timeout-minutes`; each inner job
-  # carries its own. The `actions: write` grant is what _ci-gate.yml's queue
-  # watchdog needs. dependency_review and zizmor are off: the repo's own gate
+  # carries its own. The `actions: write` grant is the standard caller
+  # shape. dependency_review and zizmor are off: the repo's own gate
   # already runs them once per PR, and the canary would repeat them per stack.
   ansible:
     needs: [scope]

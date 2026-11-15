@@ -25,10 +25,9 @@ jobs:
     permissions:
       contents: read
       pull-requests: read
-      # The org gate's queue watchdog cancels stuck sibling jobs via the
-      # Actions API; a called workflow can never exceed the caller's grant, so
-      # `actions: write` must be granted here or the run fails at graph
-      # validation (startup_failure).
+      # The standard caller grant. No job in the gate requests
+      # `actions: write`; a called workflow can never exceed the caller's
+      # grant, so the standard shape keeps it.
       actions: write
     uses: ./.github/workflows/_ci-gate.yml
     with:

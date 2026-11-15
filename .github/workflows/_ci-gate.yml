@@ -11,8 +11,6 @@
 #               it - see "Content-aware scope classifier" below
 #   changes  -> dorny/paths-filter on caller-supplied filters
 #   <check jobs> -> per-check reusable workflows, gated on (input toggle && filter)
-#   watchdog -> watches every sibling until it completes; cancels the run when
-#               any job waits for a runner longer than queue_timeout_minutes
 #   gate     -> name MUST stay "Merge Gate" (matches branch protection rulesets);
 #               aggregates results with the shared result script
 #
@@ -40,13 +38,8 @@
 # hot repositories only. The `fast-path` label has no effect.
 # https://github.com/JacobPEvans/.github-ai/blob/main/.github/scope-rubric.md
 #
-# Why the watchdog exists:
-#
-# GitHub Actions only schedules a `needs:` dependent once every upstream job
-# reaches a *terminal* state (success/failure/cancelled/skipped). A job stuck
-# waiting for a runner (e.g. a self-hosted runner never picks it up) is NOT
-# terminal. If any job waits past the timeout, the watchdog cancels the run so an
-# incomplete check set cannot pass the required `Merge Gate`.
+# Stalled jobs: each job's own timeout-minutes bounds a running job, and the
+# merge queue's check timeout bounds a queue entry whose checks never report.
 #
 # Caller requirements (thin consumer shape):
 #
@@ -70,10 +63,10 @@
 #       permissions:
 #         contents: read
 #         pull-requests: read
-#         actions: write   # REQUIRED: the watchdog cancels queued jobs via the
-#                          # Actions API, and a called workflow can never exceed
-#                          # the caller's token grant — omitting this fails the
-#                          # entire run at workflow-graph validation
+#         actions: write   # Optional: no job in this file requests it. A
+#                          # called workflow can never exceed the caller's
+#                          # token grant, so a grant a job does request must
+#                          # be here or the run fails at graph validation
 #                          # (startup_failure, 0s, no jobs, UI-only error).
 #       uses: JacobPEvans/.github/.github/workflows/_ci-gate.yml@v1
 #
@@ -153,7 +146,7 @@
 #   (!github.event.pull_request ||
 #    github.event.pull_request.head.repo.full_name == github.repository)
 #     && inputs.runner_label || 'ubuntu-24.04'
-# The orchestration jobs (`changes`, `watchdog`, `gate`) substitute
+# The orchestration jobs (`changes`, `gate`) substitute
 # `inputs.orchestration_runner` for `inputs.runner_label` in that expression.
 # A fork PR must never execute fork-author-controlled code on a caller's
 # self-hosted RunsOn runners; same-repo PRs and non-PR events keep the
@@ -367,7 +360,7 @@ on:
           Also passed through to every child reusable workflow this gate calls
           (`Nix Validate`, `Markdown Lint`, `File Size`, `Python Security`),
           so a single input migrates the whole gate. The orchestration jobs
-          (`Detect Changes`, `Queue Watchdog`, `Merge Gate`) use
+          (`Detect Changes`, `Merge Gate`) use
           `orchestration_runner` instead.
           Defaults to ubuntu-24.04. Pass a RunsOn label
           (see runs-on.com/configuration/job-labels) to opt in.
@@ -378,7 +371,7 @@ on:
       orchestration_runner:
         description: >-
           GitHub Actions runner label for the orchestration jobs (`Detect
-          Changes`, `Queue Watchdog`, `Merge Gate`). Defaults to a
+          Changes`, `Merge Gate`). Defaults to a
           GitHub-hosted image, so an unavailable self-hosted pool cannot leave
           the gate queued. Subject to the same fork-PR guard as `runner_label`.
         type: string
@@ -437,7 +430,7 @@ on:
 
       queue_timeout_minutes:
         description: >-
-          Deprecated compatibility input. The queue watchdog is gone; each
+          Deprecated compatibility input with no effect. Each
           job's own timeout-minutes and the merge queue's
           check_response_timeout_minutes cover stalls. Callers may still pass
           it; the gate ignores it.

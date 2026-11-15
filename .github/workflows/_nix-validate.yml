@@ -62,8 +62,8 @@ jobs:
     name: Validate
     runs-on: ${{ inputs.runner_label }}
     # Running-job cap: exceeding it signals a dependency, cache, or closure
-    # regression and fails this required check. Queue-stuck handling lives in
-    # the _ci-gate watchdog; this is running-job defense.
+    # regression and fails this required check. The merge queue's check
+    # timeout covers a stalled queue; this is running-job defense.
     #
     # The default comes from the org variable so it can change for every
     # consumer without editing this file or any calling repository. A caller
