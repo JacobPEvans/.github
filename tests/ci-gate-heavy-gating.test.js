@@ -21,7 +21,7 @@ const workflow = JSON.parse(execFileSync(
 // the legacy tier, a release App pull request and a promotion into main on a
 // git-flow repository skip them. The author and the base branch decide that,
 // never a branch name or a title alone.
-const SHARED_CONDITION = "(needs.lane.outputs.heavy_jobs != 'false' && (needs.lane.outputs.tier != 'hot' || github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'preflight')) && (needs.lane.outputs.tier == 'legacy' || (github.event.pull_request.user.login != 'jacobpevans-release-please[bot]' && !(startsWith(github.head_ref, 'promote/') && github.base_ref == 'main' && github.event.repository.default_branch != 'main'))))";
+const SHARED_CONDITION = "(needs.lane.outputs.heavy_jobs != 'false' && (needs.lane.outputs.tier != 'hot' || github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'preflight')) && ((needs.lane.outputs.tier != 'standard' && needs.lane.outputs.tier != 'hot') || (github.event.pull_request.user.login != 'jacobpevans-release-please[bot]' && !(startsWith(github.head_ref, 'promote/') && github.base_ref == 'main' && github.event.repository.default_branch != 'main'))))";
 
 const HEAVY_JOBS = ['nix-build', 'python-ci', 'ansible-ci', 'tofu-ci'];
 
@@ -232,6 +232,8 @@ const CASES = [
   { name: 'legacy pull_request keeps its heavy jobs', tier: 'legacy', event: 'pull_request', runs: true },
   { name: 'legacy merge_group keeps its heavy jobs', tier: 'legacy', event: 'merge_group', runs: true },
   { name: 'legacy release App pull request keeps its heavy jobs', tier: 'legacy', event: 'pull_request', author: 'jacobpevans-release-please[bot]', runs: true },
+  { name: 'an empty tier (the lane job gave no output) counts as legacy for a release App pull request', tier: '', event: 'pull_request', author: 'jacobpevans-release-please[bot]', runs: true },
+  { name: 'an empty tier counts as legacy for a promotion into main', tier: '', event: 'pull_request', head: 'promote/2026-11-15', base: 'main', runs: true },
   { name: 'release App pull request on standard runs fast checks only', tier: 'standard', event: 'pull_request', author: 'jacobpevans-release-please[bot]', runs: false },
   { name: 'promotion into main on a git-flow repository runs fast checks only', tier: 'standard', event: 'pull_request', head: 'promote/2026-11-15', base: 'main', runs: false },
   { name: 'a promote/ branch into the default branch runs the heavy jobs', tier: 'standard', event: 'pull_request', head: 'promote/2026-11-15', runs: true },

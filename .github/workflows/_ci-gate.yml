@@ -813,7 +813,7 @@ jobs:
       (needs.changes.outputs.test_tier == 'full' || inputs.nix_skip_deps_only == false || needs.changes.outputs.is-deps-only != 'true' || needs.changes.outputs.is-flake-lock-change == 'true' || needs.changes.outputs.is-nix-source-change == 'true') &&
       (needs.changes.outputs.test_tier == 'full' || needs.changes.outputs.profile-unmapped == 'true' || needs.scope.result != 'success' || (needs.scope.outputs.ci != 'lint-only' && needs.scope.outputs.ci != 'none')) &&
       (needs.lane.outputs.heavy_jobs != 'false' && (needs.lane.outputs.tier != 'hot' || github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'preflight')) &&
-      (needs.lane.outputs.tier == 'legacy' || (github.event.pull_request.user.login != 'jacobpevans-release-please[bot]' && !(startsWith(github.head_ref, 'promote/') && github.base_ref == 'main' && github.event.repository.default_branch != 'main')))) }}
+      ((needs.lane.outputs.tier != 'standard' && needs.lane.outputs.tier != 'hot') || (github.event.pull_request.user.login != 'jacobpevans-release-please[bot]' && !(startsWith(github.head_ref, 'promote/') && github.base_ref == 'main' && github.event.repository.default_branch != 'main')))) }}
     uses: ./.github/workflows/_nix-build.yml
     with:
       build-command: ${{ inputs.nix_build_command }}
@@ -865,13 +865,13 @@ jobs:
       ${{ !cancelled() && (inputs.python_ci || inputs.profile == 'python') && needs.changes.outputs.python == 'true' &&
       (needs.changes.outputs.test_tier == 'full' || needs.changes.outputs.profile-unmapped == 'true' || needs.scope.result != 'success' || (needs.scope.outputs.ci != 'lint-only' && needs.scope.outputs.ci != 'none')) &&
       (needs.lane.outputs.heavy_jobs != 'false' && (needs.lane.outputs.tier != 'hot' || github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'preflight')) &&
-      (needs.lane.outputs.tier == 'legacy' || (github.event.pull_request.user.login != 'jacobpevans-release-please[bot]' && !(startsWith(github.head_ref, 'promote/') && github.base_ref == 'main' && github.event.repository.default_branch != 'main')))) }}
+      ((needs.lane.outputs.tier != 'standard' && needs.lane.outputs.tier != 'hot') || (github.event.pull_request.user.login != 'jacobpevans-release-please[bot]' && !(startsWith(github.head_ref, 'promote/') && github.base_ref == 'main' && github.event.repository.default_branch != 'main')))) }}
     uses: ./.github/workflows/_python-ci.yml
     with:
       # In a standard or hot repository, a pull request outside the full tier
       # tests the ends of the default range (min + latest). The full tier and
       # a legacy repository keep the caller's array.
-      python_versions: ${{ github.event_name == 'pull_request' && needs.lane.outputs.tier != 'legacy' && needs.changes.outputs.test_tier != 'full' && '["3.10","3.14"]' || inputs.python_ci_versions }}
+      python_versions: ${{ github.event_name == 'pull_request' && (needs.lane.outputs.tier == 'standard' || needs.lane.outputs.tier == 'hot') && needs.changes.outputs.test_tier != 'full' && '["3.10","3.14"]' || inputs.python_ci_versions }}
       runner_label: ${{ (!github.event.pull_request || github.event.pull_request.head.repo.full_name == github.repository) && inputs.runner_label || 'ubuntu-24.04' }}
 
   # dependency-review is intentionally NOT `needs: changes` / filter-gated —
@@ -929,7 +929,7 @@ jobs:
       ${{ !cancelled() && (inputs.ansible_ci || inputs.profile == 'ansible') && needs.changes.outputs.ansible == 'true' &&
       (needs.changes.outputs.test_tier == 'full' || needs.changes.outputs.profile-unmapped == 'true' || needs.scope.result != 'success' || needs.scope.outputs.ci != 'none') &&
       (needs.lane.outputs.heavy_jobs != 'false' && (needs.lane.outputs.tier != 'hot' || github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'preflight')) &&
-      (needs.lane.outputs.tier == 'legacy' || (github.event.pull_request.user.login != 'jacobpevans-release-please[bot]' && !(startsWith(github.head_ref, 'promote/') && github.base_ref == 'main' && github.event.repository.default_branch != 'main')))) }}
+      ((needs.lane.outputs.tier != 'standard' && needs.lane.outputs.tier != 'hot') || (github.event.pull_request.user.login != 'jacobpevans-release-please[bot]' && !(startsWith(github.head_ref, 'promote/') && github.base_ref == 'main' && github.event.repository.default_branch != 'main')))) }}
     uses: ./.github/workflows/_ansible-ci.yml
     with:
       emit_gate: false
@@ -965,7 +965,7 @@ jobs:
       ${{ !cancelled() && (inputs.tofu_ci || inputs.profile == 'tofu') && needs.changes.outputs.terraform == 'true' &&
       (needs.changes.outputs.test_tier == 'full' || needs.changes.outputs.profile-unmapped == 'true' || needs.scope.result != 'success' || needs.scope.outputs.ci != 'none') &&
       (needs.lane.outputs.heavy_jobs != 'false' && (needs.lane.outputs.tier != 'hot' || github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'preflight')) &&
-      (needs.lane.outputs.tier == 'legacy' || (github.event.pull_request.user.login != 'jacobpevans-release-please[bot]' && !(startsWith(github.head_ref, 'promote/') && github.base_ref == 'main' && github.event.repository.default_branch != 'main')))) }}
+      ((needs.lane.outputs.tier != 'standard' && needs.lane.outputs.tier != 'hot') || (github.event.pull_request.user.login != 'jacobpevans-release-please[bot]' && !(startsWith(github.head_ref, 'promote/') && github.base_ref == 'main' && github.event.repository.default_branch != 'main')))) }}
     uses: ./.github/workflows/_tofu-ci.yml
     with:
       working_directories: ${{ inputs.tofu_working_directories }}
