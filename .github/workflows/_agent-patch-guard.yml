@@ -1,0 +1,317 @@
+# Reusable: Agent Patch Guard
+#
+# Blocks agent-authored commits from making CI green by weakening the checks
+# themselves: deleting test files, adding escape hatches, or suppressing the
+# linters that caught them. Hosted once here so every consumer of _ci-gate.yml
+# inherits it with no per-repo change.
+#
+# Tool order (binding: no new custom scripts where a maintained tool works):
+#
+#   1. dorny/paths-filter change-type filters - fail when the PR DELETES a
+#      test file. Deleted files carry no content, so a scanner cannot rule on
+#      them; the path filter's `deleted` qualifier is the native tool.
+#   2. semgrep (semgrep/semgrep container, pinned) in diff-aware mode
+#      (`--baseline-commit` = PR base), rules in configs/agent-patch-guard/:
+#      Terraform `data "external"` blocks, lint/security suppressions
+#      (# noqa, # nosec, # type: ignore, tflint-ignore, skip_ansible_lint,
+#      noqa: in YAML, eslint-disable, # shellcheck disable, pragma: no cover)
+#      and test skip markers (@pytest.mark.skip, pytest.skip(, unittest.skip,
+#      @pytest.mark.xfail, t.Skip(). Baseline mode reports only findings the
+#      PR adds, which is exactly the "adds" semantics this guard needs.
+#   3. Assertion-count drop on modified test files, inline - the one check
+#      neither rung can do: paths-filter sees file-level add/delete, not
+#      content, and baseline-mode semgrep only reports ADDED findings, so a
+#      test file that silently loses assertion lines is invisible to both.
+#      Kept to a 15-line shell body on purpose.
+#   4. paths-filter `added` qualifier - new scripts under scripts/ or bin/.
+#
+# Who it applies to:
+#
+#   The job always runs, but it only FAILS when at least one commit in the PR
+#   is authored or committed by a login in the org variable
+#   AGENT_PATCH_GUARD_LOGINS (comma list; when unset, the default is any login
+#   ending in [bot]). Every other PR gets the same findings as warning
+#   annotations and passes - non-agent PRs are never blocked.
+#   A PR label `agent-patch-guard:approved` turns an enforced failure into a
+#   pass: the reviewed escape hatch for a legitimate test removal. Only
+#   accounts with triage access or above can add labels, so presence of the
+#   label already implies write access by GitHub's own permission model.
+#   Verifying the account that added it is a human would need the issue
+#   timeline API (issues: read), which exceeds this gate's standard caller
+#   grant (contents: read, pull-requests: read, actions: write) and is
+#   therefore not requested here - see _ci-gate.yml's PERMISSIONS INVARIANT.
+name: _agent-patch-guard
+
+on:
+  workflow_call:
+    inputs:
+      semgrep_tag:
+        description: semgrep/semgrep image tag. The release tag is the pin of
+          record for this workflow; keep it on an immutable-style semver tag,
+          never a moving one like latest.
+        type: string
+        required: false
+        default: 1.184.0
+      runner_label:
+        description: >-
+          Runner label. Defaults to ubuntu-24.04; pass a RunsOn label to opt
+          into self-hosted runners.
+        type: string
+        required: false
+        default: ubuntu-24.04
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  guard:
+    name: Agent Patch Guard
+    # The checks below need a pull_request event (base commit, PR commits,
+    # labels); a caller invoking this reusable on a push has no PR to guard.
+    if: ${{ github.event_name == 'pull_request' }}
+    runs-on: ${{ inputs.runner_label }}
+    timeout-minutes: ${{ github.event_name == 'pull_request' && 5 || 30 }}
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      # Full history: the assertion-count rung diffs base..HEAD and the
+      # semgrep baseline commit must both resolve. checkout on a pull_request
+      # event is the merge ref, so HEAD^1 is the exact base head.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Decide enforcement and approval
+        id: policy
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          AGENT_LOGINS: ${{ vars.AGENT_PATCH_GUARD_LOGINS }}
+        run: |
+          set -euo pipefail
+          commits=$(gh api --paginate "repos/$REPO/pulls/$PR_NUMBER/commits?per_page=100" \
+            --jq '.[] | .author.login // empty, .committer.login // empty' | sort -u)
+          enforce=false
+          while IFS= read -r login; do
+            [ -n "$login" ] || continue
+            if [ -n "$AGENT_LOGINS" ]; then
+              printf '%s\n' "$AGENT_LOGINS" | tr ',' '\n' | tr -d ' \t\r' \
+                | grep -qixF "$login" && enforce=true
+            elif printf '%s\n' "$login" | grep -q '\[bot\]$'; then
+              enforce=true
+            fi
+          done <<< "$commits"
+          # Label presence is the approval signal; see this file's header for
+          # why the label's adder is not verified against the timeline API.
+          approved=$(gh api "repos/$REPO/pulls/$PR_NUMBER" \
+            --jq 'any(.labels[]?.name; . == "agent-patch-guard:approved")')
+          echo "agent commit logins: ${commits:-none}; enforce=$enforce; approved=$approved"
+          echo "enforce=$enforce" >> "$GITHUB_OUTPUT"
+          echo "approved=$approved" >> "$GITHUB_OUTPUT"
+
+      - name: Resolve PR base commit and modified files
+        id: base
+        env:
+          BASE_SHA_EVENT: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          base=$(git rev-parse HEAD^1)
+          if ! git cat-file -e "$base"; then
+            echo "::error::base commit $base not in history; cannot diff-aware scan"
+            exit 1
+          fi
+          printf 'base=%s (event payload: %s)\n' "$base" "$BASE_SHA_EVENT"
+          modified=$(git diff --name-only --diff-filter=M "$base" HEAD | jq -R . | jq -s -c .)
+          echo "sha=$base" >> "$GITHUB_OUTPUT"
+          echo "modified=$modified" >> "$GITHUB_OUTPUT"
+
+      # Rungs 1 and 4: change-type qualifiers are the paths-filter's native
+      # vocabulary, so both need no git archaeology of their own.
+      - name: Detect deleted tests and added scripts
+        id: filter
+        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
+        with:
+          list-files: json
+          filters: |
+            deleted-test:
+              - deleted: '**/test/**'
+              - deleted: '**/tests/**'
+              - deleted: '**/*_test.*'
+              - deleted: '**/test_*.*'
+              - deleted: '**/*.test.*'
+              - deleted: '**/*.spec.*'
+              - deleted: '**/*.tftest.hcl'
+              - deleted: '**/molecule/**/verify.yml'
+            added-script:
+              - added: 'scripts/**/*.sh'
+              - added: 'scripts/**/*.py'
+              - added: 'scripts/**/*.js'
+              - added: 'scripts/**/*.ps1'
+              - added: 'bin/**/*.sh'
+              - added: 'bin/**/*.py'
+              - added: 'bin/**/*.js'
+              - added: 'bin/**/*.ps1'
+
+      - name: Check deleted test files
+        id: deleted-test
+        if: ${{ steps.filter.outputs.deleted-test == 'true' }}
+        env:
+          DELETED: ${{ steps.filter.outputs.deleted-test_files }}
+          ENFORCE: ${{ steps.policy.outputs.enforce }}
+          APPROVED: ${{ steps.policy.outputs.approved }}
+        run: |
+          set -euo pipefail
+          mode=warning
+          [ "$ENFORCE" = true ] && [ "$APPROVED" != true ] && mode=error
+          n=0
+          while IFS= read -r f; do
+            [ -n "$f" ] || continue
+            n=$((n + 1))
+            [ "$n" -gt 10 ] && { echo "::warning::more than 10 deleted test files; remaining ones not annotated"; break; }
+            echo "::$mode file=$f::Agent PR deleted a test file"
+          done < <(jq -r '.[]' <<< "${DELETED:-[]}")
+          echo "violated=true" >> "$GITHUB_OUTPUT"
+
+      - name: Fetch agent-patch-guard semgrep rules
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # job.workflow_repository is the dynamic form; actionlint does not know that field yet.
+          repository: JacobPEvans/.github
+          # The commit this reusable workflow was loaded from, NOT main, so a
+          # caller pinned to a release keeps running that release's rules.
+          ref: ${{ job.workflow_sha }}
+          path: .agent-patch-guard-rules
+          sparse-checkout: configs/agent-patch-guard
+          sparse-checkout-cone-mode: false
+
+      # Move the rules out of the scanned workspace first: semgrep would
+      # otherwise match its own rule definitions, and mounting them from
+      # outside /src keeps them out of the scan entirely.
+      - name: Move rules outside the scanned workspace
+        run: mv .agent-patch-guard-rules/configs/agent-patch-guard "$RUNNER_TEMP/agent-patch-guard-rules"
+
+      - name: Semgrep diff-aware scan
+        id: semgrep
+        env:
+          BASE_SHA: ${{ steps.base.outputs.sha }}
+          SEMGREP_TAG: ${{ inputs.semgrep_tag }}
+        run: |
+          set -euo pipefail
+          command -v docker > /dev/null || { echo "::error::docker is required for the semgrep rung"; exit 1; }
+          # The semgrep container runs as root while the workspace belongs to
+          # the runner user; without safe.directory its baseline git calls die
+          # on dubious ownership. Metrics stay off on public repos. One retry
+          # absorbs the registry's transient pull failures.
+          ok=false
+          for attempt in 1 2; do
+            if docker run --rm \
+                 -v "$PWD:/src" \
+                 -v "${RUNNER_TEMP}/agent-patch-guard-rules:/rules:ro" \
+                 -v "${RUNNER_TEMP}:/out" \
+                 -w /src \
+                 "semgrep/semgrep:${SEMGREP_TAG}" \
+                 sh -c 'git config --global --add safe.directory /src &&
+                        semgrep scan --metrics=off --config /rules \
+                          --baseline-commit "$1" --json --output /out/semgrep-findings.json' \
+                   _ "$BASE_SHA"; then
+              ok=true
+              break
+            fi
+            echo "::warning::semgrep attempt $attempt failed; retrying"
+            sleep 5
+          done
+          [ "$ok" = true ] || { echo "::error::semgrep scan failed after retry"; exit 1; }
+
+      - name: Check semgrep findings
+        id: semgrep-findings
+        env:
+          FINDINGS: ${{ runner.temp }}/semgrep-findings.json
+          ENFORCE: ${{ steps.policy.outputs.enforce }}
+          APPROVED: ${{ steps.policy.outputs.approved }}
+        run: |
+          set -euo pipefail
+          mode=warning
+          [ "$ENFORCE" = true ] && [ "$APPROVED" != true ] && mode=error
+          count=$(jq '.results | length' "$FINDINGS")
+          while IFS=$'\t' read -r path line id msg; do
+            echo "::$mode file=$path,line=$line,title=$id::$msg"
+          done < <(jq -r '.results[:10][] | [.path, (.start.line | tostring), .check_id, .extra.message] | @tsv' "$FINDINGS")
+          if [ "$count" -gt 10 ]; then
+            echo "::warning::semgrep produced $count findings; only the first 10 annotated"
+          fi
+          echo "count=$count" >> "$GITHUB_OUTPUT"
+          [ "$count" -gt 0 ] && echo "violated=true" >> "$GITHUB_OUTPUT" || echo "violated=false" >> "$GITHUB_OUTPUT"
+
+      # Rung 3 - inline because neither rung 1 nor rung 2 can do this:
+      # dorny/paths-filter sees file-level add/delete, not content, and
+      # baseline-mode semgrep reports only findings a PR ADDS, so a modified
+      # test file that loses assertion lines gains no guarded pattern to
+      # catch. 15-line shell body, on purpose. `assert` also matches
+      # `self.assert` and `assert_`; `expect(` matches the jest-style call.
+      - name: Check assertion counts in modified test files
+        id: assertions
+        env:
+          BASE_SHA: ${{ steps.base.outputs.sha }}
+          MODIFIED: ${{ steps.base.outputs.modified }}
+          ENFORCE: ${{ steps.policy.outputs.enforce }}
+          APPROVED: ${{ steps.policy.outputs.approved }}
+        run: |
+          set -euo pipefail
+          mode=warning
+          [ "$ENFORCE" = true ] && [ "$APPROVED" != true ] && mode=error
+          who=$([ "$ENFORCE" = true ] && echo 'Agent PR' || echo 'PR')
+          violated=false
+          while IFS= read -r f; do
+            case "$f" in
+              */test/*|*/tests/*|*_test.*|test_*|*.test.*|*.spec.*|*.tftest.hcl|*/molecule/*/verify.yml) ;;
+              *) continue ;;
+            esac
+            before=$(git show "$BASE_SHA:$f" 2>/dev/null | grep -Ec 'assert|expect\(' || true)
+            after=$(grep -Ec 'assert|expect\(' "$f" || true)
+            [ "$after" -lt "$before" ] && { echo "::$mode file=$f::$who dropped assertions in a test file ($before -> $after)"; violated=true; }
+          done < <(jq -r '.[]' <<< "${MODIFIED:-[]}")
+          echo "violated=$violated" >> "$GITHUB_OUTPUT"
+
+      - name: Check added scripts
+        id: added-script
+        if: ${{ steps.filter.outputs.added-script == 'true' }}
+        env:
+          ADDED: ${{ steps.filter.outputs.added-script_files }}
+          ENFORCE: ${{ steps.policy.outputs.enforce }}
+          APPROVED: ${{ steps.policy.outputs.approved }}
+        run: |
+          set -euo pipefail
+          mode=warning
+          [ "$ENFORCE" = true ] && [ "$APPROVED" != true ] && mode=error
+          n=0
+          while IFS= read -r f; do
+            [ -n "$f" ] || continue
+            n=$((n + 1))
+            [ "$n" -gt 10 ] && { echo "::warning::more than 10 added scripts; remaining ones not annotated"; break; }
+            echo "::$mode file=$f::Agent PR added a script under scripts/ or bin/"
+          done < <(jq -r '.[]' <<< "${ADDED:-[]}")
+          echo "violated=true" >> "$GITHUB_OUTPUT"
+
+      - name: Verdict
+        env:
+          ENFORCE: ${{ steps.policy.outputs.enforce }}
+          APPROVED: ${{ steps.policy.outputs.approved }}
+          DELETED_TEST: ${{ steps.deleted-test.outputs.violated }}
+          SEMGREP: ${{ steps.semgrep-findings.outputs.violated }}
+          ASSERTIONS: ${{ steps.assertions.outputs.violated }}
+          ADDED_SCRIPT: ${{ steps.added-script.outputs.violated }}
+        run: |
+          set -euo pipefail
+          echo "deleted-test=${DELETED_TEST:-false} semgrep=${SEMGREP:-false} assertions=${ASSERTIONS:-false} added-script=${ADDED_SCRIPT:-false}"
+          if [ "$ENFORCE" != true ] || [ "$APPROVED" = true ]; then
+            echo "Agent Patch Guard passed: enforce=$ENFORCE, approved=$APPROVED (findings above are warnings)."
+            exit 0
+          fi
+          if printf '%s\n' "${DELETED_TEST:-false}" "${SEMGREP:-false}" "${ASSERTIONS:-false}" "${ADDED_SCRIPT:-false}" | grep -qx true; then
+            echo "::error::Agent PR weakened CI. Restore the removed coverage, or get a human to add the agent-patch-guard:approved label after review."
+            exit 1
+          fi
+          echo "Agent Patch Guard enforced and clean."

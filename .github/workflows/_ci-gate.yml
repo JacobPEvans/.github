@@ -30,6 +30,7 @@
 # caller yet, defers ENTIRELY to the pre-existing filter - "the classifier
 # is unreachable" behaves exactly like "this feature doesn't exist yet",
 # never like "skip everything". `dependency-review`, `zizmor`, `osv-scan`,
+# `agent-patch-guard`,
 # and `renovate-annotations` are deliberately NOT gated on `scope` - each
 # has its own documented reason a supply-chain/workflow-security scan must
 # never be skippable by ANY signal, deterministic or classified.
@@ -97,6 +98,14 @@
 # `zizmor` (workflow-security scan) is likewise NOT filter-gated — it runs on
 # every `pull_request` event when enabled, regardless of which paths changed,
 # since a security scan must not be evadable by touching only untracked paths.
+#
+# `agent_patch_guard` (default true) runs `Agent Patch Guard` on every
+# `pull_request`, also NOT filter-gated — an agent must not choose which paths
+# its own audit watches. It fails only when a commit is authored or committed
+# by a login in the org variable AGENT_PATCH_GUARD_LOGINS (comma list; unset
+# defaults to logins ending in [bot]); every other PR gets warning annotations
+# and passes. The `agent-patch-guard:approved` label is the reviewed escape
+# hatch for a legitimate test removal. See _agent-patch-guard.yml.
 #
 # PERMISSIONS INVARIANT for jobs in this file: never request more than the
 # STANDARD caller grant (contents: read, pull-requests: read, actions: write).
@@ -336,6 +345,20 @@ on:
           event, unconditionally — NOT gated on any `filters` output, since a
           security scan must not be skippable by touching only untracked
           paths.
+        type: boolean
+        default: true
+
+      agent_patch_guard:
+        description: >-
+          Enable `Agent Patch Guard`. Runs on every `pull_request` event,
+          unconditionally — NOT gated on any `filters` output, so an agent
+          cannot escape its own audit by touching only some paths. It fails a
+          PR only when one of its commits is authored or committed by a login
+          in the org variable AGENT_PATCH_GUARD_LOGINS (comma list; unset
+          defaults to logins ending in [bot]); every other PR sees warning
+          annotations and passes. The `agent-patch-guard:approved` label,
+          added by an account with triage access or above, is the reviewed
+          escape hatch that turns an enforced failure into a pass.
         type: boolean
         default: true
 
@@ -879,6 +902,17 @@ jobs:
     with:
       runner_label: ${{ (!github.event.pull_request || github.event.pull_request.head.repo.full_name == github.repository) && inputs.runner_label || 'ubuntu-24.04' }}
 
+  # agent-patch-guard is intentionally NOT `needs: changes` / filter-gated —
+  # an agent must not be able to shrink its own audit's blast radius by
+  # touching only some paths. Enforcement is commit-author based (see the
+  # input above), so non-agent PRs see warnings only and the job passes.
+  agent-patch-guard:
+    name: Agent Patch Guard
+    if: ${{ inputs.agent_patch_guard && github.event_name == 'pull_request' }}
+    uses: ./.github/workflows/_agent-patch-guard.yml
+    with:
+      runner_label: ${{ (!github.event.pull_request || github.event.pull_request.head.repo.full_name == github.repository) && inputs.runner_label || 'ubuntu-24.04' }}
+
   # Deliberately NOT in `gate.needs` — advisory pilot, warns only (see
   # _agent-pr-body.yml); not gated on `changes` (no path filter applies).
   agent-pr-body:
@@ -1065,7 +1099,7 @@ jobs:
   # ============================================================================
   gate:
     name: Merge Gate
-    needs: [changes, scope, watchdog, flake-lock-fresh, nix-validate, nix-build, markdown-lint, file-size, token-limits, python-security, python-ci, ansible-ci, renovate-annotations, tofu-ci, osv-scan, dependency-review, zizmor, uses-resolve, repo-tests, workflow-lint]
+    needs: [changes, scope, watchdog, flake-lock-fresh, nix-validate, nix-build, markdown-lint, file-size, token-limits, python-security, python-ci, ansible-ci, renovate-annotations, tofu-ci, osv-scan, dependency-review, zizmor, agent-patch-guard, uses-resolve, repo-tests, workflow-lint]
     # Run after workflow cancellation too, so cancelled sibling checks aggregate
     # to a failing required status instead of a skipped (successful) job.
     if: ${{ always() }}
@@ -1103,7 +1137,8 @@ jobs:
             flake-lock-fresh,
             nix-validate, nix-build, markdown-lint, file-size, token-limits,
             python-security, python-ci, ansible-ci, renovate-annotations,
-            tofu-ci, osv-scan, dependency-review, zizmor, watchdog,
+            tofu-ci, osv-scan, dependency-review, zizmor, agent-patch-guard,
+            watchdog,
             repo-tests, workflow-lint
           CI_GATE_ALLOWED_FAILURES: scope
         run: node .gh-shared/scripts/ci-gate-aggregate.mts
