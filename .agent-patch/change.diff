@@ -1,0 +1,1028 @@
+diff --git a/.github/scripts/lane.jq b/.github/scripts/lane.jq
+new file mode 100644
+index 0000000..995cd87
+--- /dev/null
++++ b/.github/scripts/lane.jq
+@@ -0,0 +1,69 @@
++# The lane decision table, shared by .github/workflows/_lane.yml (which feeds
++# it event data gathered in the workflow step) and tests/lane.test.js (which
++# feeds it the table cases). One program, one decision, so the workflow and
++# the tests cannot drift apart.
++#
++# Input (JSON object):
++#   event_name        pull_request | merge_group | push | any other event
++#   repository        full name of the repository the gate runs in
++#   author            pull request author login, "" when the event has none
++#   head_ref          pull request head branch, "" when unknown
++#   head_repo         pull request head repository full name, "" when unknown
++#   labels            array of pull request label names
++#   additions         number of added lines, null when the count is unknown
++#   deletions         number of deleted lines, null when the count is unknown
++#   changed_paths     every changed path (paths-filter's changed_all_files)
++#   low_risk_paths    changed paths that matched the low_risk filter
++#   instruction_paths changed paths that matched the instruction filter
++#   guarded_paths     changed paths that matched the guarded filter
++#   bot_logins        logins that always take the bot lane
++#   automation_logins logins that take the bot lane with the auto-revert label
++#   sandbox_logins    sandbox executor logins, never tiny or land-first
++#
++# Output (JSON object): lane, heavy_jobs, fast_path, tiny. The three flags
++# are "true"/"false" strings, ready for GITHUB_OUTPUT.
++. as $in |
++def is_fork:
++  (($in.event_name == "pull_request") or ($in.event_name == "merge_group"))
++  and (($in.head_repo // "") != $in.repository);
++def is_sandbox:
++  (($in.sandbox_logins | index($in.author)) != null)
++  or (($in.head_ref // "") | startswith("agent/"));
++def is_bot:
++  (($in.bot_logins | index($in.author)) != null)
++  or ((($in.automation_logins | index($in.author)) != null)
++      and (($in.labels | index("auto-revert")) != null));
++def guarded_changed:
++  (($in.guarded_paths // []) | length > 0);
++def instruction_changed:
++  (($in.instruction_paths // []) | length > 0);
++# A change is all low-risk when the file list is known and every changed
++# path matched the low_risk filter.
++def only_low_risk:
++  (($in.changed_paths // []) | length > 0)
++  and ((($in.changed_paths // []) - ($in.low_risk_paths // [])) | length == 0);
++def lines_changed:
++  (($in.additions // 0) + ($in.deletions // 0));
++def counts_known:
++  (($in.additions | type) == "number") and (($in.deletions | type) == "number");
++def may_go_light:
++  ((is_fork or is_sandbox) | not);
++def tiny_lane:
++  counts_known and (lines_changed <= 10) and only_low_risk
++  and ((instruction_changed or is_fork or is_sandbox) | not);
++def land_first_lane:
++  (($in.labels | index("land-first")) != null) and may_go_light;
++(if guarded_changed then "guarded"
++elif is_bot then "bot"
++elif tiny_lane then "tiny"
++elif land_first_lane then "land-first"
++else "normal" end) as $lane |
++{
++  lane: $lane,
++  # Heavy jobs run for the normal and guarded lanes and skip for the bot,
++  # tiny and land-first lanes. fast_path is the legacy alias callers gate
++  # with `fast_path != 'true'`.
++  heavy_jobs: (if $lane == "normal" or $lane == "guarded" then "true" else "false" end),
++  fast_path: (if $lane == "normal" or $lane == "guarded" then "false" else "true" end),
++  tiny: (if $lane == "tiny" then "true" else "false" end)
++}
+diff --git a/.github/workflows/_ansible-changes.yml b/.github/workflows/_ansible-changes.yml
+index 219960e..8b9427f 100644
+--- a/.github/workflows/_ansible-changes.yml
++++ b/.github/workflows/_ansible-changes.yml
+@@ -41,9 +41,11 @@ on:
+         value: ${{ jobs.changes.outputs.molecule }}
+       tiny:
+         description: >-
+-          Whether this is a small pull request into develop with only safe task or
+-          handler changes.
+-        value: ${{ jobs.changes.outputs.tiny }}
++          Lane alias: 'true' only for the tiny lane of the shared classifier
++          (10 changed lines or fewer, all low-risk paths, no instruction
++          file, and neither a fork nor a sandbox author). Callers narrow
++          their heavy jobs with `tiny != 'true'`.
++        value: ${{ jobs.lane.outputs.tiny }}
+       renovate_config:
+         description: Whether the caller's Renovate config changed.
+         value: ${{ jobs.changes.outputs.renovate_config }}
+@@ -90,7 +92,6 @@ jobs:
+       # only after a push to main; focused PRs and branch pushes use mapped
+       # scenarios or [] when caller contracts cover the change.
+       molecule_scenarios: ${{ steps.scenario_scope.outputs.scenarios }}
+-      tiny: ${{ steps.tiny.outputs.tiny }}
+     steps:
+       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+         with:
+@@ -217,56 +218,8 @@ jobs:
+               - '.config/molecule/**'
+               - 'requirements-ci.txt'
+               - 'ansible.cfg'
+-            # Counts only add/modify changes inside the tiny-diff allowlist.
+-            tiny_files:
+-              - added|modified: 'roles/*/tasks/**'
+-              - added|modified: 'roles/*/handlers/**'
+-            tiny_excluded:
+-              - '.github/**'
+-              - 'inventory/**'
+-              - 'group_vars/**'
+-              - 'host_vars/**'
+-              - 'playbooks/**'
+-              - 'tests/**'
+-              - 'molecule/**'
+-              - 'requirements*'
+-              - 'ansible.cfg'
+-              - 'roles/openbao/**'
+-              - 'roles/openbao_secrets/**'
+-              - 'roles/*/vars/**'
+-              - '**/*secret*'
+-              - '**/*credential*'
+-              - '**/*token*'
+-              - '**/vault/**'
+-              - '*.sops.*'
+-              - '.sops.yaml'
+-              - 'llm-models.d/**'
+             ${{ inputs.molecule_scenario_filters }}
+             ${{ inputs.molecule_contract_filters }}
+-      # Comparing this filtered count with the PR payload rejects any changed
+-      # file outside the allowlist, including deletes and renames.
+-      - name: Detect tiny develop pull request
+-        id: tiny
+-        env:
+-          EVENT_NAME: ${{ github.event_name }}
+-          BASE_REF: ${{ github.base_ref }}
+-          CHANGED_FILES: ${{ github.event.pull_request.changed_files }}
+-          ADDITIONS: ${{ github.event.pull_request.additions }}
+-          DELETIONS: ${{ github.event.pull_request.deletions }}
+-          ALLOWED_FILES: ${{ steps.classify.outputs.tiny_files_count }}
+-          EXCLUDED_FILES: ${{ steps.classify.outputs.tiny_excluded_count }}
+-        run: |
+-          tiny=false
+-          if [[ "$EVENT_NAME" == "pull_request" && "$BASE_REF" == "develop" &&
+-                "$CHANGED_FILES" =~ ^[0-9]+$ && "$ADDITIONS" =~ ^[0-9]+$ &&
+-                "$DELETIONS" =~ ^[0-9]+$ && "$ALLOWED_FILES" =~ ^[0-9]+$ &&
+-                "$EXCLUDED_FILES" =~ ^[0-9]+$ ]]; then
+-            if (( 10#$CHANGED_FILES <= 2 && 10#$ADDITIONS + 10#$DELETIONS <= 10 &&
+-                  10#$ALLOWED_FILES == 10#$CHANGED_FILES && 10#$EXCLUDED_FILES == 0 )); then
+-              tiny=true
+-            fi
+-          fi
+-          printf 'tiny=%s\n' "$tiny" >> "$GITHUB_OUTPUT"
+       - name: Note that mapping is not required when Molecule is off
+         if: >-
+           ${{ (github.event_name == 'pull_request' ||
+@@ -335,3 +288,12 @@ jobs:
+           else
+             printf 'scenarios=[]\n' >> "$GITHUB_OUTPUT"
+           fi
++
++  # ============================================================================
++  # LANE CLASSIFIER
++  # One shared decision for the tiny lane (and the rest of the lane model),
++  # replacing the ansible-specific tiny-diff step whose allowlist lived only
++  # here and drifted from the gate's own fast-path logic.
++  lane:
++    name: Classify Lane
++    uses: ./.github/workflows/_lane.yml
+diff --git a/.github/workflows/_ci-gate.yml b/.github/workflows/_ci-gate.yml
+index 8582d95..e4ca620 100644
+--- a/.github/workflows/_ci-gate.yml
++++ b/.github/workflows/_ci-gate.yml
+@@ -472,9 +472,27 @@ on:
+         value: ${{ jobs.scope.outputs.source }}
+       fast_path:
+         description: >-
+-          Callers gate repo-local heavy jobs, such as contract shards or a
+-          site build, with `fast_path != 'true'`.
+-        value: ${{ jobs.changes.outputs.fast_path }}
++          Lane alias: 'true' for the bot, tiny and land-first lanes. Callers
++          gate repo-local heavy jobs, such as contract shards or a site
++          build, with `fast_path != 'true'`.
++        value: ${{ jobs.lane.outputs.fast_path }}
++      lane:
++        description: >-
++          Lane from the shared classifier: guarded (a guarded path changed),
++          bot (trusted automation), tiny (10 changed lines or fewer, all
++          low-risk, no instruction file), land-first (labeled), or normal.
++          See _lane.yml for precedence.
++        value: ${{ jobs.lane.outputs.lane }}
++      tier:
++        description: >-
++          Merge tier from repository.custom_properties.merge_tier, 'legacy'
++          when the property is unset.
++        value: ${{ jobs.lane.outputs.tier }}
++      heavy_jobs:
++        description: >-
++          'true' when the change should run the caller's heavy jobs (the
++          normal and guarded lanes), 'false' for bot, tiny and land-first.
++        value: ${{ jobs.lane.outputs.heavy_jobs }}
+ 
+     secrets:
+       TYPESAFE_API_KEY:
+@@ -515,6 +533,15 @@ jobs:
+     secrets:
+       TYPESAFE_API_KEY: ${{ secrets.TYPESAFE_API_KEY }}
+ 
++  # ============================================================================
++  # LANE CLASSIFIER
++  # One shared decision for the lane, the merge tier and whether heavy jobs
++  # run, for this gate and its callers. The fast-path logic this replaces is
++  # kept as the `fast_path` lane alias; the heavy jobs below gate on it.
++  lane:
++    name: Classify Lane
++    uses: ./.github/workflows/_lane.yml
++
+   # ============================================================================
+   # CHANGE DETECTION
+   # ============================================================================
+@@ -535,7 +562,6 @@ jobs:
+       is-deps-only: ${{ steps.detect-deps.outputs.is-deps-only }}
+       is-flake-lock-change: ${{ steps.lockfilter.outputs.flake-lock }}
+       is-nix-source-change: ${{ steps.lockfilter.outputs.nix-source }}
+-      fast_path: ${{ steps.tier.outputs.fast_path }}
+     steps:
+       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+       # One filter body: an explicit `filters` input wins, else the profile's
+@@ -643,38 +669,7 @@ jobs:
+           PRODUCTION_BRANCH: ${{ inputs.production_branch }}
+           DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+           NON_DOC: ${{ steps.lockfilter.outputs.non-doc }}
+-          GH_TOKEN: ${{ github.token }}
+-          REPO: ${{ github.repository }}
+-          PR_NUMBER: ${{ github.event.pull_request.number }}
+         run: |
+-          fast_path_decision() {
+-            local event_name="$1" has_label="$2" additions="$3" deletions="$4" changed_files="$5"
+-            local changed_lines=$((10#$additions + 10#$deletions))
+-            if [[ "$event_name" == pull_request && "$has_label" == true && "$changed_lines" -lt 15 && "$changed_files" -lt 5 ]]; then
+-              printf true
+-            else
+-              printf false
+-            fi
+-          }
+-
+-          fast_path=false
+-          fast_path_lines=n/a
+-          fast_path_files=n/a
+-          if [[ "$EVENT_NAME" == pull_request ]]; then
+-            if [[ -n "${REPO:-}" && -n "${PR_NUMBER:-}" ]] && pr_json="$(gh api "repos/$REPO/pulls/$PR_NUMBER")"; then
+-              has_fast_path="$(jq -r '[.labels[]?.name] | index("fast-path") != null' <<< "$pr_json")"
+-              additions="$(jq -r '.additions' <<< "$pr_json")"
+-              deletions="$(jq -r '.deletions' <<< "$pr_json")"
+-              fast_path_files="$(jq -r '.changed_files' <<< "$pr_json")"
+-              fast_path_lines=$((10#$additions + 10#$deletions))
+-              fast_path="$(fast_path_decision "$EVENT_NAME" "$has_fast_path" "$additions" "$deletions" "$fast_path_files")"
+-            else
+-              echo "::warning::Unable to read pull request metadata; fast_path is false."
+-            fi
+-          fi
+-          printf 'fast_path size: %s lines / %s files; decision: %s\n' "$fast_path_lines" "$fast_path_files" "$fast_path"
+-          echo "fast_path=$fast_path" >> "$GITHUB_OUTPUT"
+-
+           production_pr=false
+           case "$EVENT_NAME" in
+             push) test_tier=full ;;
+@@ -787,10 +782,10 @@ jobs:
+   # `github.base_ref`. Non-PR events (push, schedule, dispatch) keep building.
+   nix-build:
+     name: Nix Build
+-    needs: [changes, scope]
++    needs: [changes, scope, lane]
+     # Full-tier events bypass dependency-only and scope narrowing; other PRs
+     # retain the existing relevance and default-branch gates.
+-    if: ${{ !cancelled() && inputs.nix_build && (github.event_name != 'pull_request' || needs.changes.outputs.production_pr == 'true') && needs.changes.outputs.nix == 'true' && needs.changes.outputs.fast_path != 'true' && (needs.changes.outputs.test_tier == 'full' || inputs.nix_skip_deps_only == false || needs.changes.outputs.is-deps-only != 'true' || needs.changes.outputs.is-flake-lock-change == 'true' || needs.changes.outputs.is-nix-source-change == 'true') && (needs.changes.outputs.test_tier == 'full' || needs.changes.outputs.profile-unmapped == 'true' || needs.scope.result != 'success' || (needs.scope.outputs.ci != 'lint-only' && needs.scope.outputs.ci != 'none')) }}
++    if: ${{ !cancelled() && inputs.nix_build && (github.event_name != 'pull_request' || needs.changes.outputs.production_pr == 'true') && needs.changes.outputs.nix == 'true' && needs.lane.outputs.fast_path != 'true' && (needs.changes.outputs.test_tier == 'full' || inputs.nix_skip_deps_only == false || needs.changes.outputs.is-deps-only != 'true' || needs.changes.outputs.is-flake-lock-change == 'true' || needs.changes.outputs.is-nix-source-change == 'true') && (needs.changes.outputs.test_tier == 'full' || needs.changes.outputs.profile-unmapped == 'true' || needs.scope.result != 'success' || (needs.scope.outputs.ci != 'lint-only' && needs.scope.outputs.ci != 'none')) }}
+     uses: ./.github/workflows/_nix-build.yml
+     with:
+       build-command: ${{ inputs.nix_build_command }}
+@@ -894,7 +889,7 @@ jobs:
+   # this wiring is inert today, kept correct for whenever one does.
+   ansible-ci:
+     name: Ansible CI
+-    needs: [changes, scope]
++    needs: [changes, scope, lane]
+     if: ${{ !cancelled() && (inputs.ansible_ci || inputs.profile == 'ansible') && needs.changes.outputs.ansible == 'true' && (needs.changes.outputs.test_tier == 'full' || needs.changes.outputs.profile-unmapped == 'true' || needs.scope.result != 'success' || needs.scope.outputs.ci != 'none') }}
+     uses: ./.github/workflows/_ansible-ci.yml
+     with:
+@@ -903,7 +898,9 @@ jobs:
+       # scope's `molecule` output is a second layer on `_ansible-ci.yml`'s
+       # own molecule toggle - only turns it off when scope definitively
+       # said "none"; any other answer, or a scope failure, leaves it on.
+-      molecule: ${{ needs.changes.outputs.fast_path != 'true' && (needs.changes.outputs.test_tier == 'full' || needs.scope.result != 'success' || needs.scope.outputs.molecule != 'none') }}
++      # The lane classifier's fast_path alias turns it off for the bot,
++      # tiny and land-first lanes.
++      molecule: ${{ needs.lane.outputs.fast_path != 'true' && (needs.changes.outputs.test_tier == 'full' || needs.scope.result != 'success' || needs.scope.outputs.molecule != 'none') }}
+       full_suite: ${{ needs.changes.outputs.test_tier == 'full' }}
+       runner_label: ${{ (!github.event.pull_request || github.event.pull_request.head.repo.full_name == github.repository) && inputs.runner_label || 'ubuntu-24.04' }}
+ 
+diff --git a/.github/workflows/_lane.yml b/.github/workflows/_lane.yml
+new file mode 100644
+index 0000000..c22d136
+--- /dev/null
++++ b/.github/workflows/_lane.yml
+@@ -0,0 +1,281 @@
++# Shared lane classifier: ONE decision for the lane, the merge tier and
++# whether heavy jobs run, for every gate caller.
++#
++#   # Call it directly from a repo-local workflow:
++#   jobs:
++#     lane:
++#       uses: JacobPEvans/.github/.github/workflows/_lane.yml@v1
++#
++# Lanes, in precedence order:
++#   guarded    a guarded path changed (workflows, secret-adjacent files);
++#              the change always gets the full treatment
++#   bot        the author is a trusted automation login, or an automation
++#              App login whose pull request carries the auto-revert label
++#   tiny       10 changed lines or fewer, all low-risk paths, no instruction
++#              file
++#   land-first the pull request carries the land-first label and no guarded
++#              path changed
++#   normal     everything else
++#
++# Forks and sandbox executor authors (a sandbox login, or an `agent/` head
++# branch) never take the tiny or land-first lanes.
++#
++# Outputs:
++#   lane        the lane name itself
++#   tier        repository.custom_properties.merge_tier, `legacy` when unset
++#   heavy_jobs  'true' for the normal and guarded lanes; callers gate their
++#               heavy jobs (contract shards, site builds, full builds) with
++#               `heavy_jobs == 'true'`
++#   fast_path   lane alias, 'true' for the bot, tiny and land-first lanes;
++#               callers that already gate with `fast_path != 'true'` keep
++#               working unchanged
++#   tiny        lane alias, 'true' only for the tiny lane
++#
++# The decision itself lives in one jq program (.github/scripts/lane.jq) that
++# this workflow and tests/lane.test.js both read, so the tests exercise the
++# exact table the gate runs.
++#
++# Merge queue events have no pull_request payload, so the pull request
++# number is parsed from merge_group.head_ref
++# (refs/heads/gh-readonly-queue/<base>/pr-<number>-<commit>) and its
++# metadata is fetched from the API; a failed fetch classifies without the
++# metadata instead of failing the lane.
++
++name: _lane
++
++on:
++  workflow_call:
++    inputs:
++      low_risk_paths:
++        description: >-
++          Comma-separated dorny/paths-filter globs for paths safe to merge
++          on a tiny diff.
++        type: string
++        default: 'docs/**,**.md,**.mdx,tests/**'
++      instruction_paths:
++        description: >-
++          Comma-separated globs for agent-instruction files, which are never
++          tiny even when they are otherwise low-risk.
++        type: string
++        default: 'AGENTS.md,**/AGENTS.md,**/prompts/**,**/skills/**,**/rules/**'
++      guarded_paths:
++        description: >-
++          Comma-separated globs whose change always takes the guarded lane.
++        type: string
++        default: '.github/workflows/**,**/*secret*,**/*credential*,**/*token*,**/vault/**,*.sops.*,.sops.yaml'
++      bot_logins:
++        description: >-
++          Comma-separated author logins that always take the bot lane.
++        type: string
++        default: 'renovate[bot],jacobpevans-release-please[bot]'
++      automation_logins:
++        description: >-
++          Comma-separated automation App logins that take the bot lane when
++          the pull request carries the auto-revert label.
++        type: string
++        default: 'jacobpevans-claude[bot]'
++      sandbox_logins:
++        description: >-
++          Comma-separated sandbox executor logins; a login here, or an
++          `agent/` head branch, is never tiny or land-first.
++        type: string
++        default: 'jacobs-agent-smith[bot]'
++    outputs:
++      lane:
++        description: >-
++          guarded | bot | tiny | land-first | normal, decided by
++          .github/scripts/lane.jq.
++        value: ${{ jobs.classify.outputs.lane }}
++      tier:
++        description: >-
++          The repository.custom_properties.merge_tier property, 'legacy'
++          when the property is unset.
++        value: ${{ jobs.classify.outputs.tier }}
++      heavy_jobs:
++        description: >-
++          'true' when the change should run the caller's heavy jobs (the
++          normal and guarded lanes), 'false' for bot, tiny and land-first.
++        value: ${{ jobs.classify.outputs.heavy_jobs }}
++      fast_path:
++        description: >-
++          Lane alias: 'true' for the bot, tiny and land-first lanes. Callers
++          gate repo-local heavy jobs, such as contract shards or a site
++          build, with `fast_path != 'true'`.
++        value: ${{ jobs.classify.outputs.fast_path }}
++      tiny:
++        description: >-
++          Lane alias: 'true' only for the tiny lane.
++        value: ${{ jobs.classify.outputs.tiny }}
++
++permissions:
++  contents: read
++  pull-requests: read
++
++jobs:
++  classify:
++    name: Classify Lane
++    runs-on: ubuntu-24.04
++    timeout-minutes: 5
++    outputs:
++      lane: ${{ steps.classify.outputs.lane }}
++      tier: ${{ steps.tier.outputs.tier }}
++      heavy_jobs: ${{ steps.classify.outputs.heavy_jobs }}
++      fast_path: ${{ steps.classify.outputs.fast_path }}
++      tiny: ${{ steps.classify.outputs.tiny }}
++    steps:
++      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
++        with:
++          persist-credentials: false
++          # Push and merge queue diffs are computed locally; a merge queue
++          # event needs both its comparison SHAs in history.
++          fetch-depth: ${{ (github.event_name == 'push' || github.event_name == 'merge_group') && '0' || '1' }}
++      - name: Check out the decision program from this workflow's commit
++        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
++        with:
++          repository: JacobPEvans/.github
++          ref: ${{ job.workflow_sha }}
++          path: .gh-shared
++          sparse-checkout: .github/scripts/lane.jq
++          sparse-checkout-cone-mode: false
++          persist-credentials: false
++      - name: Build the paths-filter body from the caller's glob lists
++        id: resolve
++        env:
++          LOW_RISK_PATHS: ${{ inputs.low_risk_paths }}
++          INSTRUCTION_PATHS: ${{ inputs.instruction_paths }}
++          GUARDED_PATHS: ${{ inputs.guarded_paths }}
++        run: |
++          set -euo pipefail
++          # Comma-separated caller globs become one YAML filter body, plus a
++          # changed_all key listing every changed file so tiny can require
++          # the whole diff to be low-risk.
++          body="$(jq -rn '
++            def section($name; $csv):
++              if $csv == "" then empty
++              else ($csv | split(",") | map("  - '"'"'" + . + "'"'"'") | join("\n")) as $items
++              | "\($name):\n\($items)" end;
++            [
++              section("low_risk"; $low_risk),
++              section("instruction"; $instruction),
++              section("guarded"; $guarded),
++              "changed_all:\n  - '"'"'**'"'"'"
++            ] | join("\n")
++          ' \
++            --arg low_risk "$LOW_RISK_PATHS" \
++            --arg instruction "$INSTRUCTION_PATHS" \
++            --arg guarded "$GUARDED_PATHS")"
++          {
++            echo "filters<<RESOLVED_FILTERS_EOF"
++            printf '%s\n' "$body"
++            echo "RESOLVED_FILTERS_EOF"
++          } >> "$GITHUB_OUTPUT"
++      - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4
++        id: paths
++        with:
++          # PR events compare against their PR base branch. paths-filter does
++          # not know merge_group, so the queue event names its comparison by
++          # SHA; a push compares to its own branch, which makes the action
++          # use the commit immediately before the push.
++          base: ${{ github.event_name == 'merge_group' && github.event.merge_group.base_sha || (github.event_name == 'push' && github.ref || '') }}
++          filters: ${{ steps.resolve.outputs.filters }}
++          list-files: json
++      - name: Read the merge tier property
++        id: tier
++        env:
++          MERGE_TIER: ${{ github.event.repository.custom_properties.merge_tier }}
++        run: |
++          set -euo pipefail
++          tier="${MERGE_TIER:-}"
++          [[ -n "$tier" ]] || tier=legacy
++          printf 'tier=%s\n' "$tier" >> "$GITHUB_OUTPUT"
++      - name: Resolve the pull request number
++        id: pr
++        env:
++          EVENT_NAME: ${{ github.event_name }}
++          PR_NUMBER: ${{ github.event.pull_request.number }}
++          MERGE_HEAD_REF: ${{ github.event.merge_group.head_ref }}
++        run: |
++          set -euo pipefail
++          pr_number=""
++          if [[ "$EVENT_NAME" == pull_request && -n "${PR_NUMBER:-}" ]]; then
++            pr_number="$PR_NUMBER"
++          elif [[ "$EVENT_NAME" == merge_group && "${MERGE_HEAD_REF:-}" =~ pr-([0-9]+)-[0-9a-fA-F]+$ ]]; then
++            pr_number="${BASH_REMATCH[1]}"
++          elif [[ "$EVENT_NAME" == merge_group ]]; then
++            echo "::warning::cannot parse a pull request number from '${MERGE_HEAD_REF:-}'" >&2
++          fi
++          printf 'pr_number=%s\n' "$pr_number" >> "$GITHUB_OUTPUT"
++      - name: Fetch pull request metadata for merge queue events
++        id: meta
++        if: ${{ github.event_name == 'merge_group' && steps.pr.outputs.pr_number != '' }}
++        env:
++          GH_TOKEN: ${{ github.token }}
++          REPO: ${{ github.repository }}
++          PR_NUMBER: ${{ steps.pr.outputs.pr_number }}
++        run: |
++          set -euo pipefail
++          # Fail-safe: an API miss classifies without the metadata (normal
++          # lane, no tiny) instead of failing the lane.
++          if ! pr_json="$(gh api "repos/$REPO/pulls/$PR_NUMBER")"; then
++            echo "::warning::unable to read pull request $PR_NUMBER; classifying without its metadata" >&2
++            pr_json='{}'
++          fi
++          {
++            echo "author=$(jq -r '.user.login // ""' <<<"$pr_json")"
++            echo "head_ref=$(jq -r '.head.ref // ""' <<<"$pr_json")"
++            echo "head_repo=$(jq -r '.head.repo.full_name // ""' <<<"$pr_json")"
++            echo "labels=$(jq -rc '[.labels[]?.name]' <<<"$pr_json")"
++            echo "additions=$(jq -r '.additions // ""' <<<"$pr_json")"
++            echo "deletions=$(jq -r '.deletions // ""' <<<"$pr_json")"
++          } >> "$GITHUB_OUTPUT"
++      - name: Classify the lane
++        id: classify
++        env:
++          JQ_PROGRAM: .gh-shared/.github/scripts/lane.jq
++          EVENT_NAME: ${{ github.event_name }}
++          REPOSITORY: ${{ github.repository }}
++          PR_NUMBER: ${{ steps.pr.outputs.pr_number }}
++          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
++          PR_HEAD_REF: ${{ github.head_ref }}
++          PR_HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
++          PR_LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
++          PR_ADDITIONS: ${{ github.event.pull_request.additions }}
++          PR_DELETIONS: ${{ github.event.pull_request.deletions }}
++          QUEUE_AUTHOR: ${{ steps.meta.outputs.author }}
++          QUEUE_HEAD_REF: ${{ steps.meta.outputs.head_ref }}
++          QUEUE_HEAD_REPO: ${{ steps.meta.outputs.head_repo }}
++          QUEUE_LABELS: ${{ steps.meta.outputs.labels }}
++          QUEUE_ADDITIONS: ${{ steps.meta.outputs.additions }}
++          QUEUE_DELETIONS: ${{ steps.meta.outputs.deletions }}
++          LOW_RISK_FILES: ${{ steps.paths.outputs.low_risk_files }}
++          INSTRUCTION_FILES: ${{ steps.paths.outputs.instruction_files }}
++          GUARDED_FILES: ${{ steps.paths.outputs.guarded_files }}
++          CHANGED_FILES: ${{ steps.paths.outputs.changed_all_files }}
++          BOT_LOGINS: ${{ inputs.bot_logins }}
++          AUTOMATION_LOGINS: ${{ inputs.automation_logins }}
++          SANDBOX_LOGINS: ${{ inputs.sandbox_logins }}
++        run: |
++          set -euo pipefail
++          csv_array() { jq -cn --arg csv "$1" 'if $csv == "" then [] else [$csv | split(",")[] | gsub("^\\s+|\\s+$"; "")] end'; }
++          json_array() { jq -cn --arg raw "$1" 'if ($raw == "" or $raw == "null") then [] else ($raw | fromjson) end'; }
++          number_or_null() { jq -cn --arg raw "$1" 'if $raw == "" then null else ($raw | tonumber) end'; }
++          json_input="$(jq -n \
++            --arg event_name "$EVENT_NAME" \
++            --arg repository "$REPOSITORY" \
++            --arg author "${QUEUE_AUTHOR:-$PR_AUTHOR}" \
++            --arg head_ref "${QUEUE_HEAD_REF:-$PR_HEAD_REF}" \
++            --arg head_repo "${QUEUE_HEAD_REPO:-$PR_HEAD_REPO}" \
++            --argjson labels "$(json_array "${QUEUE_LABELS:-$PR_LABELS}")" \
++            --argjson additions "$(number_or_null "${QUEUE_ADDITIONS:-$PR_ADDITIONS}")" \
++            --argjson deletions "$(number_or_null "${QUEUE_DELETIONS:-$PR_DELETIONS}")" \
++            --argjson changed_paths "$(json_array "$CHANGED_FILES")" \
++            --argjson low_risk_paths "$(json_array "$LOW_RISK_FILES")" \
++            --argjson instruction_paths "$(json_array "$INSTRUCTION_FILES")" \
++            --argjson guarded_paths "$(json_array "$GUARDED_FILES")" \
++            --argjson bot_logins "$(csv_array "$BOT_LOGINS")" \
++            --argjson automation_logins "$(csv_array "$AUTOMATION_LOGINS")" \
++            --argjson sandbox_logins "$(csv_array "$SANDBOX_LOGINS")" \
++            '{event_name: $event_name, repository: $repository, author: $author, head_ref: $head_ref, head_repo: $head_repo, labels: $labels, additions: $additions, deletions: $deletions, changed_paths: $changed_paths, low_risk_paths: $low_risk_paths, instruction_paths: $instruction_paths, guarded_paths: $guarded_paths, bot_logins: $bot_logins, automation_logins: $automation_logins, sandbox_logins: $sandbox_logins}')"
++          decision="$(jq -f "$JQ_PROGRAM" <<<"$json_input")"
++          printf 'pull request %s: %s\n' "${PR_NUMBER:-n/a}" "$decision"
++          jq -rc 'to_entries[] | "\(.key)=\(.value)"' <<<"$decision" >> "$GITHUB_OUTPUT"
+diff --git a/tests/ansible-ci.test.js b/tests/ansible-ci.test.js
+index e1f2782..d3134c9 100644
+--- a/tests/ansible-ci.test.js
++++ b/tests/ansible-ci.test.js
+@@ -13,37 +13,6 @@ const renovateValidator = readFileSync('.github/workflows/renovate-config-valida
+ const renovateAnnotations = readFileSync('.github/workflows/_renovate-annotations.yml', 'utf8');
+ const renovatePreset = JSON.parse(readFileSync('renovate-presets.json', 'utf8'));
+ 
+-function tinyRunScript() {
+-  const step = ansibleChanges.slice(ansibleChanges.indexOf('- name: Detect tiny develop pull request'));
+-  const run = step.match(/\n        run: \|\n((?: {10}[^\n]*(?:\n|$))*)/);
+-  assert.ok(run, 'tiny output step has an inline run script');
+-  return run[1]
+-    .split('\n')
+-    .filter(Boolean)
+-    .map((line) => line.slice(10))
+-    .join('\n');
+-}
+-
+-function runTiny(overrides = {}) {
+-  const directory = mkdtempSync(join(tmpdir(), 'ansible-ci-tiny-'));
+-  const output = join(directory, 'github-output');
+-  execFileSync('bash', ['-e', '-c', tinyRunScript()], {
+-    env: {
+-      PATH: process.env.PATH,
+-      GITHUB_OUTPUT: output,
+-      EVENT_NAME: 'pull_request',
+-      BASE_REF: 'develop',
+-      CHANGED_FILES: '2',
+-      ADDITIONS: '2',
+-      DELETIONS: '0',
+-      ALLOWED_FILES: '2',
+-      EXCLUDED_FILES: '0',
+-      ...overrides,
+-    },
+-  });
+-  return readFileSync(output, 'utf8').trim();
+-}
+-
+ function jobRuns(jobName, lint) {
+   const start = ansibleCi.indexOf(`\n  ${jobName}:\n`);
+   assert.notEqual(start, -1, `${jobName} job exists`);
+@@ -165,18 +134,17 @@ test('shared Ansible CI delegates change selection to the reusable workflow and
+   ]) {
+     assert.ok(ansibleCi.includes(`      ${input}: \${{ inputs.${input} }}`), `${input} is forwarded`);
+   }
+-  for (const output of ['ansible', 'molecule', 'tiny', 'renovate_config', 'renovate_config_present', 'molecule_scenarios']) {
++  for (const output of ['ansible', 'molecule', 'renovate_config', 'renovate_config_present', 'molecule_scenarios']) {
+     assert.ok(ansibleCi.includes(`value: \${{ jobs.changes.outputs.${output} }}`), `${output} stays public`);
+     assert.ok(ansibleChanges.includes(`value: \${{ jobs.changes.outputs.${output} }}`), `${output} is exported`);
+   }
+   assert.doesNotMatch(ansibleCi, /Select scenarios only when every relevant path is covered/);
+ });
+ 
+-test('tiny output is wired from Detect Changes and narrows Molecule only outside the full tier', () => {
++test('tiny output is wired from the shared lane classifier and narrows Molecule only outside the full tier', () => {
+   assert.match(ansibleCi, /tiny:\n\s+description: >-\n(?:.*\n)*?\s+value: \$\{\{ jobs\.changes\.outputs\.tiny \}\}/);
+-  assert.match(ansibleChanges, /tiny: \$\{\{ steps\.tiny\.outputs\.tiny \}\}/);
+-  assert.match(ansibleChanges, /- name: Detect tiny develop pull request\n\s+id: tiny/);
+-  assert.match(ansibleChanges, /printf 'tiny=%s\\n' "\$tiny" >> "\$GITHUB_OUTPUT"/);
++  assert.match(ansibleChanges, /tiny:\n\s+description: >-\n(?:.*\n)*?\s+value: \$\{\{ jobs\.lane\.outputs\.tiny \}\}/);
++  assert.match(ansibleChanges, /lane:\n\s+name: Classify Lane\n\s+uses: \.\/\.github\/workflows\/_lane\.yml/);
+   assert.match(ansibleCi, /full_suite:\n\s+description:.*\n\s+type: boolean\n\s+default: false/);
+   assert.match(
+     ansibleCi,
+@@ -184,56 +152,13 @@ test('tiny output is wired from Detect Changes and narrows Molecule only outside
+   );
+ });
+ 
+-test('tiny is false for pushes and pull requests into main', () => {
+-  assert.equal(runTiny({ EVENT_NAME: 'push' }), 'tiny=false');
+-  assert.equal(runTiny({ BASE_REF: 'main' }), 'tiny=false');
+-});
+-
+-test('tiny is false for deleted or renamed paths', () => {
+-  assert.match(ansibleChanges, /tiny_files:\n\s+- added\|modified: 'roles\/\*\/tasks\/\*\*'/);
+-  assert.match(ansibleChanges, /- added\|modified: 'roles\/\*\/handlers\/\*\*'/);
+-  assert.equal(runTiny({ CHANGED_FILES: '1', ALLOWED_FILES: '0' }), 'tiny=false');
+-});
+-
+-test('tiny is false when any never-tiny path changed', () => {
+-  const excluded = [
+-    '.github/**',
+-    'inventory/**',
+-    'group_vars/**',
+-    'host_vars/**',
+-    'playbooks/**',
+-    'tests/**',
+-    'molecule/**',
+-    'requirements*',
+-    'ansible.cfg',
+-    'roles/openbao/**',
+-    'roles/openbao_secrets/**',
+-    'roles/*/vars/**',
+-    '**/*secret*',
+-    '**/*credential*',
+-    '**/*token*',
+-    '**/vault/**',
+-    '*.sops.*',
+-    '.sops.yaml',
+-    'llm-models.d/**',
+-  ];
+-  for (const pattern of excluded) assert.ok(ansibleChanges.includes(`              - '${pattern}'`), pattern);
+-  assert.equal(runTiny({ CHANGED_FILES: '1', ADDITIONS: '1', ALLOWED_FILES: '1', EXCLUDED_FILES: '1' }), 'tiny=false');
+-});
+-
+-test('tiny is false for three files or more than ten changed lines', () => {
+-  assert.equal(runTiny({ CHANGED_FILES: '3', ADDITIONS: '3', ALLOWED_FILES: '3' }), 'tiny=false');
+-  assert.equal(runTiny({ CHANGED_FILES: '1', ADDITIONS: '11', ALLOWED_FILES: '1' }), 'tiny=false');
+-});
+-
+-test('two task files with two changed lines produce tiny=true', () => {
+-  assert.match(ansibleChanges, /id: classify\n[\s\S]*?list-files: json\n[\s\S]*?tiny_files:/);
+-  assert.equal(runTiny(), 'tiny=true');
+-});
+-
+-test('missing or non-numeric tiny counts fail closed', () => {
+-  assert.equal(runTiny({ CHANGED_FILES: '' }), 'tiny=false');
+-  assert.equal(runTiny({ ALLOWED_FILES: 'unknown' }), 'tiny=false');
++test('the shared lane classifier carries the tiny decision table; this workflow keeps none of it', () => {
++  assert.doesNotMatch(ansibleChanges, /Detect tiny develop pull request/);
++  assert.doesNotMatch(ansibleChanges, /tiny_files/);
++  assert.doesNotMatch(ansibleChanges, /tiny_excluded/);
++  // The table cases live in tests/lane.test.js against the one jq program
++  // the classifier reads.
++  assert.match(readFileSync('.github/scripts/lane.jq', 'utf8'), /def tiny_lane:/);
+ });
+ 
+ test('shared Ansible CI runs strict Renovate validation for renovate.json changes', () => {
+diff --git a/tests/ci-gate-fast-path.test.js b/tests/ci-gate-fast-path.test.js
+index 48dd357..07a95f6 100644
+--- a/tests/ci-gate-fast-path.test.js
++++ b/tests/ci-gate-fast-path.test.js
+@@ -14,37 +14,32 @@ const workflow = JSON.parse(execFileSync(
+   { input: workflowText, encoding: 'utf8' },
+ ));
+ 
+-const tier = workflow.jobs.changes.steps.find((step) => step.id === 'tier');
+-const fastPathFunction = tier.run.match(/fast_path_decision\(\) \{[\s\S]*?\n\}/)?.[0];
+-
+-function decide({ event = 'pull_request', label, additions, deletions, files }) {
+-  assert.ok(fastPathFunction, 'tier step defines fast_path_decision');
+-  return execFileSync(
+-    'bash',
+-    [
+-      '-c',
+-      `${fastPathFunction}\nfast_path_decision "$1" "$2" "$3" "$4" "$5"`,
+-      'test',
+-      event,
+-      label,
+-      String(additions),
+-      String(deletions),
+-      String(files),
+-    ],
+-    { encoding: 'utf8' },
+-  );
+-}
++test('the gate classifies the lane with the shared reusable workflow', () => {
++  const lane = workflow.jobs.lane;
++  assert.ok(lane, 'lane job exists');
++  assert.equal(lane.uses, './.github/workflows/_lane.yml');
++  assert.equal(lane.name, 'Classify Lane');
++});
+ 
+-test('fast-path uses current pull request metadata and enforces both size limits', () => {
+-  assert.match(tier.run, /gh api "repos\/\$REPO\/pulls\/\$PR_NUMBER"/);
+-  assert.doesNotMatch(JSON.stringify(tier), /github\.event\.pull_request\.labels/);
+-  assert.match(tier.run, /-lt 15/);
+-  assert.match(tier.run, /-lt 5/);
++test('lane, tier, heavy_jobs and the fast_path alias are exported from the classifier', () => {
++  for (const output of ['lane', 'tier', 'heavy_jobs', 'fast_path']) {
++    const declaration = workflow.on.workflow_call.outputs[output];
++    assert.ok(declaration, `${output} output exists`);
++    assert.match(
++      declaration.value,
++      new RegExp(`\\$\\{\\{ jobs\\.lane\\.outputs\\.${output} \\}\\}`),
++      `${output} is wired from the lane job`,
++    );
++  }
++  assert.match(workflow.on.workflow_call.outputs.fast_path.description, /contract shards or a site build/);
++  assert.match(workflow.on.workflow_call.outputs.fast_path.description, /fast_path != 'true'/);
+ });
+ 
+ test('fast-path skips only the opted-in Nix build and Molecule suite', () => {
+-  assert.match(workflow.jobs['nix-build'].if, /needs\.changes\.outputs\.fast_path != 'true'/);
+-  assert.match(workflow.jobs['ansible-ci'].with.molecule, /needs\.changes\.outputs\.fast_path != 'true'/);
++  assert.match(workflow.jobs['nix-build'].if, /needs\.lane\.outputs\.fast_path != 'true'/);
++  assert.ok(workflow.jobs['nix-build'].needs.includes('lane'), 'nix-build waits for the lane');
++  assert.match(workflow.jobs['ansible-ci'].with.molecule, /needs\.lane\.outputs\.fast_path != 'true'/);
++  assert.ok(workflow.jobs['ansible-ci'].needs.includes('lane'), 'ansible-ci waits for the lane');
+ 
+   for (const jobName of ['zizmor', 'workflow-lint', 'markdown-lint', 'repo-tests']) {
+     assert.doesNotMatch(
+@@ -55,18 +50,10 @@ test('fast-path skips only the opted-in Nix build and Molecule suite', () => {
+   }
+ });
+ 
+-test('fast_path is exported to reusable workflow callers', () => {
+-  const output = workflow.on.workflow_call.outputs.fast_path;
+-  assert.ok(output, 'workflow_call output exists');
+-  assert.match(output.value, /jobs\.changes\.outputs\.fast_path/);
+-  assert.match(output.description, /contract shards or a site build/);
+-  assert.match(output.description, /fast_path != 'true'/);
+-});
+-
+-test('fast_path requires the label, fewer than 15 lines, and fewer than 5 files', () => {
+-  assert.equal(decide({ label: 'true', additions: 7, deletions: 7, files: 4 }), 'true');
+-  assert.equal(decide({ label: 'true', additions: 8, deletions: 7, files: 4 }), 'false');
+-  assert.equal(decide({ label: 'true', additions: 7, deletions: 7, files: 5 }), 'false');
+-  assert.equal(decide({ label: 'false', additions: 7, deletions: 7, files: 4 }), 'false');
+-  assert.equal(decide({ event: 'push', label: 'true', additions: 7, deletions: 7, files: 4 }), 'false');
++test('the gate keeps no fast-path decision logic of its own', () => {
++  assert.doesNotMatch(workflowText, /fast_path_decision/);
++  const tier = workflow.jobs.changes.steps.find((step) => step.id === 'tier');
++  assert.ok(tier, 'tier step still selects the event tier');
++  assert.doesNotMatch(JSON.stringify(tier), /fast_path/);
++  assert.ok(!('fast_path' in workflow.jobs.changes.outputs), 'changes job no longer exports fast_path');
+ });
+diff --git a/tests/lane.test.js b/tests/lane.test.js
+new file mode 100644
+index 0000000..7a19077
+--- /dev/null
++++ b/tests/lane.test.js
+@@ -0,0 +1,214 @@
++'use strict';
++
++const assert = require('node:assert/strict');
++const { execFileSync } = require('node:child_process');
++const { mkdtempSync, readFileSync } = require('node:fs');
++const { tmpdir } = require('node:os');
++const { join } = require('node:path');
++const test = require('node:test');
++
++// The lane decision lives in ONE jq program that .github/workflows/_lane.yml
++// reads at runtime, so these cases exercise the exact table the gate runs.
++const laneJq = '.github/scripts/lane.jq';
++const laneWorkflow = readFileSync('.github/workflows/_lane.yml', 'utf8');
++
++const DEFAULT_LOGINS = {
++  bot_logins: ['renovate[bot]', 'jacobpevans-release-please[bot]'],
++  automation_logins: ['jacobpevans-claude[bot]'],
++  sandbox_logins: ['jacobs-agent-smith[bot]'],
++};
++
++function decide(overrides = {}) {
++  const input = {
++    event_name: 'pull_request',
++    repository: 'JacobPEvans/.github',
++    author: 'a-contributor',
++    head_ref: 'feature/x',
++    head_repo: 'JacobPEvans/.github',
++    labels: [],
++    additions: 20,
++    deletions: 10,
++    changed_paths: ['src/app.py'],
++    low_risk_paths: [],
++    instruction_paths: [],
++    guarded_paths: [],
++    ...DEFAULT_LOGINS,
++    ...overrides,
++  };
++  return JSON.parse(execFileSync('jq', ['-f', laneJq], {
++    input: JSON.stringify(input),
++    encoding: 'utf8',
++  }));
++}
++
++function stepRunScript(stepName) {
++  const start = laneWorkflow.indexOf(`- name: ${stepName}`);
++  assert.notEqual(start, -1, `${stepName} step exists`);
++  const run = laneWorkflow.slice(start).match(/\n        run: \|\n((?: {10}[^\n]*(?:\n|$))*)/);
++  assert.ok(run, `${stepName} step has an inline run script`);
++  return run[1]
++    .split('\n')
++    .filter(Boolean)
++    .map((line) => line.slice(10))
++    .join('\n');
++}
++
++function runStep(stepName, overrides = {}) {
++  const directory = mkdtempSync(join(tmpdir(), 'lane-step-'));
++  const output = join(directory, 'github-output');
++  execFileSync('bash', ['-e', '-c', stepRunScript(stepName)], {
++    env: {
++      PATH: process.env.PATH,
++      GITHUB_OUTPUT: output,
++      ...overrides,
++    },
++  });
++  return readFileSync(output, 'utf8').trim();
++}
++
++test('a guarded path wins over the land-first label', () => {
++  const decision = decide({
++    labels: ['land-first'],
++    guarded_paths: ['.github/workflows/_ci-gate.yml'],
++  });
++  assert.equal(decision.lane, 'guarded');
++  assert.equal(decision.heavy_jobs, 'true');
++  assert.equal(decision.fast_path, 'false');
++});
++
++test('an instruction file of three lines is never tiny', () => {
++  const decision = decide({
++    additions: 3,
++    deletions: 0,
++    changed_paths: ['AGENTS.md'],
++    low_risk_paths: ['AGENTS.md'],
++    instruction_paths: ['AGENTS.md'],
++  });
++  assert.equal(decision.lane, 'normal');
++  assert.equal(decision.tiny, 'false');
++});
++
++test('ten changed lines of docs is tiny', () => {
++  const decision = decide({
++    additions: 6,
++    deletions: 4,
++    changed_paths: ['docs/guide.md'],
++    low_risk_paths: ['docs/guide.md'],
++  });
++  assert.equal(decision.lane, 'tiny');
++  assert.equal(decision.tiny, 'true');
++  assert.equal(decision.fast_path, 'true');
++  assert.equal(decision.heavy_jobs, 'false');
++});
++
++test('eleven changed lines is normal', () => {
++  const decision = decide({
++    additions: 11,
++    deletions: 0,
++    changed_paths: ['docs/guide.md'],
++    low_risk_paths: ['docs/guide.md'],
++  });
++  assert.equal(decision.lane, 'normal');
++  assert.equal(decision.heavy_jobs, 'true');
++});
++
++test('the land-first label takes the land-first lane on a normal path', () => {
++  const decision = decide({
++    labels: ['land-first'],
++    additions: 40,
++    deletions: 20,
++    changed_paths: ['src/app.py'],
++  });
++  assert.equal(decision.lane, 'land-first');
++  assert.equal(decision.tiny, 'false');
++  assert.equal(decision.fast_path, 'true');
++  assert.equal(decision.heavy_jobs, 'false');
++});
++
++test('the land-first label is inert on a fork', () => {
++  const decision = decide({
++    labels: ['land-first'],
++    head_repo: 'someone/else',
++    additions: 3,
++    deletions: 2,
++    changed_paths: ['docs/guide.md'],
++    low_risk_paths: ['docs/guide.md'],
++  });
++  assert.equal(decision.lane, 'normal');
++  assert.equal(decision.tiny, 'false', 'a fork is never tiny either');
++});
++
++test('a sandbox author never takes the land-first lane', () => {
++  const byLogin = decide({
++    labels: ['land-first'],
++    author: 'jacobs-agent-smith[bot]',
++  });
++  assert.equal(byLogin.lane, 'normal');
++  const byBranch = decide({
++    labels: ['land-first'],
++    head_ref: 'agent/task-1',
++  });
++  assert.equal(byBranch.lane, 'normal');
++});
++
++test('the Renovate author takes the bot lane', () => {
++  const decision = decide({ author: 'renovate[bot]' });
++  assert.equal(decision.lane, 'bot');
++  assert.equal(decision.fast_path, 'true');
++  assert.equal(decision.heavy_jobs, 'false');
++});
++
++test('the release-please author takes the bot lane', () => {
++  const decision = decide({ author: 'jacobpevans-release-please[bot]' });
++  assert.equal(decision.lane, 'bot');
++  assert.equal(decision.fast_path, 'true');
++  assert.equal(decision.heavy_jobs, 'false');
++});
++
++test('the automation App takes the bot lane only with the auto-revert label', () => {
++  const labeled = decide({
++    author: 'jacobpevans-claude[bot]',
++    labels: ['auto-revert'],
++  });
++  assert.equal(labeled.lane, 'bot');
++  const unlabeled = decide({ author: 'jacobpevans-claude[bot]' });
++  assert.equal(unlabeled.lane, 'normal');
++});
++
++test('a merge_group event resolves the pull request number from head_ref', () => {
++  assert.equal(
++    runStep('Resolve the pull request number', {
++      EVENT_NAME: 'merge_group',
++      PR_NUMBER: '',
++      MERGE_HEAD_REF: 'refs/heads/gh-readonly-queue/main/pr-123-6f2a9b1c8d4e5f6a7b8c9d0e1f2a3b4c5d6e7f80',
++    }),
++    'pr_number=123',
++  );
++  assert.equal(
++    runStep('Resolve the pull request number', {
++      EVENT_NAME: 'pull_request',
++      PR_NUMBER: '77',
++      MERGE_HEAD_REF: '',
++    }),
++    'pr_number=77',
++  );
++  assert.equal(
++    runStep('Resolve the pull request number', {
++      EVENT_NAME: 'push',
++      PR_NUMBER: '',
++      MERGE_HEAD_REF: '',
++    }),
++    'pr_number=',
++  );
++});
++
++test('a missing merge_tier property falls back to legacy', () => {
++  assert.equal(
++    runStep('Read the merge tier property', { MERGE_TIER: '' }),
++    'tier=legacy',
++  );
++  assert.equal(
++    runStep('Read the merge tier property', { MERGE_TIER: 'gold' }),
++    'tier=gold',
++  );
++});
