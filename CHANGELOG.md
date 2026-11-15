@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.55.0](https://github.com/JacobPEvans/.github/compare/v1.54.0...v1.55.0) (2026-11-15)
+
+
+### Features
+
+* **labels:** add the ci-fix label ([#241](https://github.com/JacobPEvans/.github/issues/241)) ([3008e74](https://github.com/JacobPEvans/.github/commit/3008e74ef3cde21adf14b7e4ce561c9945af5321))
+
 ## [1.54.0](https://github.com/JacobPEvans/.github/compare/v1.53.0...v1.54.0) (2026-11-15)
 
 
