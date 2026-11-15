@@ -1,93 +1,41 @@
 # Pull Request
 
-<!-- Provide a general summary of your changes in the Title above -->
-<!-- PR Title Format: type(scope): brief description -->
-<!-- Examples:
-  - feat(api): add user authentication endpoint
-  - fix(ui): resolve button alignment issue
-  - docs(readme): update installation steps
-  - chore(deps): update dependencies
-  - ci(actions): add automated deployment
-  - test(auth): add login integration tests
-  - refactor(utils): simplify date formatting
-  - perf(queries): optimize database indexes
+<!--
+Title: type(scope): description, for example feat(api): add token refresh or fix(ui): align buttons.
+Write for a reader who was not there: state the objective and the approach.
+Never include incident or outage narrative, security weaknesses or findings, credentials, host names,
+addresses, internal topology, or names of private systems; those belong in private trackers.
+Keep the body under 400 words unless the change needs more.
 -->
 
-## Type of Change
+## Objective
 
-**Choose the primary type for this PR:**
+<!-- The outcome this change achieves and for whom, in one to three sentences. -->
 
-- **feat** - New feature or enhancement (semver: MINOR)
-- **fix** - Bug fix (semver: PATCH)
-- **docs** - Documentation only changes
-- **chore** - Maintenance tasks, dependencies, tooling
-- **ci** - CI/CD pipeline changes
-- **test** - Adding or correcting tests
-- **refactor** - Code change that neither fixes a bug nor adds a feature
-- **perf** - Performance improvements
-- **breaking** - Breaking changes (semver: MAJOR)
+## Approach
 
-## Description
+<!-- What was chosen and why this way, and what else was considered, in two to six sentences or bullets. -->
 
-<!-- Provide a clear and concise description of your changes -->
-<!-- Why is this change needed? What problem does it solve? -->
+## Changes
 
-## Related Issues
-
-<!-- CRITICAL: Link ALL related issues before submitting -->
-
-- [ ] I have found and linked all related issues
-  - Closes #
-  - Related to #
-  - Partially addresses # (create child tasks for remaining work if incomplete)
-
-## Changes Made
-
-<!-- List the specific changes in this PR -->
+<!-- The specific changes, as bullets. -->
 
 -
 -
 -
 
-## Testing
+## Verification
 
-<!-- Describe the testing you've performed -->
+<!-- The commands or checks that were run and what they returned; say plainly what was not run. -->
 
-- [ ] Tests added/updated
-- [ ] All tests passing
-- [ ] Manual testing completed
+## Related
 
-## Documentation
+<!-- Full URLs of pull requests in other repositories for the same work, plus the tracker task reference if any; write None if there is none. -->
 
-<!-- Describe any documentation changes -->
+None
 
-- [ ] Documentation updated (if needed)
-- [ ] Code comments added for complex logic (if needed)
-- [ ] CHANGELOG updated (if needed)
+## Trace
 
-## Labels
+<!-- One line, lead: <id> worker: <id>: last 8 characters of the authoring session id, then the delegated job or run id; none when missing. -->
 
-**Apply these labels before submitting:**
-
-- [ ] **Type**: `type:___` (feat, fix, docs, chore, ci, test, refactor, perf, breaking)
-- [ ] **Priority**: `priority:___` (critical, high, medium, low)
-- [ ] **Size**: `size:___` (xs, s, m, l, xl)
-
-See [labels.yml](../labels.yml) for label definitions.
-
-## Checklist
-
-<!-- Please confirm the following before submitting your pull request -->
-
-- [ ] PR title follows conventional commits format: `type(scope): description`
-- [ ] Commits follow conventional commits specification
-- [ ] All commits are signed
-- [ ] No merge commits (rebased if needed)
-- [ ] PR is focused on a single concern
-- [ ] Self-review completed
-- [ ] Labels applied (type, priority, size)
-- [ ] Title and description state what changed — not why it was needed, what was broken, or any internal hostname, address, or topology
-
-## Additional Information
-
-<!-- Add any additional context, screenshots, logs, or information that would be helpful for reviewers -->
+lead: none worker: none
