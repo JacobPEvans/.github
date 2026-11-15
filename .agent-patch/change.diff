@@ -1,0 +1,192 @@
+diff --git a/.github/workflows/_converge.yml b/.github/workflows/_converge.yml
+index 1cb5ee5..95c22e5 100644
+--- a/.github/workflows/_converge.yml
++++ b/.github/workflows/_converge.yml
+@@ -1,9 +1,18 @@
+ # Reusable: CI-gated converge
+ #
+-# Fires on a push to a protected branch (the merge IS the gate; no separate
+-# label). Preflight path filters, open a Vikunja maintenance window,
+-# mint a scoped OpenBao token, trigger the target and wait (bounded), then
+-# report and close the window.
++# Two caller models. A push to a protected branch (the merge IS the gate; no
++# separate label) keeps today's behavior: preflight path filters, open a
++# Vikunja maintenance window, mint a scoped OpenBao token, trigger the
++# target and wait (bounded), then report and close the window.
++#
++# The scheduled converge train calls this on cron "7,37 * * * *" from the
++# green branch (a branch trailing the default branch that holds only
++# checked commits) with `scope_from_last_deployment: true` and a
++# `deployments: write` grant. The scope job diffs green's head against the
++# newest deployment in environment `converge` whose latest status is
++# success; an empty diff leaves every downstream job skipped, so an idle
++# train opens no window; every run that proceeds records a `converge`
++# deployment for the green sha whose status follows the trigger result.
+ #
+ # `target: terrakube-apply` exchanges this job's own GitHub OIDC token
+ # directly against Terrakube's Federated OIDC Authentication (org Security
+@@ -110,6 +119,17 @@ on:
+       runner_label:
+         type: string
+         default: self-hosted
++      scope_from_last_deployment:
++        description: >-
++          Enable the scheduled converge train: scope the run against the
++          newest deployment in environment converge whose latest status is
++          success, open the window only when that diff is not empty, and
++          record a converge deployment for the green sha whose status
++          follows the trigger result. The caller must grant deployments
++          write. Default false keeps a caller that omits it exactly as
++          before.
++        type: boolean
++        default: false
+     secrets:
+       OPENBAO_ADDR:
+         required: true
+@@ -136,11 +156,97 @@ concurrency:
+   cancel-in-progress: false
+ 
+ jobs:
++  # Scope the run against the last successful deployment. Only the scheduled
++  # train (scope_from_last_deployment) checks out green and queries the
++  # deployments API; with the input false (the default) the job runs one
++  # trivial step and reports a non-empty scope, so window-open keeps today's
++  # always-open behavior. With a SHA base, dorny/paths-filter diffs purely
++  # from local objects and fetches nothing itself — hence fetch-depth 0 —
++  # and the same base and head yield an empty diff, so an already-deployed
++  # green needs no special case.
++  scope:
++    name: Scope against the last successful deployment
++    runs-on: ${{ inputs.runner_label }}
++    timeout-minutes: ${{ github.event_name == 'pull_request' && 5 || 30 }}
++    permissions:
++      contents: read
++      deployments: read
++    outputs:
++      empty: ${{ steps.decide.outputs.empty }}
++      sha: ${{ steps.green.outputs.sha }}
++    steps:
++      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
++        if: inputs.scope_from_last_deployment
++        with:
++          ref: green
++          fetch-depth: 0
++      - name: Resolve the green head sha
++        id: green
++        if: inputs.scope_from_last_deployment
++        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
++      - name: Find the newest successful converge deployment
++        id: last
++        if: inputs.scope_from_last_deployment
++        env:
++          GH_TOKEN: ${{ github.token }}
++          REPO: ${{ github.repository }}
++        run: |
++          set -euo pipefail
++          # Newest first; the first deployment whose latest status is success
++          # is the train's last successful deployment. Only the newest 100
++          # are examined; if none of them succeeded (or none exist) the sha
++          # stays empty and decide below plans the whole train.
++          deployments="$(gh api "repos/$REPO/deployments?environment=converge&per_page=100" --jq '.[] | "\(.id) \(.sha)"')"
++          last_sha=""
++          if [ -n "$deployments" ]; then
++            while read -r id dep_sha; do
++              [ -n "$id" ] || continue
++              state="$(gh api "repos/$REPO/deployments/$id/statuses?per_page=1" --jq '.[0].state // ""')"
++              if [ "$state" = "success" ]; then
++                last_sha="$dep_sha"
++                break
++              fi
++            done <<< "$deployments"
++          fi
++          echo "sha=$last_sha" >> "$GITHUB_OUTPUT"
++      - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4
++        id: filter
++        if: inputs.scope_from_last_deployment && steps.last.outputs.sha != ''
++        with:
++          # Comparing green's head to the recorded deployment commit (the
++          # _ci-gate.yml push pattern with the base pinned to a sha).
++          base: ${{ steps.last.outputs.sha }}
++          filters: ${{ inputs.filters }}
++      - name: Decide whether the scoped diff is empty
++        id: decide
++        env:
++          ENABLED: ${{ inputs.scope_from_last_deployment }}
++          LAST_SHA: ${{ steps.last.outputs.sha }}
++          MATCHED: ${{ steps.filter.outputs.changes }}
++        run: |
++          set -euo pipefail
++          # Unscoped callers and a train with no successful deployment yet
++          # always converge. Otherwise paths-filter's changes output is
++          # exactly "[]" when nothing matched any caller filter.
++          if [ "$ENABLED" != "true" ] || [ -z "$LAST_SHA" ]; then
++            echo "empty=false" >> "$GITHUB_OUTPUT"
++            exit 0
++          fi
++          if [ "$MATCHED" = "[]" ]; then
++            echo "empty=true" >> "$GITHUB_OUTPUT"
++          else
++            echo "empty=false" >> "$GITHUB_OUTPUT"
++          fi
++
+   # Preflight and open the maintenance window in one job. The filter has no
+   # downstream outputs; keeping its validation before the window opens avoids
+-  # a deep needs chain without changing the caller input.
++  # a deep needs chain without changing the caller input. The scope job gates
++  # it: an empty scoped diff (a scheduled train with nothing to converge)
++  # leaves this job and everything downstream skipped.
+   window-open:
+     name: Open maintenance window
++    needs: scope
++    if: needs.scope.outputs.empty == 'false'
+     runs-on: ${{ inputs.runner_label }}
+     timeout-minutes: ${{ github.event_name == 'pull_request' && 5 || 30 }}
+     outputs:
+@@ -289,7 +395,46 @@ jobs:
+           [ -n "${TERRAKUBE_API_ADDR:-}" ] || { echo "::error::TERRAKUBE_API_ADDR secret not set"; exit 1; }
+           bash .gh-shared/scripts/terrakube-gated-apply.sh
+ 
+-  # 4. Report and close. Runs on `always()` so a failed trigger still closes
++  # 4. Record the deployment the train just attempted, pinned to the green
++  # sha that was scoped and triggered. required_contexts is empty so the
++  # deployment is created immediately instead of waiting on commit statuses
++  # green intentionally does not have. The status follows the trigger
++  # result — anything but success records failure, so the next scope diffs
++  # from the last genuinely successful deployment. Requires the caller to
++  # grant deployments write.
++  record-deployment:
++    name: Record the converge deployment
++    needs: [scope, window-open, trigger]
++    if: always() && needs.window-open.result == 'success' && inputs.scope_from_last_deployment
++    runs-on: ${{ inputs.runner_label }}
++    timeout-minutes: ${{ github.event_name == 'pull_request' && 5 || 30 }}
++    permissions:
++      deployments: write
++    steps:
++      - name: Create the deployment and post its status
++        env:
++          GH_TOKEN: ${{ github.token }}
++          REPO: ${{ github.repository }}
++          GREEN_SHA: ${{ needs.scope.outputs.sha }}
++          TRIGGER_RESULT: ${{ needs.trigger.result }}
++        run: |
++          set -euo pipefail
++          body="$(jq -n --arg ref "$GREEN_SHA" --arg desc "converge trigger ${TRIGGER_RESULT}" \
++            '{ref: $ref, environment: "converge", auto_merge: false, required_contexts: [], description: $desc}')"
++          deployment_id="$(gh api "repos/$REPO/deployments" --input - <<< "$body" --jq '.id')"
++          if [ -z "$deployment_id" ] || [ "$deployment_id" = "null" ]; then
++            echo "::error::deployment creation returned no id"
++            exit 1
++          fi
++          if [ "$TRIGGER_RESULT" = "success" ]; then
++            state=success
++          else
++            state=failure
++          fi
++          gh api "repos/$REPO/deployments/$deployment_id/statuses" \
++            -f state="$state" -f description="converge trigger ${TRIGGER_RESULT}"
++
++  # 5. Report and close. Runs on `always()` so a failed trigger still closes
+   # the window rather than leaving it open indefinitely. Sets `done` FIRST:
+   # a transient failure of the best-effort comment must never leave the
+   # window open.
