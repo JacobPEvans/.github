@@ -14,37 +14,32 @@ const workflow = JSON.parse(execFileSync(
   { input: workflowText, encoding: 'utf8' },
 ));
 
-const tier = workflow.jobs.changes.steps.find((step) => step.id === 'tier');
-const fastPathFunction = tier.run.match(/fast_path_decision\(\) \{[\s\S]*?\n\}/)?.[0];
+test('the gate classifies the lane with the shared reusable workflow', () => {
+  const lane = workflow.jobs.lane;
+  assert.ok(lane, 'lane job exists');
+  assert.equal(lane.uses, './.github/workflows/_lane.yml');
+  assert.equal(lane.name, 'Classify Lane');
+});
 
-function decide({ event = 'pull_request', label, additions, deletions, files }) {
-  assert.ok(fastPathFunction, 'tier step defines fast_path_decision');
-  return execFileSync(
-    'bash',
-    [
-      '-c',
-      `${fastPathFunction}\nfast_path_decision "$1" "$2" "$3" "$4" "$5"`,
-      'test',
-      event,
-      label,
-      String(additions),
-      String(deletions),
-      String(files),
-    ],
-    { encoding: 'utf8' },
-  );
-}
-
-test('fast-path uses current pull request metadata and enforces both size limits', () => {
-  assert.match(tier.run, /gh api "repos\/\$REPO\/pulls\/\$PR_NUMBER"/);
-  assert.doesNotMatch(JSON.stringify(tier), /github\.event\.pull_request\.labels/);
-  assert.match(tier.run, /-lt 15/);
-  assert.match(tier.run, /-lt 5/);
+test('lane, tier, heavy_jobs and the fast_path alias are exported from the classifier', () => {
+  for (const output of ['lane', 'tier', 'heavy_jobs', 'fast_path']) {
+    const declaration = workflow.on.workflow_call.outputs[output];
+    assert.ok(declaration, `${output} output exists`);
+    assert.match(
+      declaration.value,
+      new RegExp(`\\$\\{\\{ jobs\\.lane\\.outputs\\.${output} \\}\\}`),
+      `${output} is wired from the lane job`,
+    );
+  }
+  assert.match(workflow.on.workflow_call.outputs.fast_path.description, /contract shards or a site build/);
+  assert.match(workflow.on.workflow_call.outputs.fast_path.description, /fast_path != 'true'/);
 });
 
 test('fast-path skips only the opted-in Nix build and Molecule suite', () => {
-  assert.match(workflow.jobs['nix-build'].if, /needs\.changes\.outputs\.fast_path != 'true'/);
-  assert.match(workflow.jobs['ansible-ci'].with.molecule, /needs\.changes\.outputs\.fast_path != 'true'/);
+  assert.match(workflow.jobs['nix-build'].if, /needs\.lane\.outputs\.fast_path != 'true'/);
+  assert.ok(workflow.jobs['nix-build'].needs.includes('lane'), 'nix-build waits for the lane');
+  assert.match(workflow.jobs['ansible-ci'].with.molecule, /needs\.lane\.outputs\.fast_path != 'true'/);
+  assert.ok(workflow.jobs['ansible-ci'].needs.includes('lane'), 'ansible-ci waits for the lane');
 
   for (const jobName of ['zizmor', 'workflow-lint', 'markdown-lint', 'repo-tests']) {
     assert.doesNotMatch(
@@ -55,18 +50,10 @@ test('fast-path skips only the opted-in Nix build and Molecule suite', () => {
   }
 });
 
-test('fast_path is exported to reusable workflow callers', () => {
-  const output = workflow.on.workflow_call.outputs.fast_path;
-  assert.ok(output, 'workflow_call output exists');
-  assert.match(output.value, /jobs\.changes\.outputs\.fast_path/);
-  assert.match(output.description, /contract shards or a site build/);
-  assert.match(output.description, /fast_path != 'true'/);
-});
-
-test('fast_path requires the label, fewer than 15 lines, and fewer than 5 files', () => {
-  assert.equal(decide({ label: 'true', additions: 7, deletions: 7, files: 4 }), 'true');
-  assert.equal(decide({ label: 'true', additions: 8, deletions: 7, files: 4 }), 'false');
-  assert.equal(decide({ label: 'true', additions: 7, deletions: 7, files: 5 }), 'false');
-  assert.equal(decide({ label: 'false', additions: 7, deletions: 7, files: 4 }), 'false');
-  assert.equal(decide({ event: 'push', label: 'true', additions: 7, deletions: 7, files: 4 }), 'false');
+test('the gate keeps no fast-path decision logic of its own', () => {
+  assert.doesNotMatch(workflowText, /fast_path_decision/);
+  const tier = workflow.jobs.changes.steps.find((step) => step.id === 'tier');
+  assert.ok(tier, 'tier step still selects the event tier');
+  assert.doesNotMatch(JSON.stringify(tier), /fast_path/);
+  assert.ok(!('fast_path' in workflow.jobs.changes.outputs), 'changes job no longer exports fast_path');
 });

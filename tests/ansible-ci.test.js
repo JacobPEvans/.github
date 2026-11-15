@@ -13,37 +13,6 @@ const renovateValidator = readFileSync('.github/workflows/renovate-config-valida
 const renovateAnnotations = readFileSync('.github/workflows/_renovate-annotations.yml', 'utf8');
 const renovatePreset = JSON.parse(readFileSync('renovate-presets.json', 'utf8'));
 
-function tinyRunScript() {
-  const step = ansibleChanges.slice(ansibleChanges.indexOf('- name: Detect tiny develop pull request'));
-  const run = step.match(/\n        run: \|\n((?: {10}[^\n]*(?:\n|$))*)/);
-  assert.ok(run, 'tiny output step has an inline run script');
-  return run[1]
-    .split('\n')
-    .filter(Boolean)
-    .map((line) => line.slice(10))
-    .join('\n');
-}
-
-function runTiny(overrides = {}) {
-  const directory = mkdtempSync(join(tmpdir(), 'ansible-ci-tiny-'));
-  const output = join(directory, 'github-output');
-  execFileSync('bash', ['-e', '-c', tinyRunScript()], {
-    env: {
-      PATH: process.env.PATH,
-      GITHUB_OUTPUT: output,
-      EVENT_NAME: 'pull_request',
-      BASE_REF: 'develop',
-      CHANGED_FILES: '2',
-      ADDITIONS: '2',
-      DELETIONS: '0',
-      ALLOWED_FILES: '2',
-      EXCLUDED_FILES: '0',
-      ...overrides,
-    },
-  });
-  return readFileSync(output, 'utf8').trim();
-}
-
 function jobRuns(jobName, lint) {
   const start = ansibleCi.indexOf(`\n  ${jobName}:\n`);
   assert.notEqual(start, -1, `${jobName} job exists`);
@@ -165,18 +134,17 @@ test('shared Ansible CI delegates change selection to the reusable workflow and 
   ]) {
     assert.ok(ansibleCi.includes(`      ${input}: \${{ inputs.${input} }}`), `${input} is forwarded`);
   }
-  for (const output of ['ansible', 'molecule', 'tiny', 'renovate_config', 'renovate_config_present', 'molecule_scenarios']) {
+  for (const output of ['ansible', 'molecule', 'renovate_config', 'renovate_config_present', 'molecule_scenarios']) {
     assert.ok(ansibleCi.includes(`value: \${{ jobs.changes.outputs.${output} }}`), `${output} stays public`);
     assert.ok(ansibleChanges.includes(`value: \${{ jobs.changes.outputs.${output} }}`), `${output} is exported`);
   }
   assert.doesNotMatch(ansibleCi, /Select scenarios only when every relevant path is covered/);
 });
 
-test('tiny output is wired from Detect Changes and narrows Molecule only outside the full tier', () => {
+test('tiny output is wired from the shared lane classifier and narrows Molecule only outside the full tier', () => {
   assert.match(ansibleCi, /tiny:\n\s+description: >-\n(?:.*\n)*?\s+value: \$\{\{ jobs\.changes\.outputs\.tiny \}\}/);
-  assert.match(ansibleChanges, /tiny: \$\{\{ steps\.tiny\.outputs\.tiny \}\}/);
-  assert.match(ansibleChanges, /- name: Detect tiny develop pull request\n\s+id: tiny/);
-  assert.match(ansibleChanges, /printf 'tiny=%s\\n' "\$tiny" >> "\$GITHUB_OUTPUT"/);
+  assert.match(ansibleChanges, /tiny:\n\s+description: >-\n(?:.*\n)*?\s+value: \$\{\{ jobs\.lane\.outputs\.tiny \}\}/);
+  assert.match(ansibleChanges, /lane:\n\s+name: Classify Lane\n\s+uses: \.\/\.github\/workflows\/_lane\.yml/);
   assert.match(ansibleCi, /full_suite:\n\s+description:.*\n\s+type: boolean\n\s+default: false/);
   assert.match(
     ansibleCi,
@@ -184,56 +152,13 @@ test('tiny output is wired from Detect Changes and narrows Molecule only outside
   );
 });
 
-test('tiny is false for pushes and pull requests into main', () => {
-  assert.equal(runTiny({ EVENT_NAME: 'push' }), 'tiny=false');
-  assert.equal(runTiny({ BASE_REF: 'main' }), 'tiny=false');
-});
-
-test('tiny is false for deleted or renamed paths', () => {
-  assert.match(ansibleChanges, /tiny_files:\n\s+- added\|modified: 'roles\/\*\/tasks\/\*\*'/);
-  assert.match(ansibleChanges, /- added\|modified: 'roles\/\*\/handlers\/\*\*'/);
-  assert.equal(runTiny({ CHANGED_FILES: '1', ALLOWED_FILES: '0' }), 'tiny=false');
-});
-
-test('tiny is false when any never-tiny path changed', () => {
-  const excluded = [
-    '.github/**',
-    'inventory/**',
-    'group_vars/**',
-    'host_vars/**',
-    'playbooks/**',
-    'tests/**',
-    'molecule/**',
-    'requirements*',
-    'ansible.cfg',
-    'roles/openbao/**',
-    'roles/openbao_secrets/**',
-    'roles/*/vars/**',
-    '**/*secret*',
-    '**/*credential*',
-    '**/*token*',
-    '**/vault/**',
-    '*.sops.*',
-    '.sops.yaml',
-    'llm-models.d/**',
-  ];
-  for (const pattern of excluded) assert.ok(ansibleChanges.includes(`              - '${pattern}'`), pattern);
-  assert.equal(runTiny({ CHANGED_FILES: '1', ADDITIONS: '1', ALLOWED_FILES: '1', EXCLUDED_FILES: '1' }), 'tiny=false');
-});
-
-test('tiny is false for three files or more than ten changed lines', () => {
-  assert.equal(runTiny({ CHANGED_FILES: '3', ADDITIONS: '3', ALLOWED_FILES: '3' }), 'tiny=false');
-  assert.equal(runTiny({ CHANGED_FILES: '1', ADDITIONS: '11', ALLOWED_FILES: '1' }), 'tiny=false');
-});
-
-test('two task files with two changed lines produce tiny=true', () => {
-  assert.match(ansibleChanges, /id: classify\n[\s\S]*?list-files: json\n[\s\S]*?tiny_files:/);
-  assert.equal(runTiny(), 'tiny=true');
-});
-
-test('missing or non-numeric tiny counts fail closed', () => {
-  assert.equal(runTiny({ CHANGED_FILES: '' }), 'tiny=false');
-  assert.equal(runTiny({ ALLOWED_FILES: 'unknown' }), 'tiny=false');
+test('the shared lane classifier carries the tiny decision table; this workflow keeps none of it', () => {
+  assert.doesNotMatch(ansibleChanges, /Detect tiny develop pull request/);
+  assert.doesNotMatch(ansibleChanges, /tiny_files/);
+  assert.doesNotMatch(ansibleChanges, /tiny_excluded/);
+  // The table cases live in tests/lane.test.js against the one jq program
+  // the classifier reads.
+  assert.match(readFileSync('.github/scripts/lane.jq', 'utf8'), /def tiny_lane:/);
 });
 
 test('shared Ansible CI runs strict Renovate validation for renovate.json changes', () => {
