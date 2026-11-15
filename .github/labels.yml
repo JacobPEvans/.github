@@ -189,6 +189,10 @@
   color: "E11D48"
   description: "Automatic revert of a merged pull request"
 
+- name: "ci-fix"
+  color: "F59E0B"
+  description: "CI fix - ask the CI-fix agent to repair this pull request's failed checks"
+
 # =============================================================================
 # HUMAN REVIEW LABEL - The human counterpart to ai:* review state
 # Applied by an AI flow to a main-targeted PR to request a human before merge.
