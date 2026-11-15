@@ -48,6 +48,7 @@
 #         contents: write    # green ref moves, post-merge-red dispatches
 #         pull-requests: write
 #         checks: read       # AI Merge Gate verdicts on the head commits
+#         actions: read      # the gate's run report reads this run's jobs
 #       uses: JacobPEvans/.github/.github/workflows/_post-merge.yml@v1
 #       with:
 #         profile: nix       # the caller's gate stack, forwarded verbatim
@@ -204,7 +205,7 @@ jobs:
     permissions:
       contents: read
       pull-requests: read
-      actions: write
+      actions: read
     uses: ./.github/workflows/_ci-gate.yml
     with:
       filters: ${{ inputs.filters }}
@@ -403,10 +404,17 @@ jobs:
             exit 0
           fi
           if [[ "$HAS_APP_KEY" != true ]]; then
-            echo "::warning::GH_APP_PRIVATE_KEY is not set; a revert pull request opened with github.token starts no checks and cannot merge by itself."
+            echo "::error::GH_APP_PRIVATE_KEY is not set; the revert needs the App token to create its branch and start checks."
+            exit 1
           fi
           failures=0
           for pr in $(jq -r '.[].number' <<<"$DEFERRED"); do
+            # shortcut: the label read and its removal are not atomic, so two runs
+            # within seconds can both revert; add a lock if a fixture shows it.
+            if [[ "$(gh pr view "$pr" --json labels --jq '[.labels[].name] | index("checks:deferred") != null')" != true ]]; then
+              echo "#$pr no longer carries checks:deferred; another run settled it"
+              continue
+            fi
             if ! out="$(gh pr revert "$pr" 2>&1)"; then
               echo "::error::reverting #$pr failed: $out"
               failures=1
@@ -418,10 +426,10 @@ jobs:
               failures=1
               continue
             fi
-            gh pr edit "$revert_pr" --add-label auto-revert
-            gh pr merge "$revert_pr" --auto --squash
             # The next run must not count the reverted pull request again.
             gh pr edit "$pr" --remove-label checks:deferred
+            gh pr edit "$revert_pr" --add-label auto-revert
+            gh pr merge "$revert_pr" --auto --squash
             echo "reverted #$pr as #$revert_pr; auto-merge armed"
           done
           exit "$failures"
@@ -470,10 +478,17 @@ jobs:
             exit 0
           fi
           if [[ "$HAS_APP_KEY" != true ]]; then
-            echo "::warning::GH_APP_PRIVATE_KEY is not set; a revert pull request opened with github.token starts no checks and cannot merge by itself."
+            echo "::error::GH_APP_PRIVATE_KEY is not set; the revert needs the App token to create its branch and start checks."
+            exit 1
           fi
           failures=0
           for pr in $(jq -r '.[].number' <<<"$DEFERRED"); do
+            # shortcut: the label read and its removal are not atomic, so two runs
+            # within seconds can both revert; add a lock if a fixture shows it.
+            if [[ "$(gh pr view "$pr" --json labels --jq '[.labels[].name] | index("checks:deferred") != null')" != true ]]; then
+              echo "#$pr no longer carries checks:deferred; another run settled it"
+              continue
+            fi
             if ! out="$(gh pr revert "$pr" 2>&1)"; then
               echo "::error::reverting #$pr failed: $out"
               failures=1
@@ -485,10 +500,10 @@ jobs:
               failures=1
               continue
             fi
-            gh pr edit "$revert_pr" --add-label auto-revert
-            gh pr merge "$revert_pr" --auto --squash
             # The next run must not count the reverted pull request again.
             gh pr edit "$pr" --remove-label checks:deferred
+            gh pr edit "$revert_pr" --add-label auto-revert
+            gh pr merge "$revert_pr" --auto --squash
             echo "reverted #$pr as #$revert_pr; auto-merge armed"
           done
           exit "$failures"
