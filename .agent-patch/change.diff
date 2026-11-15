@@ -1,0 +1,348 @@
+diff --git a/.github/workflows/_ci-gate.yml b/.github/workflows/_ci-gate.yml
+index e4ca620..220dfbb 100644
+--- a/.github/workflows/_ci-gate.yml
++++ b/.github/workflows/_ci-gate.yml
+@@ -50,6 +50,14 @@
+ #
+ # Caller requirements (thin consumer shape):
+ #
++#   on:
++#     pull_request:
++#       types: [opened, synchronize, reopened, ready_for_review]
++#     merge_group:
++#   # No push trigger: the required checks report from pull_request and
++#   # merge_group runs only, so the native merge queue never stalls waiting on
++#   # a context that only a push run would produce.
++#
+ #   jobs:
+ #     gate:
+ #       permissions:
+@@ -509,6 +517,13 @@ on:
+           inputs; public inputs resolve without it.
+         required: false
+ 
++concurrency:
++  # Cancels superseded runs of one pull request only. A merge queue entry
++  # groups per commit (its sha is unique per entry), so a queued run is never
++  # cancelled by a later one — the same shape canary.yml uses.
++  group: _ci-gate-${{ github.event.pull_request.number || github.sha }}
++  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
++
+ permissions:
+   contents: read
+   pull-requests: read
+diff --git a/.github/workflows/conventions-check.yml b/.github/workflows/conventions-check.yml
+index 073d8fa..cab4928 100644
+--- a/.github/workflows/conventions-check.yml
++++ b/.github/workflows/conventions-check.yml
+@@ -19,13 +19,14 @@ name: Conventions Check
+ 
+ on:
+   pull_request:
++  merge_group:
+ 
+ permissions:
+   contents: read
+ 
+ concurrency:
+-  group: org-conventions-check-${{ github.workflow }}-${{ github.ref }}
+-  cancel-in-progress: true
++  group: org-conventions-check-${{ github.event.pull_request.number || github.sha }}
++  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+ 
+ jobs:
+   conventions:
+diff --git a/.github/workflows/disclosure-gate.yml b/.github/workflows/disclosure-gate.yml
+index fe62e5d..a012e29 100644
+--- a/.github/workflows/disclosure-gate.yml
++++ b/.github/workflows/disclosure-gate.yml
+@@ -5,6 +5,11 @@ name: Disclosure Gate
+ 
+ on:
+   pull_request:
++  merge_group:
++
++concurrency:
++  group: disclosure-gate-${{ github.event.pull_request.number || github.sha }}
++  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+ 
+ permissions: {}
+ 
+diff --git a/.github/workflows/markdownlint.yml b/.github/workflows/markdownlint.yml
+index 7001538..97b873b 100644
+--- a/.github/workflows/markdownlint.yml
++++ b/.github/workflows/markdownlint.yml
+@@ -13,13 +13,14 @@ name: Markdown Lint
+ 
+ on:
+   pull_request:
++  merge_group:
+ 
+ permissions:
+   contents: read
+ 
+ concurrency:
+-  group: enterprise-markdown-lint-${{ github.workflow }}-${{ github.ref }}
+-  cancel-in-progress: true
++  group: enterprise-markdown-lint-${{ github.event.pull_request.number || github.sha }}
++  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+ 
+ jobs:
+   markdownlint:
+@@ -30,7 +31,9 @@ jobs:
+       - name: Checkout target repo
+         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+         with:
+-          fetch-depth: 2
++          # A merge queue entry diffs its own base_sha..head_sha pair, which
++          # can reach back past the two commits a pull_request diff needs.
++          fetch-depth: ${{ github.event_name == 'merge_group' && 0 || 2 }}
+ 
+       - name: Checkout org config (single source of truth)
+         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+@@ -42,26 +45,36 @@ jobs:
+       - name: List changed Markdown files
+         # Pull requests lint only the Markdown they add or modify, so a PR is
+         # never red for files it did not touch. HEAD is the PR merge commit and
+-        # HEAD^1 the base tip, so the diff is exactly the PR's change.
++        # HEAD^1 the base tip, so the diff is exactly the PR's change. A merge
++        # queue entry diffs its base_sha..head_sha pair instead.
+         id: changed
+-        if: github.event_name == 'pull_request'
++        if: github.event_name != 'push'
++        env:
++          EVENT_NAME: ${{ github.event_name }}
++          BASE_SHA: ${{ github.event.merge_group.base_sha }}
++          HEAD_SHA: ${{ github.event.merge_group.head_sha }}
+         run: |
++          if [[ "$EVENT_NAME" == merge_group ]]; then
++            range=("$BASE_SHA" "$HEAD_SHA")
++          else
++            range=(HEAD^1 HEAD)
++          fi
+           {
+             echo 'files<<CHANGED_MD_EOF'
+-            git diff --name-only --diff-filter=ACMR HEAD^1 HEAD -- '*.md' \
++            git diff --name-only --diff-filter=ACMR "${range[@]}" -- '*.md' \
+               ':!CHANGELOG.md' ':!**/node_modules/**' ':!**/.github/aw/imports/**' ':!.org-github/**'
+             echo 'CHANGED_MD_EOF'
+           } >> "$GITHUB_OUTPUT"
+ 
+       - name: Run markdownlint on changed files with the forced org config
+-        if: github.event_name == 'pull_request' && steps.changed.outputs.files != ''
++        if: github.event_name != 'push' && steps.changed.outputs.files != ''
+         uses: DavidAnson/markdownlint-cli2-action@696eb3f2509270d7b882d2aa68347bc676e7af34 # v25
+         with:
+           config: .org-github/.markdownlint-cli2.yaml
+           globs: ${{ steps.changed.outputs.files }}
+ 
+       - name: Run markdownlint with the forced org config
+-        if: github.event_name != 'pull_request'
++        if: github.event_name == 'push'
+         uses: DavidAnson/markdownlint-cli2-action@696eb3f2509270d7b882d2aa68347bc676e7af34 # v25
+         with:
+           config: .org-github/.markdownlint-cli2.yaml
+diff --git a/.github/workflows/pr-policy.yml b/.github/workflows/pr-policy.yml
+index fe81b97..b9b1d8b 100644
+--- a/.github/workflows/pr-policy.yml
++++ b/.github/workflows/pr-policy.yml
+@@ -2,6 +2,11 @@ name: PR Policy
+ 
+ on:
+   pull_request:
++  merge_group:
++
++concurrency:
++  group: pr-policy-${{ github.event.pull_request.number || github.sha }}
++  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+ 
+ permissions: {}
+ 
+@@ -15,9 +20,11 @@ jobs:
+       pull-requests: read
+     steps:
+       - name: Check out the PR head
++        # On a merge queue entry there is no pull_request payload; github.sha
++        # is the queue commit that carries the change.
+         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+         with:
+-          ref: ${{ github.event.pull_request.head.sha }}
++          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+           persist-credentials: false
+       # As a required workflow this runs in the consumer repo, which has no
+       # copy of the checker; fetch it from this workflow's own commit.
+@@ -41,8 +48,14 @@ jobs:
+           GH_TOKEN: ${{ github.token }}
+           REPO: ${{ github.repository }}
+           PR: ${{ github.event.pull_request.number }}
++          MERGE_HEAD_REF: ${{ github.event.merge_group.head_ref }}
+           CHANGED_FILES: ${{ github.event.pull_request.changed_files }}
+         run: |
++          # A merge queue entry has no pull_request payload; its head_ref names
++          # the PR (refs/heads/gh-readonly-queue/<base>/pr-<number>-<commit>).
++          if [[ -z "$PR" && "$MERGE_HEAD_REF" =~ pr-([0-9]+)-[0-9a-fA-F]+$ ]]; then
++            PR="${BASH_REMATCH[1]}"
++          fi
+           if bash .pr-policy/scripts/pr-policy-diff.sh "$RUNNER_TEMP/pr.diff"; then
+             echo "PR_POLICY_DIFF=$RUNNER_TEMP/pr.diff" >> "$GITHUB_ENV"
+           else
+@@ -55,7 +68,10 @@ jobs:
+ 
+   pr-title:
+     name: PR Title
+-    if: ${{ contains(fromJSON('["opened", "edited", "synchronize", "reopened"]'), github.event.action) }}
++    # A merge queue entry has no pull_request payload, so there is no title to
++    # check here; the job still runs (a required context must never skip) and
++    # its first step exits 0 below.
++    if: ${{ github.event_name == 'merge_group' || contains(fromJSON('["opened", "edited", "synchronize", "reopened"]'), github.event.action) }}
+     runs-on: ubuntu-26.04
+     timeout-minutes: 5
+     permissions:
+@@ -69,9 +85,13 @@ jobs:
+           DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+           HEAD: ${{ github.event.pull_request.head.ref }}
+           TITLE: ${{ github.event.pull_request.title }}
++          EVENT_NAME: ${{ github.event_name }}
+         run: |
+           set -euo pipefail
+ 
++          if [[ "$EVENT_NAME" == "merge_group" ]]; then
++            exit 0
++          fi
+           if [[ "$BASE" == "$DEFAULT_BRANCH" && "$HEAD" == "develop" ]]; then
+             exit 0
+           fi
+diff --git a/tests/required-workflows-merge-group.test.js b/tests/required-workflows-merge-group.test.js
+new file mode 100644
+index 0000000..08a6387
+--- /dev/null
++++ b/tests/required-workflows-merge-group.test.js
+@@ -0,0 +1,73 @@
++import assert from 'node:assert/strict';
++import { readFileSync } from 'node:fs';
++import { fileURLToPath } from 'node:url';
++import test from 'node:test';
++
++const readWorkflow = (name) =>
++  readFileSync(fileURLToPath(new URL(`../.github/workflows/${name}`, import.meta.url)), 'utf8');
++
++// The required workflows must report on merge_group too, or the native merge
++// queue stalls waiting for a context that never arrives. Every required
++// context must run on a queue entry and end with success — a skipped job does
++// not count — and a queue entry must never be cancelled by another one.
++const requiredWorkflows = [
++  'markdownlint.yml',
++  'conventions-check.yml',
++  'pr-policy.yml',
++  'disclosure-gate.yml',
++];
++
++test('every required workflow triggers on pull_request and merge_group', () => {
++  for (const name of requiredWorkflows) {
++    const workflow = readWorkflow(name);
++    assert.match(workflow, /^on:\n  pull_request:\n  merge_group:\n/m, name);
++  }
++});
++
++test('required workflow concurrency cancels superseded pull requests only', () => {
++  for (const name of requiredWorkflows) {
++    const workflow = readWorkflow(name);
++    assert.match(
++      workflow,
++      /^  group: [a-z-]+\$\{\{ github\.event\.pull_request\.number \|\| github\.sha \}\}$/m,
++      name,
++    );
++    assert.match(workflow, /^  cancel-in-progress: \$\{\{ github\.event_name == 'pull_request' \}\}$/m, name);
++  }
++});
++
++test('the PR Title job runs on a queue entry and its first step exits 0', () => {
++  const workflow = readWorkflow('pr-policy.yml');
++  assert.match(
++    workflow,
++    /if: \$\{\{ github\.event_name == 'merge_group' \|\| contains\(fromJSON\('\["opened", "edited", "synchronize", "reopened"\]'\), github\.event\.action\) \}\}/,
++  );
++  assert.match(
++    workflow,
++    /EVENT_NAME: \$\{\{ github\.event_name \}\}\n {8}run: \|\n {10}set -euo pipefail\n\n {10}if \[\[ "\$EVENT_NAME" == "merge_group" \]\]; then\n {12}exit 0\n {10}fi/,
++  );
++});
++
++test('the Workflow Policy job checks out the queue commit and diffs its pull request', () => {
++  const workflow = readWorkflow('pr-policy.yml');
++  assert.match(workflow, /^          ref: \$\{\{ github\.event\.pull_request\.head\.sha \|\| github\.sha \}\}$/m);
++  assert.match(workflow, /MERGE_HEAD_REF: \$\{\{ github\.event\.merge_group\.head_ref \}\}/);
++  assert.match(workflow, /if \[\[ -z "\$PR" && "\$MERGE_HEAD_REF" =~ pr-\(\[0-9\]\+\)-\[0-9a-fA-F\]\+\$ \]\]; then/);
++});
++
++test('Markdown Lint diffs its queue entry shas and lints only those files', () => {
++  const workflow = readWorkflow('markdownlint.yml');
++  assert.match(workflow, /^          fetch-depth: \$\{\{ github\.event_name == 'merge_group' && 0 \|\| 2 \}\}$/m);
++  assert.match(workflow, /if: github\.event_name != 'push'\n {8}env:\n {10}EVENT_NAME: \$\{\{ github\.event_name \}\}\n {10}BASE_SHA: \$\{\{ github\.event\.merge_group\.base_sha \}\}\n {10}HEAD_SHA: \$\{\{ github\.event\.merge_group\.head_sha \}\}/);
++  assert.match(workflow, /if \[\[ "\$EVENT_NAME" == merge_group \]\]; then\n {12}range=\("\$BASE_SHA" "\$HEAD_SHA"\)/);
++  assert.match(workflow, /if: github\.event_name != 'push' && steps\.changed\.outputs\.files != ''/);
++  assert.doesNotMatch(workflow, /if: github\.event_name != 'pull_request'/);
++});
++
++test('the gate caller shape documents the merge queue triggers and no push', () => {
++  const gate = readWorkflow('_ci-gate.yml');
++  assert.match(
++    gate,
++    /#   on:\n#     pull_request:\n#       types: \[opened, synchronize, reopened, ready_for_review\]\n#     merge_group:\n#   # No push trigger:/,
++  );
++});
+diff --git a/tests/reusable-workflows.test.js b/tests/reusable-workflows.test.js
+index 6233e83..0f7a136 100644
+--- a/tests/reusable-workflows.test.js
++++ b/tests/reusable-workflows.test.js
+@@ -23,11 +23,15 @@ function topLevelConcurrency(text) {
+ }
+ 
+ // Why a reusable's top-level concurrency block is unsafe, or null when allowed.
+-// Allowed: a non-cancelling lock whose group does not reference github.workflow.
++// Allowed: a non-cancelling lock, or a lock that cancels superseded runs only
++// on pull_request events (a merge queue entry must never be cancelled); the
++// group must never reference github.workflow, which resolves to the caller's
++// own group and deadlocks.
++const SAFE_CANCEL = new Set(['false', "${{ github.event_name == 'pull_request' }}"]);
+ function concurrencyProblem(block) {
+   const group = block.match(/^  group:\s*(.*)$/m)?.[1] ?? '';
+   const cancel = block.match(/^  cancel-in-progress:\s*(.*)$/m)?.[1]?.trim() ?? '';
+-  if (cancel !== 'false') {
++  if (!SAFE_CANCEL.has(cancel)) {
+     return `cancel-in-progress is "${cancel || 'unset'}", so a cancelling group cancels sibling calls in one caller run`;
+   }
+   if (group.includes('github.workflow')) {
+@@ -36,7 +40,7 @@ function concurrencyProblem(block) {
+   return null;
+ }
+ 
+-test('a reusable workflow carries a concurrency block only as a non-cancelling, repository-keyed lock', () => {
++test('a reusable workflow carries a concurrency block only as a repository-keyed lock that never cancels a queue entry', () => {
+   const offenders = [];
+   for (const name of reusables) {
+     const block = topLevelConcurrency(readWorkflow(name));
+@@ -48,6 +52,10 @@ test('a reusable workflow carries a concurrency block only as a non-cancelling,
+ 
+ test('the concurrency rule rejects a cancelling group and a github.workflow group', () => {
+   assert.match(concurrencyProblem('  group: x\n  cancel-in-progress: true\n'), /cancels sibling calls/);
++  assert.match(
++    concurrencyProblem("  group: x\n  cancel-in-progress: ${{ github.event_name != 'pull_request' }}\n"),
++    /cancels sibling calls/,
++  );
+   assert.match(
+     concurrencyProblem('  group: y-${{ github.workflow }}\n  cancel-in-progress: false\n'),
+     /deadlocks/,
+@@ -56,6 +64,12 @@ test('the concurrency rule rejects a cancelling group and a github.workflow grou
+     concurrencyProblem('  group: flake-lock-${{ github.repository }}\n  cancel-in-progress: false\n'),
+     null,
+   );
++  assert.equal(
++    concurrencyProblem(
++      "  group: _ci-gate-${{ github.event.pull_request.number || github.sha }}\n  cancel-in-progress: ${{ github.event_name == 'pull_request' }}\n",
++    ),
++    null,
++  );
+ });
+ 
+ test('ansible_lint_args is declared on the gate and forwarded to lint_args', () => {
