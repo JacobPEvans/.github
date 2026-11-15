@@ -35,9 +35,9 @@
 # never be skippable by ANY signal, deterministic or classified.
 # `markdown-lint` and `file-size` depend only on their path filters, never on
 # `scope`: the classifier may narrow optional jobs, not these two.
-# A pull request labeled `fast-path` skips only `nix-build` and Molecule when
-# its current GitHub API diff is under 15 added-plus-deleted lines and under
-# 5 changed files; the label never overrides either size limit.
+# The lane classifier (_lane.yml) decides which pull requests skip `nix-build`
+# and Molecule before merge: the tiny and land-first lanes, in standard and
+# hot repositories only. The `fast-path` label has no effect.
 # https://github.com/JacobPEvans/.github-ai/blob/main/.github/scope-rubric.md
 #
 # Why the watchdog exists:
@@ -898,8 +898,8 @@ jobs:
       # scope's `molecule` output is a second layer on `_ansible-ci.yml`'s
       # own molecule toggle - only turns it off when scope definitively
       # said "none"; any other answer, or a scope failure, leaves it on.
-      # The lane classifier's fast_path alias turns it off for the bot,
-      # tiny and land-first lanes.
+      # The lane classifier's fast_path alias turns it off for the tiny and
+      # land-first lanes.
       molecule: ${{ needs.lane.outputs.fast_path != 'true' && (needs.changes.outputs.test_tier == 'full' || needs.scope.result != 'success' || needs.scope.outputs.molecule != 'none') }}
       full_suite: ${{ needs.changes.outputs.test_tier == 'full' }}
       runner_label: ${{ (!github.event.pull_request || github.event.pull_request.head.repo.full_name == github.repository) && inputs.runner_label || 'ubuntu-24.04' }}
