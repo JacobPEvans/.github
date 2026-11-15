@@ -1,0 +1,58 @@
+diff --git a/renovate-first-party.json b/renovate-first-party.json
+new file mode 100644
+index 0000000..f184fb1
+--- /dev/null
++++ b/renovate-first-party.json
+@@ -0,0 +1,52 @@
++{
++  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
++  "description": [
++    "Opt-in Renovate preset: one grouped PR per repository moves first-party commit pins to upstream green and merges by native platform auto-merge.",
++    "Extends local>JacobPEvans/.github; shared customManagers, including the Ansible Galaxy git-pin manager, are inherited from the org master preset, not duplicated.",
++    "The nix manager is re-enabled here because the org master preset disables it and first-party pins include Nix flake inputs."
++  ],
++  "extends": [
++    "local>JacobPEvans/.github"
++  ],
++  "nix": {
++    "enabled": true
++  },
++  "platformAutomerge": true,
++  "automerge": true,
++  "automergeType": "pr",
++  "automergeStrategy": "squash",
++  "rebaseWhen": "conflicted",
++  "minimumReleaseAge": null,
++  "schedule": [
++    "7 */4 * * *"
++  ],
++  "packageRules": [
++    {
++      "description": "Group first-party pin and version updates into one PR that native platform auto-merge can merge once checks are green, with no release-age hold.",
++      "groupName": "first-party green pins",
++      "groupSlug": "first-party-green",
++      "matchPackageNames": [
++        "JacobPEvans/**",
++        "JacobPEvans-*/**",
++        "dryvist/**",
++        "jpe-nix/**",
++        "jpe-*/**",
++        "https://github.com/JacobPEvans/**",
++        "https://github.com/JacobPEvans-*/**",
++        "https://github.com/dryvist/**",
++        "https://github.com/jpe-nix/**",
++        "https://github.com/jpe-*/**"
++      ],
++      "matchUpdateTypes": [
++        "digest",
++        "pin",
++        "pinDigest",
++        "minor",
++        "patch",
++        "major"
++      ],
++      "automerge": true,
++      "minimumReleaseAge": null
++    }
++  ]
++}
