@@ -82,6 +82,13 @@
 # below. Pass `with:` only for what differs (a `nix`/`python`/`ansible`/
 # `terraform` filter, a toggle, a runner label).
 #
+# The gate itself runs on pull request events only. A push to the default
+# branch belongs to `.github/workflows/_post-merge.yml`, which settles the
+# checks a fast-lane merge deferred: it re-runs this gate on HEAD over the
+# commits the `green` ref has not settled, then moves green forward or
+# reverts the deferred pull requests. Do not add a `push` trigger to a gate
+# caller.
+#
 # Scope policy (canonical): a check runs in proportion to the change that
 # triggered it; the one guaranteed end-to-end sweep is promotion to a
 # git-flow repo's production branch. Narrow at the consumer, never in a

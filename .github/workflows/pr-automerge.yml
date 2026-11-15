@@ -102,7 +102,7 @@ jobs:
           if [[ "$TIER" == legacy ]]; then
             gh api "repos/$REPO/rules/branches/$BASE" --jq '"ready=" + ((([.[] | select(.type == "required_status_checks") | .parameters.required_status_checks[]?.context | select(type == "string" and test("(^|/ )Merge Gate$"))] | length) > 0) | tostring)' >> "$GITHUB_OUTPUT"
           else
-            gh api "repos/$REPO/rules/branches/$BASE" --jq '"ready=" + (([.[] | select(.type == "required_status_checks") | .parameters.required_status_checks[]?.context | select(type == "string")] as $have | (["gate / Merge Gate", "AI Merge Gate"] - $have | length) == 0) | tostring)' >> "$GITHUB_OUTPUT"
+            gh api "repos/$REPO/rules/branches/$BASE" --jq '"ready=" + (((["gate / Merge Gate", "AI Merge Gate"] - [.[] | select(.type == "required_status_checks") | .parameters.required_status_checks[]?.context | select(type == "string")]) | length == 0) | tostring)' >> "$GITHUB_OUTPUT"
           fi
       - name: Warn when no required Merge Gate is active
         if: >-
