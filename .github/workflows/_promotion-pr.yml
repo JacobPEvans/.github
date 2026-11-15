@@ -1,30 +1,54 @@
-# Reusable: weekly develop-to-main promotion pull request.
+# Reusable: develop-to-main promotion pull request.
 #
-# Opens a pull request from develop into main when develop has commits that main
-# does not and no open promotion pull request exists. The pull request carries the
-# release:in-progress label that _release-freeze.yml reads. Auto-merge is never
-# enabled.
+# Legacy mode (no full_suite_workflow input): opens a pull request from develop
+# into main when develop has commits that main does not and no open promotion
+# pull request exists. The pull request carries the release:in-progress label
+# that _release-freeze.yml reads. Auto-merge is never enabled.
 #
-# The pull request is opened with the release GitHub App token, not github.token,
-# so the pull_request workflows run on it.
+# Green mode (full_suite_workflow set to a workflow filename in the caller
+# repository): stops with a Slack post when main has commits develop lacks (an
+# unported hotfix). Otherwise reuses a completed successful full-suite run on
+# the green head sha, or dispatches the full suite on green and waits for it
+# (polling every 30 seconds, bounded by the job timeout). A red suite posts to
+# Slack and fails the job. A green suite creates promote/<yyyy-mm-dd> at exactly
+# the checked sha, opens the pull request into main unless a promotion pull
+# request is already open, and arms merge-commit auto-merge. The
+# release:in-progress label is not added in this mode.
+#
+# Slack posts are optional and use the slack_webhook_url incoming webhook.
+#
+# Pull requests are opened with the release GitHub App token, not github.token,
+# so the pull_request workflows run on them.
 #
 # Caller shape:
 #   on:
 #     schedule:
-#       - cron: "13 12 * * 6"
+#       - cron: "17 9 * * *"
 #   permissions: {}
 #   jobs:
 #     promotion-pr:
 #       uses: JacobPEvans/.github/.github/workflows/_promotion-pr.yml@v1
+#       with:
+#         full_suite_workflow: full-suite.yml # optional; omit for legacy develop-to-main
 #       secrets:
 #         GH_ACTION_RELEASE_PLEASE_PRIVATE_KEY: ${{ secrets.GH_ACTION_RELEASE_PLEASE_PRIVATE_KEY }}
+#         slack_webhook_url: ${{ secrets.SLACK_WEBHOOK_URL }} # optional
 name: _promotion-pr
 
 on:
   workflow_call:
+    inputs:
+      full_suite_workflow:
+        description: Caller workflow filename whose successful run on the green head sha gates promotion; empty keeps the develop-to-main pull request.
+        required: false
+        type: string
+        default: ''
     secrets:
       GH_ACTION_RELEASE_PLEASE_PRIVATE_KEY:
         required: true
+      slack_webhook_url:
+        description: Optional Slack incoming webhook for promotion stop and red-suite posts.
+        required: false
 
 permissions: {}
 
@@ -35,6 +59,7 @@ concurrency:
 jobs:
   promotion-pr:
     name: Open promotion pull request
+    if: inputs.full_suite_workflow == ''
     runs-on: ubuntu-26.04
     timeout-minutes: 5
     permissions: {}
@@ -74,3 +99,134 @@ jobs:
             --title 'chore: promote develop to main' \
             --label release:in-progress \
             --body 'Merges develop into main.'
+
+  promotion-green:
+    name: Promote green to main
+    if: inputs.full_suite_workflow != ''
+    runs-on: ubuntu-26.04
+    # The full-suite wait polls every 30 seconds and is bounded by this timeout.
+    timeout-minutes: 60
+    permissions: {}
+    env:
+      HAS_SLACK: ${{ secrets.slack_webhook_url != '' }}
+    steps:
+      - name: Mint caller repository token
+        id: token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3
+        with:
+          client-id: ${{ vars.GH_ACTION_RELEASE_PLEASE_APP_ID }}
+          private-key: ${{ secrets.GH_ACTION_RELEASE_PLEASE_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.event.repository.name }}
+          permission-contents: write
+          permission-pull-requests: write
+          permission-actions: write
+
+      - name: Promote the checked green commit
+        id: promote
+        env:
+          GH_TOKEN: ${{ steps.token.outputs.token }}
+          GH_REPO: ${{ github.repository }}
+          FULL_SUITE_WORKFLOW: ${{ inputs.full_suite_workflow }}
+        run: |
+          set -euo pipefail
+
+          ahead=$(gh api "repos/$GH_REPO/compare/develop...main" --jq '.ahead_by')
+          if [[ "$ahead" -gt 0 ]]; then
+            echo "::notice::main has $ahead commit(s) develop lacks (unported hotfix); stopping."
+            echo "hotfix=$ahead" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          green_sha=$(gh api "repos/$GH_REPO/branches/green" --jq '.commit.sha')
+          echo "green_sha=$green_sha" >> "$GITHUB_OUTPUT"
+
+          runs_path="repos/$GH_REPO/actions/workflows/$FULL_SUITE_WORKFLOW/runs"
+          reuse_id=$(gh api "$runs_path?head_sha=$green_sha&status=success&per_page=100" \
+            --jq '[.workflow_runs[] | select(.status == "completed" and .conclusion == "success")][0].id // empty')
+
+          if [[ -n "$reuse_id" ]]; then
+            echo "::notice::Reusing successful full-suite run $reuse_id on green at $green_sha."
+          else
+            latest_id=$(gh api "$runs_path?head_sha=$green_sha&event=workflow_dispatch&per_page=1" \
+              --jq '.workflow_runs[0].id // 0')
+            gh api -X POST "repos/$GH_REPO/actions/workflows/$FULL_SUITE_WORKFLOW/dispatches" \
+              -f ref=green > /dev/null
+
+            run_id=''
+            while :; do
+              run_id=$(gh api "$runs_path?head_sha=$green_sha&event=workflow_dispatch&per_page=100" \
+                --jq "[.workflow_runs[] | select(.id > $latest_id)][0].id // empty")
+              if [[ -n "$run_id" ]]; then
+                break
+              fi
+              sleep 30
+            done
+            echo "::notice::Dispatched full-suite run $run_id on green at $green_sha."
+
+            conclusion=''
+            while :; do
+              run_json=$(gh api "repos/$GH_REPO/actions/runs/$run_id")
+              run_status=$(jq -r '.status' <<<"$run_json")
+              if [[ "$run_status" == "completed" ]]; then
+                conclusion=$(jq -r '.conclusion // empty' <<<"$run_json")
+                break
+              fi
+              sleep 30
+            done
+
+            if [[ "$conclusion" != "success" ]]; then
+              echo "::error::Full suite on green at $green_sha concluded $conclusion; no promotion today."
+              {
+                echo "red=true"
+                echo "conclusion=$conclusion"
+              } >> "$GITHUB_OUTPUT"
+              exit 1
+            fi
+          fi
+
+          promote_date=$(date -u +%F)
+          promote_branch="promote/$promote_date"
+
+          if existing_sha=$(gh api "repos/$GH_REPO/git/refs/heads/$promote_branch" --jq '.object.sha' 2>/dev/null); then
+            if [[ "$existing_sha" != "$green_sha" ]]; then
+              echo "::error::$promote_branch already exists at $existing_sha, not the checked green sha $green_sha."
+              exit 1
+            fi
+            echo "::notice::$promote_branch already exists at $green_sha."
+          else
+            gh api -X POST "repos/$GH_REPO/git/refs" \
+              -f "ref=refs/heads/$promote_branch" -f "sha=$green_sha" > /dev/null
+          fi
+
+          existing=$(gh pr list --repo "$GH_REPO" --base main --state open --limit 100 \
+            --json number,headRefName \
+            --jq '[.[] | select(.headRefName == "develop" or (.headRefName | startswith("promote/")))][0].number // empty')
+          if [[ -n "$existing" ]]; then
+            echo "::notice::Promotion pull request #$existing is already open."
+            exit 0
+          fi
+
+          pr_url=$(gh pr create --repo "$GH_REPO" --base main --head "$promote_branch" \
+            --title "release: promote $promote_date" \
+            --body "Promotes the checked green commit $green_sha into main after a successful full-suite run on green.")
+          gh pr merge "$pr_url" --repo "$GH_REPO" --auto --merge
+          echo "::notice::Opened $pr_url with merge-commit auto-merge."
+
+      - name: Post the unported hotfix stop to chat
+        if: steps.promote.outputs.hotfix != '' && env.HAS_SLACK == 'true'
+        uses: slackapi/slack-github-action@dcb1066f776dd043e64d0e8ba94ca15cc7e1875d # v4.0.0
+        with:
+          webhook: ${{ secrets.slack_webhook_url }}
+          webhook-type: incoming-webhook
+          payload: |
+            text: "Promotion stopped in ${{ github.repository }}: main has ${{ steps.promote.outputs.hotfix }} commit(s) develop lacks (unported hotfix). ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+      - name: Post the red full suite to chat
+        if: failure() && steps.promote.outputs.red == 'true' && env.HAS_SLACK == 'true'
+        uses: slackapi/slack-github-action@dcb1066f776dd043e64d0e8ba94ca15cc7e1875d # v4.0.0
+        with:
+          webhook: ${{ secrets.slack_webhook_url }}
+          webhook-type: incoming-webhook
+          payload: |
+            text: "Full suite is red in ${{ github.repository }} on green at ${{ steps.promote.outputs.green_sha }} (conclusion: ${{ steps.promote.outputs.conclusion }}); no promotion today. ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
