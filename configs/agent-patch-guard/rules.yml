@@ -1,0 +1,148 @@
+# Agent Patch Guard semgrep rules.
+#
+# Consumed diff-aware (`semgrep scan --baseline-commit <PR base>`) by
+# _agent-patch-guard.yml, so a rule only fires on content the PR ADDS - the
+# baseline scan reports the same matches and they cancel out. Every rule is a
+# plain `pattern-regex` over a `paths`-scoped file set: no language parsing
+# between semgrep releases can change what a fixed regex matches, which keeps
+# these rules stable without local semgrep runs.
+#
+# The guard's own rule definitions are excluded from the YAML rule: they name
+# the suppression strings by necessity, and this hub repo's `.github/workflows/`
+# documents them too. Excluding those two trees keeps the YAML rule from
+# matching its own definitions; an agent hiding a suppression inside a
+# directory named exactly `configs/agent-patch-guard/` or inside
+# `.github/workflows/` is writing to a reviewed path in this hub repo, not
+# something a consumer can inherit.
+rules:
+  # Rung 2, Terraform: the external data source runs a local program during
+  # plan/apply; an agent that also controls that program has a CI escape hatch.
+  - id: agent-patch-guard-terraform-external-data
+    message: >-
+      Agent added a Terraform/OpenTofu `data "external"` block. The external
+      data source executes a local program during plan/apply; if the PR also
+      controls that program it is a CI escape hatch. Justify the block and the
+      program it invokes, or remove it.
+    severity: ERROR
+    languages:
+      - generic
+    paths:
+      include:
+        - "**/*.tf"
+        - "**/*.tofu"
+    pattern-regex: 'data\s+"external"'
+
+  # Rung 2, Terraform: tflint suppressions (inline and file-wide directives).
+  - id: agent-patch-guard-tflint-suppression
+    message: >-
+      Agent added a tflint-ignore directive. A suppression silences exactly
+      the check that caught the code. Justify it inline for a reviewer, or fix
+      the finding it silences.
+    severity: ERROR
+    languages:
+      - generic
+    paths:
+      include:
+        - "**/*.tf"
+        - "**/*.tofu"
+    pattern-regex: 'tflint-ignore'
+
+  # Rung 2, Python: lint/type/security suppressions and coverage exclusions.
+  - id: agent-patch-guard-python-suppression
+    message: >-
+      Agent added a Python suppression (# noqa, # nosec, # type: ignore, or
+      pragma: no cover). A suppression silences exactly the check that caught
+      the code. Justify it inline for a reviewer, or fix the finding it
+      silences.
+    severity: ERROR
+    languages:
+      - generic
+    paths:
+      include:
+        - "**/*.py"
+    pattern-regex: '#\s*(?:noqa|nosec)\b|#\s*type:\s*ignore|pragma:\s*no\s*cover'
+
+  # Rung 2, Shell: shellcheck suppressions.
+  - id: agent-patch-guard-shell-suppression
+    message: >-
+      Agent added a shellcheck disable directive. A suppression silences
+      exactly the check that caught the code. Justify it inline for a
+      reviewer, or fix the finding it silences.
+    severity: ERROR
+    languages:
+      - generic
+    paths:
+      include:
+        - "**/*.sh"
+        - "**/*.bash"
+    pattern-regex: '#\s*shellcheck\s+disable'
+
+  # Rung 2, JavaScript/TypeScript: eslint suppressions. `eslint-disable` is
+  # also the prefix of `eslint-disable-next-line`, so one pattern covers both.
+  - id: agent-patch-guard-js-suppression
+    message: >-
+      Agent added an eslint-disable directive. A suppression silences exactly
+      the check that caught the code. Justify it inline for a reviewer, or fix
+      the finding it silences.
+    severity: ERROR
+    languages:
+      - generic
+    paths:
+      include:
+        - "**/*.js"
+        - "**/*.jsx"
+        - "**/*.mjs"
+        - "**/*.cjs"
+        - "**/*.ts"
+        - "**/*.tsx"
+        - "**/*.mts"
+        - "**/*.cts"
+    pattern-regex: 'eslint-disable'
+
+  # Rung 2, YAML: inline noqa (ansible-lint) and the skip_ansible_lint tag.
+  - id: agent-patch-guard-yaml-suppression
+    message: >-
+      Agent added a YAML lint suppression (# noqa: or the skip_ansible_lint
+      tag). A suppression silences exactly the check that caught the code.
+      Justify it inline for a reviewer, or fix the finding it silences.
+    severity: ERROR
+    languages:
+      - generic
+    paths:
+      include:
+        - "**/*.yml"
+        - "**/*.yaml"
+      exclude:
+        - "configs/agent-patch-guard/**"
+        - ".github/workflows/**"
+    pattern-regex: '#\s*noqa:|skip_ansible_lint'
+
+  # Rung 2, Python tests: skip markers. Bare `xfail` as a token also matches
+  # identifiers like test_xfail_case, so the rule pins the marker form
+  # @pytest.mark.xfail, which is how a test is actually marked.
+  - id: agent-patch-guard-python-test-skip
+    message: >-
+      Agent added a pytest/unittest skip or xfail marker. Skipping a test
+      makes CI green without the evidence the test provides. Justify the skip
+      inline for a reviewer, or fix what the test caught.
+    severity: ERROR
+    languages:
+      - generic
+    paths:
+      include:
+        - "**/*.py"
+    pattern-regex: '@pytest\.mark\.(?:skip|xfail)\b|pytest\.skip\(|unittest\.skip'
+
+  # Rung 2, Go tests: the testing.T skip entry points.
+  - id: agent-patch-guard-go-test-skip
+    message: >-
+      Agent added a testing.T skip call (t.Skip). Skipping a test makes CI
+      green without the evidence the test provides. Justify the skip inline
+      for a reviewer, or fix what the test caught.
+    severity: ERROR
+    languages:
+      - generic
+    paths:
+      include:
+        - "**/*.go"
+    pattern-regex: '\bt\.Skip\('

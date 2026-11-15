@@ -78,6 +78,40 @@ ruleset-targeted repositories to use `develop` or `hotfix/<name>` from the same 
 `.github` repository can call it through `workflow_call` for an organization ruleset. Organization `.github`
 repositories use trunk flow and are not ruleset targets, so the workflow skips any repository named `.github`.
 
+## CI Gate (Merge Gate)
+
+[`_ci-gate.yml`](.github/workflows/_ci-gate.yml) is the reusable branch-protection gate: callers
+add one thin job (`uses: JacobPEvans/.github/.github/workflows/_ci-gate.yml@v1`) and the
+`Merge Gate` check aggregates the following named jobs, each with its own input toggle:
+
+| Job | Default | Runs when |
+| --- | --- | --- |
+| Classify CI scope (Jev) | always | every event; narrows other checks, never widens them |
+| Detect Changes | always | every event; computes the caller's path filters |
+| Nix Validate / Nix Build | off | the `nix` filter matches (Nix Build also needs its toggle) |
+| Markdown Lint | on | the `markdown` filter matches |
+| File Size | on | the `nix`, `markdown` or `terraform` filters match |
+| Token Limits | off | the `markdown` filter matches |
+| Python Security / Python CI | off | the `python` filter matches |
+| Ansible CI | off | the `ansible` filter matches |
+| Renovate Annotations | off | once enabled, every PR (not filter-gated) |
+| OpenTofu CI | off | the `terraform` filter matches |
+| OSV Scanner | off | once enabled, every PR (not filter-gated) |
+| Dependency Review | on | public-repo PRs only (needs Advanced Security) |
+| Workflow Security (zizmor) | on | every PR (not filter-gated) |
+| Agent Patch Guard | on | every PR (not filter-gated); fails only agent-authored PRs |
+| Uses Resolve | always | every event; a broken reusable-workflow reference cannot merge |
+| Repo Tests | off | once `test_command` is set |
+| Workflow Lint | off | once enabled; actionlint over the caller's workflows |
+| Queue Watchdog | always | cancels the run if a job waits on a runner too long |
+
+`Agent Patch Guard` keeps agent-authored PRs from making CI green by deleting tests, adding
+suppression directives, skip markers, Terraform `data "external"` blocks, or new scripts under
+`scripts/`/`bin/`. It enforces only when a commit is authored or committed by a login in the org
+variable `AGENT_PATCH_GUARD_LOGINS` (comma list; unset defaults to logins ending in `[bot]`); other
+PRs get warning annotations. A human with triage access can add the `agent-patch-guard:approved`
+label to approve a reviewed exception, such as a genuinely obsolete test.
+
 ## Molecule reusable workflow
 
 Callers of `.github/workflows/_molecule.yml` can set `galaxy_force_install` to
