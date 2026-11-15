@@ -353,8 +353,8 @@ jobs:
           set -euo pipefail
           gh api "repos/$REPO/dispatches" \
             -f event_type=post-merge-red \
-            -f client_payload[commit]="$RED_SHA" \
-            -f client_payload[run_url]="$RUN_URL"
+            -f "client_payload[commit]=$RED_SHA" \
+            -f "client_payload[run_url]=$RUN_URL"
 
   # The wait comes from the revert-delay environment's 15-minute wait timer,
   # so no runner is held while it elapses. The revert step first re-reads
