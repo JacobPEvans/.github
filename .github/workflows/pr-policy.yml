@@ -26,6 +26,26 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
+      # The review gate reads the author's model family from this trailer.
+      # Agent pull requests are those of the automation and sandbox Apps
+      # (not an auto-revert) and those from agent/ or topic/ branches; the
+      # bot lane (Renovate, the release App) is exempt. The legacy tier is
+      # not checked.
+      - name: Require an Assisted-by trailer on agent pull requests
+        if: >-
+          ${{ github.event_name == 'pull_request'
+          && contains(fromJSON('["standard", "hot"]'), github.event.repository.custom_properties.merge_tier)
+          && !contains(fromJSON('["renovate[bot]", "jacobpevans-release-please[bot]"]'), github.event.pull_request.user.login)
+          && !(github.event.pull_request.user.login == 'jacobpevans-claude[bot]'
+          && contains(github.event.pull_request.labels.*.name, 'auto-revert'))
+          && (contains(fromJSON('["jacobpevans-claude[bot]", "jacobs-agent-smith[bot]"]'), github.event.pull_request.user.login)
+          || startsWith(github.event.pull_request.head.ref, 'agent/')
+          || startsWith(github.event.pull_request.head.ref, 'topic/')) }}
+        run: |
+          if [[ -z "$(git log -1 --format='%(trailers:key=Assisted-by,valueonly)')" ]]; then
+            echo "::error::The head commit of an agent pull request needs an Assisted-by trailer, for example 'Assisted-by: Claude:<model id>'."
+            exit 1
+          fi
       # As a required workflow this runs in the consumer repo, which has no
       # copy of the checker; fetch it from this workflow's own commit.
       - name: Check out the checker
