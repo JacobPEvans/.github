@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.52.0](https://github.com/JacobPEvans/.github/compare/v1.51.1...v1.52.0) (2026-11-15)
+
+
+### Features
+
+* **labels:** add the merge lane labels ([#225](https://github.com/JacobPEvans/.github/issues/225)) ([cff8f89](https://github.com/JacobPEvans/.github/commit/cff8f89209cab4ad6ec441f2dbb300196891b0c6))
+
 ## [1.51.1](https://github.com/JacobPEvans/.github/compare/v1.51.0...v1.51.1) (2026-11-14)
 
 
