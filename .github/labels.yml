@@ -9,6 +9,8 @@
 #   priority:* - Urgency level
 #   size:*     - Effort estimation
 #   ai:*       - AI workflow state
+#   openhands:* - Pull requests the OpenHands agent took part in
+#   model:*    - Local model that did agent work
 #   (ungrouped) - Triage/admin labels
 #
 # Requirements (enforced via issue templates):
@@ -138,6 +140,24 @@
 - name: "ai:skip-review"
   color: "94A3B8"
   description: "Skip AI review - Opt out of all automated AI reviews"
+
+# =============================================================================
+# AGENT AND MODEL LABELS - Which local agent and model worked on a pull request
+# A pull request the OpenHands agent opened is identified by its author, not by a label.
+# model:* names the model family and size only, never a quantisation or a serving backend; one label is added per model that worked on the pull request.
+# Source of the names: the local entries in the model router menu, read 2026-11-15. Add a label when a new local model is served; keep labels that pull requests already carry.
+# =============================================================================
+- name: "openhands:assisted"
+  color: "F0ABFC"
+  description: "OpenHands assisted - the OpenHands agent pushed a commit or a reply on this pull request"
+
+- name: "model:qwen3.8-27b"
+  color: "6366F1"
+  description: "Model - Qwen3.8 27B, served locally, did agent work on this pull request"
+
+- name: "model:qwen3.5-9b"
+  color: "A5B4FC"
+  description: "Model - Qwen3.5 9B, served locally, did agent work on this pull request"
 
 # =============================================================================
 # RELEASE COORDINATION LABEL
