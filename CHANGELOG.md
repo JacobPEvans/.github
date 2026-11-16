@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.56.1](https://github.com/JacobPEvans/.github/compare/v1.56.0...v1.56.1) (2026-11-16)
+
+
+### Bug Fixes
+
+* **agent-patch-guard:** run semgrep in the job process ([#249](https://github.com/JacobPEvans/.github/issues/249)) ([8d4158f](https://github.com/JacobPEvans/.github/commit/8d4158f2f846e82cd5fc09f8b1c8e0c9fac4501f))
+
 ## [1.56.0](https://github.com/JacobPEvans/.github/compare/v1.55.0...v1.56.0) (2026-11-15)
 
 
