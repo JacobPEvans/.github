@@ -254,6 +254,7 @@ current owners.
 
 ### Other
 
+- [.agents](https://github.com/JacobPEvans/.agents): Organization-wide agent skills
 - [.github](https://github.com/JacobPEvans/.github): Enterprise-central reusable workflows, Renovate preset and CI policy (topics: github-actions,
   reusable-workflows)
 - [.github-ai](https://github.com/JacobPEvans/.github-ai): Enterprise-central AI workflows: PR-Agent review and agent automation (topics: ai, github-actions,
