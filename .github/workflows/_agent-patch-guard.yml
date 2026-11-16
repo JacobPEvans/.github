@@ -10,7 +10,7 @@
 #   1. dorny/paths-filter change-type filters - fail when the PR DELETES a
 #      test file. Deleted files carry no content, so a scanner cannot rule on
 #      them; the path filter's `deleted` qualifier is the native tool.
-#   2. semgrep (semgrep/semgrep container, pinned) in diff-aware mode
+#   2. semgrep (pinned PyPI release, run in the job's own process) in diff-aware mode
 #      (`--baseline-commit` = PR base), rules in configs/agent-patch-guard/:
 #      Terraform `data "external"` blocks, lint/security suppressions
 #      (# noqa, # nosec, # type: ignore, tflint-ignore, skip_ansible_lint,
@@ -46,9 +46,9 @@ on:
   workflow_call:
     inputs:
       semgrep_tag:
-        description: semgrep/semgrep image tag. The release tag is the pin of
-          record for this workflow; keep it on an immutable-style semver tag,
-          never a moving one like latest.
+        description: semgrep PyPI release version. It is the pin of record
+          for this workflow; keep it on an exact semver release, never a
+          moving one like latest.
         type: string
         required: false
         default: 1.184.0
@@ -188,42 +188,42 @@ jobs:
           sparse-checkout-cone-mode: false
 
       # Move the rules out of the scanned workspace first: semgrep would
-      # otherwise match its own rule definitions, and mounting them from
-      # outside /src keeps them out of the scan entirely.
+      # otherwise match its own rule definitions, and reading them from
+      # outside the workspace keeps them out of the scan entirely.
       - name: Move rules outside the scanned workspace
         run: mv .agent-patch-guard-rules/configs/agent-patch-guard "$RUNNER_TEMP/agent-patch-guard-rules"
+
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
+        with:
+          python-version: "3.12"
+
+      # semgrep runs in the job's own process, not a sibling container: a
+      # container runner starts siblings on the Docker host, where the job's
+      # workspace paths do not exist. One retry absorbs transient index errors.
+      - name: Install semgrep
+        env:
+          SEMGREP_VERSION: ${{ inputs.semgrep_tag }}
+        run: |
+          set -euo pipefail
+          for attempt in 1 2; do
+            if python -m pip install --disable-pip-version-check "semgrep==${SEMGREP_VERSION}"; then
+              exit 0
+            fi
+            echo "::warning::semgrep install attempt $attempt failed; retrying"
+            sleep 5
+          done
+          echo "::error::semgrep install failed after retry"
+          exit 1
 
       - name: Semgrep diff-aware scan
         id: semgrep
         env:
           BASE_SHA: ${{ steps.base.outputs.sha }}
-          SEMGREP_TAG: ${{ inputs.semgrep_tag }}
         run: |
           set -euo pipefail
-          command -v docker > /dev/null || { echo "::error::docker is required for the semgrep rung"; exit 1; }
-          # The semgrep container runs as root while the workspace belongs to
-          # the runner user; without safe.directory its baseline git calls die
-          # on dubious ownership. Metrics stay off on public repos. One retry
-          # absorbs the registry's transient pull failures.
-          ok=false
-          for attempt in 1 2; do
-            if docker run --rm \
-                 -v "$PWD:/src" \
-                 -v "${RUNNER_TEMP}/agent-patch-guard-rules:/rules:ro" \
-                 -v "${RUNNER_TEMP}:/out" \
-                 -w /src \
-                 "semgrep/semgrep:${SEMGREP_TAG}" \
-                 sh -c 'git config --global --add safe.directory /src &&
-                        semgrep scan --metrics=off --config /rules \
-                          --baseline-commit "$1" --json --output /out/semgrep-findings.json' \
-                   _ "$BASE_SHA"; then
-              ok=true
-              break
-            fi
-            echo "::warning::semgrep attempt $attempt failed; retrying"
-            sleep 5
-          done
-          [ "$ok" = true ] || { echo "::error::semgrep scan failed after retry"; exit 1; }
+          # Metrics stay off on public repos.
+          semgrep scan --metrics=off --config "${RUNNER_TEMP}/agent-patch-guard-rules" \
+            --baseline-commit "$BASE_SHA" --json --output "${RUNNER_TEMP}/semgrep-findings.json"
 
       - name: Check semgrep findings
         id: semgrep-findings

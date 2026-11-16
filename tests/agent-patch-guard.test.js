@@ -125,7 +125,13 @@ test('the semgrep pin is an immutable-style release tag, not a moving one', () =
   const tag = guardWorkflow.match(/default: (\d+\.\d+\.\d+)\n/);
   assert.ok(tag, `semgrep_tag default found: ${guardWorkflow.match(/default: \d+[^\n]*/)}`);
   assert.equal(tag[1], '1.184.0');
-  assert.doesNotMatch(guardWorkflow, /semgrep\/semgrep:(latest|\d+)/);
+  assert.match(guardWorkflow, /"semgrep==\$\{SEMGREP_VERSION\}"/);
+});
+
+test('no workflow step bind-mounts a workspace or runner path into a container', () => {
+  for (const [name, text] of [['_agent-patch-guard.yml', guardWorkflow], ['_ci-gate.yml', gateWorkflow]]) {
+    assert.doesNotMatch(text, /docker run[\s\S]{0,200}?-v\s/, `${name} has no docker run -v`);
+  }
 });
 
 // ---------------------------------------------------------------------------
@@ -236,7 +242,7 @@ const findingsFixture = JSON.stringify({
   ],
 });
 
-// Writes a findings file the way the semgrep step's /out mount produces one.
+// Writes a findings file the way the semgrep step's --output produces one.
 function findingsFile(t, content) {
   const directory = mkdtempSync(join(tmpdir(), 'agent-patch-guard-sg-'));
   t.after(() => rmSync(directory, { recursive: true, force: true }));
