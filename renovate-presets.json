@@ -465,6 +465,18 @@
       "minimumReleaseAge": "0 days"
     },
     {
+      "description": "Hold pre-commit hooks that install an exact PyPI or npm release at commit time for seven days, the same hold the workstation package managers apply.",
+      "matchManagers": [
+        "pre-commit"
+      ],
+      "matchPackageNames": [
+        "astral-sh/ruff-pre-commit",
+        "DavidAnson/markdownlint-cli2",
+        "semgrep/pre-commit"
+      ],
+      "minimumReleaseAge": "7 days"
+    },
+    {
       "description": "Hold major updates for seven days before merge.",
       "matchUpdateTypes": [
         "major"

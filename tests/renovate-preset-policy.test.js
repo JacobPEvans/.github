@@ -24,8 +24,9 @@ function matchesPattern(value, pattern) {
   return new RegExp(`^${source}$`).test(value);
 }
 
-function matchesPackageRule(rule, packageName, updateType, repository) {
+function matchesPackageRule(rule, packageName, updateType, repository, manager) {
   if (rule.matchUpdateTypes && !rule.matchUpdateTypes.includes(updateType)) return false;
+  if (rule.matchManagers && !rule.matchManagers.includes(manager)) return false;
 
   if (rule.matchPackageNames) {
     const patterns = rule.matchPackageNames.map((pattern) => ({
@@ -45,10 +46,10 @@ function matchesPackageRule(rule, packageName, updateType, repository) {
   return true;
 }
 
-function resolvePackagePolicy(packageName, updateType) {
+function resolvePackagePolicy(packageName, updateType, manager) {
   const repository = 'JacobPEvans/example';
   return preset.packageRules
-    .filter((rule) => matchesPackageRule(rule, packageName, updateType, repository))
+    .filter((rule) => matchesPackageRule(rule, packageName, updateType, repository, manager))
     .reduce((policy, rule) => {
       for (const key of ['minimumReleaseAge', 'automerge']) {
         if (Object.hasOwn(rule, key)) policy[key] = rule[key];
@@ -96,6 +97,14 @@ test('timestamp-less lock and digest updates retain the configured release-age p
   );
   assert.equal(majorAgeRule.minimumReleaseAge, '7 days');
   assert.equal(majorAgeRule.automerge, undefined);
+});
+
+test('pre-commit hooks that install exact registry releases keep the seven-day hold', () => {
+  for (const hook of ['astral-sh/ruff-pre-commit', 'DavidAnson/markdownlint-cli2', 'semgrep/pre-commit']) {
+    assert.equal(resolvePackagePolicy(hook, 'minor', 'pre-commit').minimumReleaseAge, '7 days');
+  }
+  assert.equal(resolvePackagePolicy('pre-commit/pre-commit-hooks', 'minor', 'pre-commit').minimumReleaseAge, '0 days');
+  assert.equal(resolvePackagePolicy('astral-sh/setup-uv', 'minor', 'github-actions').minimumReleaseAge, '0 days');
 });
 
 test('trusted-org updates use zero-day non-major and seven-day major policies', () => {
