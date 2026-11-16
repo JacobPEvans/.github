@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.56.2](https://github.com/JacobPEvans/.github/compare/v1.56.1...v1.56.2) (2026-11-16)
+
+
+### Bug Fixes
+
+* **renovate:** hold registry-installing pre-commit hooks for seven days ([#251](https://github.com/JacobPEvans/.github/issues/251)) ([6896d72](https://github.com/JacobPEvans/.github/commit/6896d7271498f32fb32da4ddc2d429983c41a7ea))
+
 ## [1.56.1](https://github.com/JacobPEvans/.github/compare/v1.56.0...v1.56.1) (2026-11-16)
 
 
