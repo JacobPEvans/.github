@@ -14,50 +14,54 @@ function findRule(config, predicate, description) {
 }
 
 function matchesPattern(value, pattern) {
-  if (pattern.startsWith('/') && pattern.endsWith('/')) {
-    return new RegExp(pattern.slice(1, -1)).test(value);
+  const regex = /^\/(.*)\/(i?)$/.exec(pattern);
+  if (regex) {
+    return new RegExp(regex[1], regex[2]).test(value);
   }
 
   const source = pattern.split('**')
     .map((part) => part.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '[^/]*'))
     .join('.*');
-  return new RegExp(`^${source}$`).test(value);
+  return new RegExp(`^${source}$`, 'i').test(value);
 }
 
-function matchesPackageRule(rule, packageName, updateType, repository, manager) {
+function matchesPatterns(value, patterns) {
+  const exclusions = patterns.filter((pattern) => pattern.startsWith('!'));
+  const inclusions = patterns.filter((pattern) => !pattern.startsWith('!'));
+  return !exclusions.some((pattern) => matchesPattern(value, pattern.slice(1))) &&
+    (!inclusions.length || inclusions.some((pattern) => matchesPattern(value, pattern)));
+}
+
+function matchesPackageRule(rule, packageName, updateType, manager, { baseBranch, datasource, repository }) {
   if (rule.matchUpdateTypes && !rule.matchUpdateTypes.includes(updateType)) return false;
   if (rule.matchManagers && !rule.matchManagers.includes(manager)) return false;
-
-  if (rule.matchPackageNames) {
-    const patterns = rule.matchPackageNames.map((pattern) => ({
-      exclude: pattern.startsWith('!'),
-      value: pattern.replace(/^!/, ''),
-    }));
-    const exclusions = patterns.filter((pattern) => pattern.exclude);
-    const inclusions = patterns.filter((pattern) => !pattern.exclude);
-    if (exclusions.some((pattern) => matchesPattern(packageName, pattern.value))) return false;
-    if (inclusions.length && !inclusions.some((pattern) => matchesPattern(packageName, pattern.value))) return false;
-  }
-
-  if (rule.matchRepositories && !rule.matchRepositories.some((pattern) => matchesPattern(repository, pattern))) {
-    return false;
-  }
-
-  return true;
+  if (rule.matchDatasources && !rule.matchDatasources.includes(datasource)) return false;
+  if (rule.matchBaseBranches && !matchesPatterns(baseBranch, rule.matchBaseBranches)) return false;
+  if (rule.matchPackageNames && !matchesPatterns(packageName, rule.matchPackageNames)) return false;
+  return !rule.matchRepositories || matchesPatterns(repository, rule.matchRepositories);
 }
 
-function resolvePackagePolicy(packageName, updateType, manager) {
-  const repository = 'JacobPEvans/example';
+function resolvePackagePolicy(packageName, updateType, manager, {
+  baseBranch = 'main',
+  datasource,
+  repository = 'JacobPEvans/example',
+} = {}) {
   return preset.packageRules
-    .filter((rule) => matchesPackageRule(rule, packageName, updateType, repository, manager))
+    .filter((rule) => matchesPackageRule(rule, packageName, updateType, manager, { baseBranch, datasource, repository }))
     .reduce((policy, rule) => {
-      for (const key of ['minimumReleaseAge', 'automerge']) {
+      for (const key of ['minimumReleaseAge', 'automerge', 'groupName', 'groupSlug', 'schedule', 'pinDigests',
+        'separateMajorMinor', 'prPriority']) {
         if (Object.hasOwn(rule, key)) policy[key] = rule[key];
       }
       policy.labels.push(...(rule.addLabels || []));
       policy.labels = [...new Set(policy.labels)];
       return policy;
-    }, { minimumReleaseAge: preset.minimumReleaseAge, automerge: false, labels: [] });
+    }, {
+      minimumReleaseAge: preset.minimumReleaseAge,
+      automerge: false,
+      separateMajorMinor: preset.separateMajorMinor ?? true,
+      labels: [],
+    });
 }
 
 test('npm updates respect the seven-day release age and avoid unsafe lock maintenance', () => {
@@ -123,11 +127,10 @@ test('trusted-org updates use zero-day non-major and seven-day major policies', 
   );
 
   for (const updateType of ['minor', 'digest']) {
-    assert.deepEqual(resolvePackagePolicy('actions/checkout', updateType), {
-      minimumReleaseAge: '0 days',
-      automerge: true,
-      labels: [],
-    });
+    const policy = resolvePackagePolicy('actions/checkout', updateType);
+    assert.equal(policy.minimumReleaseAge, '0 days');
+    assert.equal(policy.automerge, true);
+    assert.deepEqual(policy.labels, []);
   }
 
   const trustedMajor = resolvePackagePolicy('actions/checkout', 'major');
@@ -163,6 +166,80 @@ test('majors never ride in the grouped PR', () => {
     assert.deepEqual(digestRule.matchUpdateTypes, ['digest', 'pin', 'pinDigest']);
     assert.equal(digestRule.groupName, 'all non-major dependencies');
     assert.equal(digestRule.groupSlug, 'all-minor-patch');
+  }
+});
+
+test('first-party GitHub updates targeting develop get a dedicated group with a separate major stream', () => {
+  const owners = [
+    'JacobPEvans', 'JacobPEvans-ai', 'dryvist', 'VisiCore', 'jpe-ai-agents', 'jpe-ansible', 'jpe-claude',
+    'jpe-cribl', 'jpe-nix', 'jpe-openbao-plugin-secrets', 'jpe-private', 'jpe-splunk', 'vct-cribl', 'vct-splunk',
+  ];
+  const cases = [
+    ['github-tags', 'major'], ['github-releases', 'minor'], ['github-tags', 'patch'],
+    ['github-digest', 'digest'], ['github-tags', 'pin'], ['github-tags', 'pinDigest'],
+  ];
+  for (const owner of owners) {
+    for (const [datasource, updateType] of cases) {
+      for (const packageName of [`${owner}/.github`, `https://github.com/${owner.toUpperCase()}/tool`]) {
+        const policy = resolvePackagePolicy(packageName, updateType, undefined, { baseBranch: 'develop', datasource });
+        assert.equal(policy.automerge, true, packageName);
+        assert.equal(policy.minimumReleaseAge, '0 days', packageName);
+        assert.deepEqual(policy.schedule, ['at any time'], packageName);
+        assert.equal(policy.groupName, 'first-party dependencies', packageName);
+        assert.equal(policy.groupSlug, 'first-party-dependencies', packageName);
+        assert.equal(policy.separateMajorMinor, true, packageName);
+        assert.equal(policy.prPriority, 10, packageName);
+      }
+    }
+  }
+});
+
+test('the develop fast path requires a GitHub datasource and an exact first-party owner', () => {
+  for (const [packageName, datasource] of [
+    ['jpe-lookalike/tool', 'github-tags'],
+    ['JacobPEvans-ai-other/tool', 'github-tags'],
+    ['jpe-cribl-extra/tool', 'github-releases'],
+    ['https://example.com/jpe-cribl/tool', 'github-releases'],
+    ['https://github.com.example.com/jpe-cribl/tool', 'github-releases'],
+    ['jpe-cribl/tool/subpath', 'github-releases'],
+    ['jpe-cribl/tool', 'docker'],
+    ['jpe-cribl/tool', 'npm'],
+    ['dryvist/tool', 'docker'],
+  ]) {
+    const policy = resolvePackagePolicy(packageName, 'major', undefined, { baseBranch: 'develop', datasource });
+    assert.equal(policy.automerge, false, packageName);
+    assert.equal(policy.minimumReleaseAge, '7 days', packageName);
+    assert.equal(policy.groupName, undefined, packageName);
+    assert.equal(policy.schedule, undefined, packageName);
+  }
+  for (const updateType of ['replacement', 'rollback']) {
+    const policy = resolvePackagePolicy('jpe-cribl/tool', updateType, undefined, {
+      baseBranch: 'develop',
+      datasource: 'github-tags',
+    });
+    assert.equal(policy.automerge, false, updateType);
+    assert.equal(policy.groupName, undefined, updateType);
+  }
+});
+
+test('the develop fast path preserves SHA pinning, other base branches, and manual-major repositories', () => {
+  const githubDigest = { baseBranch: 'develop', datasource: 'github-digest' };
+  const digest = resolvePackagePolicy('dryvist/example', 'digest', 'github-actions', githubDigest);
+  assert.equal(digest.pinDigests, true);
+  assert.equal(digest.automerge, true);
+  for (const baseBranch of ['main', 'Develop', 'release/develop']) {
+    const policy = resolvePackagePolicy('dryvist/example', 'digest', 'github-actions', { ...githubDigest, baseBranch });
+    assert.equal(policy.pinDigests, true);
+    assert.equal(policy.automerge, false);
+    assert.equal(policy.groupName, null);
+    assert.equal(policy.minimumReleaseAge, '0 days');
+  }
+  for (const repository of ['dryvist/ansible-example', 'dryvist/nix-ai']) {
+    const options = { baseBranch: 'develop', datasource: 'github-tags', repository };
+    assert.equal(resolvePackagePolicy('jpe-cribl/.github', 'major', 'github-actions', options).automerge, false);
+    assert.equal(resolvePackagePolicy('jpe-cribl/.github', 'minor', 'github-actions', options).automerge, true);
+    assert.equal(resolvePackagePolicy('dryvist/example', 'major', 'github-actions', { ...options, baseBranch: 'main' })
+      .automerge, false);
   }
 });
 
@@ -229,7 +306,8 @@ test('release-age exceptions are limited to first-party, trusted-org, vulnerabil
     const match = /^(\d+) days$/.exec(rule.minimumReleaseAge);
     assert.ok(match, `unexpected minimumReleaseAge: ${rule.minimumReleaseAge}`);
     const isFirstParty = rule === firstParty || rule === trustedOrg || rule.matchPackageNames?.some((name) =>
-      /^(JacobPEvans|dryvist|jpe-)/i.test(name.replace('https://github.com/', '')),
+      /^(JacobPEvans|dryvist|jpe-)/i.test(name.replace('https://github.com/', '')) ||
+      (matchesPattern('jpe-cribl/.github', name) && rule.groupSlug === 'first-party-dependencies'),
     );
     assert.ok(Number(match[1]) >= 3 || isFirstParty || rule === claudeCode,
       `unapproved release-age exception in ${rule.description}`);
