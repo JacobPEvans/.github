@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.57.0](https://github.com/JacobPEvans/.github/compare/v1.56.2...v1.57.0) (2026-11-18)
+
+
+### Features
+
+* **deps:** group internal updates on develop ([865b9c9](https://github.com/JacobPEvans/.github/commit/865b9c958612e7bc84b51a335e83ca456308958f))
+
 ## [1.56.2](https://github.com/JacobPEvans/.github/compare/v1.56.1...v1.56.2) (2026-11-16)
 
 
