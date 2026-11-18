@@ -4,6 +4,7 @@ Repository index for the JacobPEvans GitHub organization.
 
 ## Repositories
 
+- [.agents](https://github.com/JacobPEvans/.agents): Organization-wide agent skills
 - [.github](https://github.com/JacobPEvans/.github): Enterprise-central reusable workflows, Renovate preset and CI policy
 - [.github-ai](https://github.com/JacobPEvans/.github-ai): Enterprise-central AI workflows: PR-Agent review and agent automation
 - [jpe-ai-voice](https://github.com/JacobPEvans/jpe-ai-voice): Personal writing voice guide and Vale style for AI agents
