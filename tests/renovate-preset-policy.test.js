@@ -314,6 +314,17 @@ test('release-age exceptions are limited to first-party, trusted-org, vulnerabil
   }
 });
 
+test('the shared AI workflow stays on the v2 release line', () => {
+  const rule = findRule(preset, (rule) => rule.allowedVersions
+    && rule.matchPackageNames?.includes('JacobPEvans/.github-ai'), 'shared AI workflow release line');
+  assert.deepEqual(rule.matchPackageNames, ['JacobPEvans/.github-ai']);
+  assert.deepEqual(rule.matchManagers, ['github-actions']);
+
+  const allowed = new RegExp(rule.allowedVersions.slice(1, -1));
+  for (const version of ['v2', 'v2.15.0', '2.16.0']) assert.ok(allowed.test(version), version);
+  for (const version of ['v3', 'v3.0.0', '20.1.0']) assert.ok(!allowed.test(version), version);
+});
+
 test('Molecule scenario image annotations track the annotated tag and digest', () => {
   const manager = preset.customManagers.find((m) => m.managerFilePatterns?.some((p) => p.includes('molecule')));
   assert.ok(manager, 'missing Molecule image customManager');

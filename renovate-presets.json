@@ -647,6 +647,16 @@
       "automerge": true
     },
     {
+      "description": "Keep shared AI workflow dependencies on the v2 release line.",
+      "matchManagers": [
+        "github-actions"
+      ],
+      "matchPackageNames": [
+        "JacobPEvans/.github-ai"
+      ],
+      "allowedVersions": "/^v?2(?:[.]|$)/"
+    },
+    {
       "description": "Keep major updates manual in the listed dryvist repositories. This rule overrides earlier automerge settings.",
       "matchRepositories": [
         "dryvist/ansible-*",
