@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.58.0](https://github.com/JacobPEvans/.github/compare/v1.57.0...v1.58.0) (2026-11-19)
+
+
+### Features
+
+* **renovate:** keep shared AI workflow updates on 2.x ([502090b](https://github.com/JacobPEvans/.github/commit/502090bc0f8c5f099e21908cb5ea1bab026cd03c))
+
 ## [1.57.0](https://github.com/JacobPEvans/.github/compare/v1.56.2...v1.57.0) (2026-11-18)
 
 
