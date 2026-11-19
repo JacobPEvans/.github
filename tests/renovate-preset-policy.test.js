@@ -32,25 +32,32 @@ function matchesPatterns(value, patterns) {
     (!inclusions.length || inclusions.some((pattern) => matchesPattern(value, pattern)));
 }
 
-function matchesPackageRule(rule, packageName, updateType, manager, { baseBranch, datasource, repository }) {
+function matchesPackageRule(rule, packageName, updateType, manager, { baseBranch, datasource, fileName, repository }) {
   if (rule.matchUpdateTypes && !rule.matchUpdateTypes.includes(updateType)) return false;
   if (rule.matchManagers && !rule.matchManagers.includes(manager)) return false;
   if (rule.matchDatasources && !rule.matchDatasources.includes(datasource)) return false;
   if (rule.matchBaseBranches && !matchesPatterns(baseBranch, rule.matchBaseBranches)) return false;
   if (rule.matchPackageNames && !matchesPatterns(packageName, rule.matchPackageNames)) return false;
+  if (rule.matchFileNames && !matchesPatterns(fileName, rule.matchFileNames)) return false;
   return !rule.matchRepositories || matchesPatterns(repository, rule.matchRepositories);
 }
 
 function resolvePackagePolicy(packageName, updateType, manager, {
   baseBranch = 'main',
   datasource,
+  fileName,
   repository = 'JacobPEvans/example',
 } = {}) {
   return preset.packageRules
-    .filter((rule) => matchesPackageRule(rule, packageName, updateType, manager, { baseBranch, datasource, repository }))
+    .filter((rule) => matchesPackageRule(rule, packageName, updateType, manager, {
+      baseBranch,
+      datasource,
+      fileName,
+      repository,
+    }))
     .reduce((policy, rule) => {
       for (const key of ['minimumReleaseAge', 'automerge', 'groupName', 'groupSlug', 'schedule', 'pinDigests',
-        'separateMajorMinor', 'prPriority']) {
+        'separateMajorMinor', 'prPriority', 'semanticCommitType', 'semanticCommitScope']) {
         if (Object.hasOwn(rule, key)) policy[key] = rule[key];
       }
       policy.labels.push(...(rule.addLabels || []));
@@ -192,6 +199,54 @@ test('first-party GitHub updates targeting develop get a dedicated group with a 
       }
     }
   }
+});
+
+test('GitHub Actions dependency updates in workflow files use fix(deps) commits', () => {
+  const workflowRule = findRule(
+    preset,
+    (rule) => rule.matchManagers?.includes('github-actions') && rule.matchFileNames?.includes('.github/workflows/**'),
+    'classify workflow dependency updates as Release Please fixes',
+  );
+  assert.deepEqual(workflowRule.matchManagers, ['github-actions']);
+  assert.deepEqual(workflowRule.matchFileNames, ['.github/workflows/**']);
+  assert.deepEqual(workflowRule.matchRepositories, ['jpe-cribl/.github']);
+  assert.equal(workflowRule.semanticCommitType, 'fix');
+  assert.equal(workflowRule.semanticCommitScope, 'deps');
+
+  const workflowPolicy = resolvePackagePolicy('actions/checkout', 'patch', 'github-actions', {
+    fileName: '.github/workflows/release-reconciliation-canary.yml',
+    repository: 'jpe-cribl/.github',
+  });
+  assert.equal(workflowPolicy.semanticCommitType, 'fix');
+  assert.equal(workflowPolicy.semanticCommitScope, 'deps');
+
+  const parentRepositoryPolicy = resolvePackagePolicy('actions/checkout', 'patch', 'github-actions', {
+    fileName: '.github/workflows/release.yml',
+    repository: 'JacobPEvans/.github',
+  });
+  assert.equal(parentRepositoryPolicy.semanticCommitType, undefined);
+  assert.equal(parentRepositoryPolicy.semanticCommitScope, undefined);
+
+  const nonWorkflowPolicy = resolvePackagePolicy('actions/checkout', 'patch', 'github-actions', {
+    fileName: '.github/scripts/release.js',
+    repository: 'jpe-cribl/.github',
+  });
+  assert.equal(nonWorkflowPolicy.semanticCommitType, undefined);
+  assert.equal(nonWorkflowPolicy.semanticCommitScope, undefined);
+
+  const nonActionPolicy = resolvePackagePolicy('example/package', 'patch', 'npm', {
+    fileName: '.github/workflows/release-reconciliation-canary.yml',
+    repository: 'jpe-cribl/.github',
+  });
+  assert.equal(nonActionPolicy.semanticCommitType, undefined);
+  assert.equal(nonActionPolicy.semanticCommitScope, undefined);
+
+  const unrelatedRepositoryPolicy = resolvePackagePolicy('actions/checkout', 'patch', 'github-actions', {
+    fileName: '.github/workflows/release.yml',
+    repository: 'dryvist/example',
+  });
+  assert.equal(unrelatedRepositoryPolicy.semanticCommitType, undefined);
+  assert.equal(unrelatedRepositoryPolicy.semanticCommitScope, undefined);
 });
 
 test('the develop fast path requires a GitHub datasource and an exact first-party owner', () => {

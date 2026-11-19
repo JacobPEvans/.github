@@ -27,6 +27,10 @@
 #   - Non-manifest mode: the caller passes config-file: '' and manifest-file: ''
 #     with a release-type (e.g. simple). Version state is read from existing tags.
 #
+# A parent-owned release dispatcher may set target-owner and target-name for
+# the one explicitly allowlisted cross-repository target. Both inputs are
+# optional so existing same-repository callers keep their current behavior.
+#
 # Asset-carrying repos (opt-in per repo, default off): a GitHub release is
 # immutable once published, so assets cannot be attached to it afterwards. Such a
 # repo sets, in its release-please-config.json package entry:
@@ -90,6 +94,20 @@ on:
         description: Whether to prefix tags/branches with the component name.
         type: boolean
         default: false
+      target-owner:
+        description: >-
+          Optional parent-owned release target owner. Only jpe-cribl is
+          allowlisted; caller-selected repositories are rejected.
+        type: string
+        required: false
+        default: ''
+      target-name:
+        description: >-
+          Optional parent-owned release target repository. Only .github is
+          allowlisted; the target branch is fixed to main.
+        type: string
+        required: false
+        default: ''
     secrets:
       GH_ACTION_RELEASE_PLEASE_PRIVATE_KEY:
         required: true
@@ -110,6 +128,15 @@ permissions: {}
 
 jobs:
   release-please:
+    if: >-
+      ${{ (inputs.target-owner == '' && inputs.target-name == '') ||
+          (github.repository == 'JacobPEvans/.github' &&
+           github.workflow_ref == 'JacobPEvans/.github/.github/workflows/release-reconciliation-canary.yml@refs/heads/main' &&
+           github.event_name == 'workflow_dispatch' &&
+           inputs.target-owner == 'jpe-cribl' &&
+           inputs.target-name == '.github') }}
+    env:
+      RELEASE_TARGET_REPOSITORY: ${{ inputs.target-owner != '' && format('{0}/{1}', inputs.target-owner, inputs.target-name) || github.repository }}
     runs-on: ${{ inputs.runner_label }}
     timeout-minutes: ${{ github.event_name == 'pull_request' && 5 || 30 }}
     concurrency:
@@ -142,9 +169,11 @@ jobs:
         with:
           client-id: ${{ vars.GH_ACTION_RELEASE_PLEASE_APP_ID }}
           private-key: ${{ secrets.GH_ACTION_RELEASE_PLEASE_PRIVATE_KEY }}
+          owner: ${{ inputs.target-owner }}
+          repositories: ${{ inputs.target-name }}
           permission-contents: write
           permission-pull-requests: write
-          permission-workflows: write
+          permission-workflows: ${{ inputs.target-owner == '' && inputs.target-name == '' && 'write' || '' }}
 
       - name: Sparse-checkout release tag guard
         if: ${{ steps.flow.outputs.flow == 'gitflow' && github.ref_name == 'main' }}
@@ -173,7 +202,8 @@ jobs:
         uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5
         with:
           token: ${{ steps.app-token.outputs.token }}
-          target-branch: ${{ steps.flow.outputs.target_branch }}
+          repo-url: ${{ env.RELEASE_TARGET_REPOSITORY }}
+          target-branch: ${{ inputs.target-owner != '' && 'main' || steps.flow.outputs.target_branch }}
           release-type: ${{ inputs.release-type }}
           config-file: ${{ inputs.config-file }}
           manifest-file: ${{ inputs.manifest-file }}
@@ -185,7 +215,7 @@ jobs:
         if: ${{ steps.release.outputs.prs_created == 'true' }}
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
-          GH_REPO: ${{ github.repository }}
+          GH_REPO: ${{ env.RELEASE_TARGET_REPOSITORY }}
           RELEASE_PRS: ${{ steps.release.outputs.prs }}
         run: |
           set -euo pipefail
