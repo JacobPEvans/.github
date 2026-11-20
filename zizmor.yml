@@ -34,9 +34,12 @@ rules:
   # the callee's own ceiling exactly. zizmor can only ignore by filename, not
   # by repo/path, so this is scoped to the one filename rather than disabled
   # org-wide. Revisit if the guard or permission set above ever changes.
+  # openhands-ci-fix.yml is the same caller under its current name; only its
+  # ci-fix job runs on workflow_run, with the permission set above.
   dangerous-triggers:
     ignore:
       - ci-fix.yml
+      - openhands-ci-fix.yml
 
   unpinned-uses:
     config:
