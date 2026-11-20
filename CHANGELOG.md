@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.61.0](https://github.com/JacobPEvans/.github/compare/v1.60.2...v1.61.0) (2026-11-20)
+
+
+### Features
+
+* **promotion:** set auto-merge by merge commit on the promotion pull request ([#271](https://github.com/JacobPEvans/.github/issues/271)) ([9ff0ef4](https://github.com/JacobPEvans/.github/commit/9ff0ef440392e87f03c4656123aac9308f358bed))
+
 ## [1.60.2](https://github.com/JacobPEvans/.github/compare/v1.60.1...v1.60.2) (2026-11-20)
 
 
