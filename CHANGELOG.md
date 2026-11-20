@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.60.1](https://github.com/JacobPEvans/.github/compare/v1.60.0...v1.60.1) (2026-11-20)
+
+
+### CI
+
+* **zizmor:** accept workflow_run in openhands-ci-fix.yml ([#267](https://github.com/JacobPEvans/.github/issues/267)) ([9b1c620](https://github.com/JacobPEvans/.github/commit/9b1c6205d635347d4dfec8910a1388b3cdc18f94))
+
 ## [1.60.0](https://github.com/JacobPEvans/.github/compare/v1.59.1...v1.60.0) (2026-11-20)
 
 
