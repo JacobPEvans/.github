@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Cancel the queued and in-progress workflow runs on a closed PR's head branch.
+# Cancel the queued and in-progress pull request runs on a closed PR's head branch.
 #
 # Called by the reusable _cancel-on-close.yml from a `pull_request: closed` run.
 #
@@ -17,8 +17,10 @@ branch=${1:?usage: cancel-on-close.sh <head-branch>}
 repo=${REPO:?REPO is required}
 keep=${RUN_ID:-}
 
-runs=$(gh run list --repo "$repo" --branch "$branch" --limit 1000 --json databaseId,status \
-  --jq '.[] | select(.status == "queued" or .status == "in_progress") | .databaseId')
+# Only runs a pull request event started: a push or workflow_dispatch run on the same branch (develop, for a
+# promotion PR) is not the PR's run.
+runs=$(gh run list --repo "$repo" --branch "$branch" --limit 1000 --json databaseId,status,event \
+  --jq '.[] | select(.status == "queued" or .status == "in_progress") | select(.event | startswith("pull_request")) | .databaseId')
 
 while read -r id; do
   [ -n "$id" ] || continue

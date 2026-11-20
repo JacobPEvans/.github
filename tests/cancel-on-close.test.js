@@ -50,7 +50,7 @@ function run({ runs, modes = {}, listFail = false, runId = '999' }) {
   return { ...r, cancelled };
 }
 
-const run1 = (databaseId, status) => ({ databaseId, status });
+const run1 = (databaseId, status, event = 'pull_request') => ({ databaseId, status, event });
 
 test('cancels queued and in-progress runs and skips completed runs and the current run', () => {
   const r = run({
@@ -91,4 +91,13 @@ test('succeeds without cancelling anything when no run is queued or in progress'
   const r = run({ runs: [run1(1, 'completed')] });
   assert.equal(r.status, 0, r.stdout + r.stderr);
   assert.deepEqual(r.cancelled, []);
+});
+
+test('cancels only runs a pull request event started', () => {
+  const r = run({
+    runs: [run1(1, 'in_progress', 'workflow_dispatch'), run1(2, 'in_progress', 'push'),
+      run1(3, 'queued', 'pull_request_target'), run1(4, 'in_progress')],
+  });
+  assert.equal(r.status, 0, r.stdout + r.stderr);
+  assert.deepEqual(r.cancelled, ['3', '4']);
 });
