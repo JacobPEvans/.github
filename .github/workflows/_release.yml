@@ -96,6 +96,19 @@ jobs:
     secrets:
       GH_ACTION_RELEASE_PLEASE_PRIVATE_KEY: ${{ secrets.GH_ACTION_RELEASE_PLEASE_PRIVATE_KEY }}
 
+  # A release-please commit landing on develop opens the develop-to-main
+  # promotion pull request at once, instead of waiting for the weekly caller.
+  # _promotion-pr.yml labels it release:in-progress and never enables auto-merge.
+  promotion-pr:
+    if: >-
+      ${{ github.event_name == 'push'
+          && github.ref == 'refs/heads/develop'
+          && startsWith(github.event.head_commit.message, 'chore(develop): release') }}
+    uses: JacobPEvans/.github/.github/workflows/_promotion-pr.yml@v1
+    permissions: {}
+    secrets:
+      GH_ACTION_RELEASE_PLEASE_PRIVATE_KEY: ${{ secrets.GH_ACTION_RELEASE_PLEASE_PRIVATE_KEY }}
+
   release-freeze:
     if: ${{ github.event_name == 'pull_request' }}
     uses: JacobPEvans/.github/.github/workflows/_release-freeze.yml@v1
