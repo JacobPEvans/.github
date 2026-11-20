@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.59.0](https://github.com/JacobPEvans/.github/compare/v1.58.0...v1.59.0) (2026-11-20)
+
+
+### Features
+
+* **release:** reconcile approved workflow releases from the parent ([#258](https://github.com/JacobPEvans/.github/issues/258)) ([0c31db7](https://github.com/JacobPEvans/.github/commit/0c31db7478d96b2c81c27bff42f683aaef3cb31d))
+
 ## [1.58.0](https://github.com/JacobPEvans/.github/compare/v1.57.0...v1.58.0) (2026-11-19)
 
 
