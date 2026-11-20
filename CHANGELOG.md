@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.60.0](https://github.com/JacobPEvans/.github/compare/v1.59.1...v1.60.0) (2026-11-20)
+
+
+### Features
+
+* **release:** open the promotion pull request when a release lands on develop ([b27053d](https://github.com/JacobPEvans/.github/commit/b27053d240ebe2e3a0a7e0752a2766afd6a3187c))
+* **release:** open the promotion pull request when a release lands on develop ([#265](https://github.com/JacobPEvans/.github/issues/265)) ([243ec55](https://github.com/JacobPEvans/.github/commit/243ec552d08da959eb81c9e8c5ffc856f65ff5c9))
+
 ## [1.59.1](https://github.com/JacobPEvans/.github/compare/v1.59.0...v1.59.1) (2026-11-20)
 
 
