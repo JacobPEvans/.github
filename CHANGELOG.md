@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.60.2](https://github.com/JacobPEvans/.github/compare/v1.60.1...v1.60.2) (2026-11-20)
+
+
+### Bug Fixes
+
+* **release-freeze:** clear the freeze on develop PRs after a push to main ([#269](https://github.com/JacobPEvans/.github/issues/269)) ([57f488f](https://github.com/JacobPEvans/.github/commit/57f488f21a7edd8db9de4ac95b387042946dfd2a))
+
 ## [1.60.1](https://github.com/JacobPEvans/.github/compare/v1.60.0...v1.60.1) (2026-11-20)
 
 
