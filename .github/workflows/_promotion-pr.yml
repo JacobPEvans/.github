@@ -2,8 +2,8 @@
 #
 # Opens a pull request from develop into main when develop has commits that main
 # does not and no open promotion pull request exists. The pull request carries the
-# release:in-progress label that _release-freeze.yml reads. Auto-merge is never
-# enabled.
+# release:in-progress label that _release-freeze.yml reads. Auto-merge is set on the
+# pull request, by merge commit, so it merges once its required checks pass.
 #
 # The pull request is opened with the release GitHub App token, not github.token,
 # so the pull_request workflows run on it.
@@ -47,7 +47,7 @@ jobs:
           private-key: ${{ secrets.GH_ACTION_RELEASE_PLEASE_PRIVATE_KEY }}
           owner: ${{ github.repository_owner }}
           repositories: ${{ github.event.repository.name }}
-          permission-contents: read
+          permission-contents: write
           permission-pull-requests: write
 
       - name: Open the promotion pull request
@@ -57,10 +57,12 @@ jobs:
         run: |
           set -euo pipefail
 
-          existing=$(gh pr list --repo "$GH_REPO" --base main --head develop \
-            --state open --json number --jq '.[0].number // empty')
+          existing=$(gh pr list --repo "$GH_REPO" --base main --head develop --state open \
+            --json number,autoMergeRequest --jq '.[0] | select(.) | "\(.number) \(.autoMergeRequest != null)"')
           if [[ -n "$existing" ]]; then
-            echo "::notice::Promotion pull request #$existing is already open."
+            read -r number armed <<<"$existing"
+            echo "::notice::Promotion pull request #$number is already open."
+            [[ "$armed" == true ]] || gh pr merge "$number" --repo "$GH_REPO" --auto --merge
             exit 0
           fi
 
@@ -70,7 +72,8 @@ jobs:
             exit 0
           fi
 
-          gh pr create --repo "$GH_REPO" --base main --head develop \
+          url=$(gh pr create --repo "$GH_REPO" --base main --head develop \
             --title 'chore: promote develop to main' \
             --label release:in-progress \
-            --body 'Merges develop into main.'
+            --body 'Merges develop into main.')
+          gh pr merge "$url" --repo "$GH_REPO" --auto --merge

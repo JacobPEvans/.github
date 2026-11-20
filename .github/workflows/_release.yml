@@ -98,7 +98,7 @@ jobs:
 
   # A release-please commit landing on develop opens the develop-to-main
   # promotion pull request at once, instead of waiting for the weekly caller.
-  # _promotion-pr.yml labels it release:in-progress and never enables auto-merge.
+  # _promotion-pr.yml labels it release:in-progress and sets auto-merge by merge commit.
   promotion-pr:
     if: >-
       ${{ github.event_name == 'push'
