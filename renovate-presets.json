@@ -338,6 +338,20 @@
       "pinDigests": true
     },
     {
+      "description": "Classify GitHub Actions dependency updates in workflow files as fixes so Release Please creates a patch release.",
+      "matchManagers": [
+        "github-actions"
+      ],
+      "matchFileNames": [
+        ".github/workflows/**"
+      ],
+      "matchRepositories": [
+        "jpe-cribl/.github"
+      ],
+      "semanticCommitType": "fix",
+      "semanticCommitScope": "deps"
+    },
+    {
       "description": "JacobPEvans and JacobPEvans-personal reusable workflows ride their floating major tag (@v1) and are not digest-pinned. dryvist/** refs are covered by the next rule.",
       "matchManagers": [
         "github-actions"

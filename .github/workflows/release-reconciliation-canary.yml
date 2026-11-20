@@ -1,0 +1,19 @@
+name: Release Reconciliation Canary
+
+on:
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  release-please:
+    if: ${{ github.ref == 'refs/heads/main' }}
+    uses: ./.github/workflows/_release-please.yml
+    with:
+      target-owner: jpe-cribl
+      target-name: .github
+    permissions:
+      contents: write
+      pull-requests: write
+    secrets:
+      GH_ACTION_RELEASE_PLEASE_PRIVATE_KEY: ${{ secrets.GH_ACTION_RELEASE_PLEASE_PRIVATE_KEY }}
