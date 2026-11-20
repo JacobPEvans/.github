@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.59.1](https://github.com/JacobPEvans/.github/compare/v1.59.0...v1.59.1) (2026-11-20)
+
+
+### Bug Fixes
+
+* **cancel-on-close:** cancel only pull request runs on the closed PR's branch ([#263](https://github.com/JacobPEvans/.github/issues/263)) ([e04f99e](https://github.com/JacobPEvans/.github/commit/e04f99e6880cd24c9a463d8215f527e2ab80f976))
+
 ## [1.59.0](https://github.com/JacobPEvans/.github/compare/v1.58.0...v1.59.0) (2026-11-20)
 
 
