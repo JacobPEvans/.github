@@ -2,7 +2,9 @@
 #
 # Publishes the release-freeze commit status to open PRs targeting develop.
 # A promotion PR is an open PR with base main, head develop and label
-# release:in-progress.
+# release:in-progress. A push to main (the promotion merge) re-evaluates every
+# open develop PR, so a freeze clears even when the caller's pull_request
+# trigger does not include closed.
 #
 # Caller shape:
 #   on:
@@ -45,6 +47,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
+          EVENT_NAME: ${{ github.event_name }}
           PR_ACTION: ${{ github.event.action || '' }}
           PR_NUMBER: ${{ github.event.pull_request.number || '' }}
           PR_HEAD_SHA: ${{ github.event.pull_request.head.sha || '' }}
@@ -52,10 +55,6 @@ jobs:
           PR_BASE_REF: ${{ github.event.pull_request.base.ref || '' }}
         run: |
           set -euo pipefail
-
-          if [[ -z "$PR_NUMBER" ]]; then
-            exit 0
-          fi
 
           set_status() {
             local sha=$1 state=$2 description=$3
@@ -86,15 +85,8 @@ jobs:
             printf 'PR #%s sha=%s state=%s description=%s\n' "$number" "$sha" "$state" "$description"
           }
 
-          promotion_number=$(gh pr list --repo "$GH_REPO" --base main --head develop \
-            --state open --limit 1000 --json number,labels \
-            --jq '[.[] | select(any(.labels[]; .name == "release:in-progress")) | .number] | .[0] // empty')
-
-          if [[ "$PR_BASE_REF" == "develop" ]]; then
-            if [[ "$PR_ACTION" != "closed" ]]; then
-              update_status "$PR_NUMBER" "$PR_HEAD_SHA" "$PR_HEAD_REF"
-            fi
-          elif [[ "$PR_BASE_REF" == "main" && "$PR_HEAD_REF" == "develop" ]]; then
+          refresh_develop() {
+            local develop_prs rows number sha head_ref
             develop_prs=$(gh pr list --repo "$GH_REPO" --base develop --state open \
               --limit 1000 --json number,headRefOid,headRefName)
             rows=$(jq -r '.[] | [.number, .headRefOid, .headRefName] | @tsv' <<< "$develop_prs")
@@ -102,4 +94,24 @@ jobs:
               [[ -n "$number" ]] || continue
               update_status "$number" "$sha" "$head_ref"
             done <<< "$rows"
+          }
+
+          main_push=false
+          [[ "$EVENT_NAME" == "push" && "$GITHUB_REF" == "refs/heads/main" ]] && main_push=true
+          if [[ -z "$PR_NUMBER" && "$main_push" != true ]]; then
+            exit 0
+          fi
+
+          promotion_number=$(gh pr list --repo "$GH_REPO" --base main --head develop \
+            --state open --limit 1000 --json number,labels \
+            --jq '[.[] | select(any(.labels[]; .name == "release:in-progress")) | .number] | .[0] // empty')
+
+          if [[ "$main_push" == true ]]; then
+            refresh_develop
+          elif [[ "$PR_BASE_REF" == "develop" ]]; then
+            if [[ "$PR_ACTION" != "closed" ]]; then
+              update_status "$PR_NUMBER" "$PR_HEAD_SHA" "$PR_HEAD_REF"
+            fi
+          elif [[ "$PR_BASE_REF" == "main" && "$PR_HEAD_REF" == "develop" ]]; then
+            refresh_develop
           fi

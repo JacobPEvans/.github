@@ -110,7 +110,7 @@ jobs:
       GH_ACTION_RELEASE_PLEASE_PRIVATE_KEY: ${{ secrets.GH_ACTION_RELEASE_PLEASE_PRIVATE_KEY }}
 
   release-freeze:
-    if: ${{ github.event_name == 'pull_request' }}
+    if: ${{ github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/main') }}
     uses: JacobPEvans/.github/.github/workflows/_release-freeze.yml@v1
     with:
       runner_label: ${{ inputs.freeze_runner_label }}
