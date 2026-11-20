@@ -11,7 +11,7 @@
 # there is no closed-PR-triggered cancellation feature).
 #
 # This reusable is the caller-side fix: run it from `pull_request: types:
-# [closed]` to sweep every workflow run on that PR's head branch, queued or
+# [closed]` to sweep every pull request run on that PR's head branch, queued or
 # in-progress, via `gh run cancel` (scripts/cancel-on-close.sh). Runs match by
 # branch name, not SHA, because a `closed` event carries the same head SHA as
 # the run(s) it needs to cancel. The current run is never cancelled. A run that
