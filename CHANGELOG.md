@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.61.3](https://github.com/JacobPEvans/.github/compare/v1.61.2...v1.61.3) (2026-11-22)
+
+
+### CI
+
+* **renovate:** run the self-hosted Renovate job hourly ([#278](https://github.com/JacobPEvans/.github/issues/278)) ([883e0aa](https://github.com/JacobPEvans/.github/commit/883e0aaa3613676ccc0d2ace70285d2440ceabfd))
+
 ## [1.61.2](https://github.com/JacobPEvans/.github/compare/v1.61.1...v1.61.2) (2026-11-22)
 
 
