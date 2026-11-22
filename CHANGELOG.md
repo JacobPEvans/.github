@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.61.2](https://github.com/JacobPEvans/.github/compare/v1.61.1...v1.61.2) (2026-11-22)
+
+
+### Bug Fixes
+
+* **release:** skip release-please on a develop release merge commit ([#276](https://github.com/JacobPEvans/.github/issues/276)) ([e727d6d](https://github.com/JacobPEvans/.github/commit/e727d6d8c519c1032f124e040e3b8a37d7939f67))
+
 ## [1.61.1](https://github.com/JacobPEvans/.github/compare/v1.61.0...v1.61.1) (2026-11-22)
 
 
