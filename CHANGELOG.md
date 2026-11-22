@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.61.1](https://github.com/JacobPEvans/.github/compare/v1.61.0...v1.61.1) (2026-11-22)
+
+
+### CI
+
+* add OpenHands fixer callers ([#274](https://github.com/JacobPEvans/.github/issues/274)) ([5a8263b](https://github.com/JacobPEvans/.github/commit/5a8263bb385a20fab18ac1f977a27c1d0c4191ce))
+
 ## [1.61.0](https://github.com/JacobPEvans/.github/compare/v1.60.2...v1.61.0) (2026-11-20)
 
 
