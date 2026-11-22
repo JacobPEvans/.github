@@ -16,7 +16,7 @@ name: Renovate
 
 on:
   schedule:
-    - cron: "23 */6 * * *"
+    - cron: "23 * * * *"
     # The preset opens pull requests only in a Saturday 00:00-05:59 Indianapolis
     # window (04:00-10:59 UTC across daylight saving) and at any time for security
     # updates; hourly runs in the window give retries.
