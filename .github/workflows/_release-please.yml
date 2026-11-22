@@ -127,14 +127,18 @@ on:
 permissions: {}
 
 jobs:
+  # A develop push whose head commit is a release pull request merge does not run release-please.
   release-please:
     if: >-
-      ${{ (inputs.target-owner == '' && inputs.target-name == '') ||
-          (github.repository == 'JacobPEvans/.github' &&
-           github.workflow_ref == 'JacobPEvans/.github/.github/workflows/release-reconciliation-canary.yml@refs/heads/main' &&
-           github.event_name == 'workflow_dispatch' &&
-           inputs.target-owner == 'jpe-cribl' &&
-           inputs.target-name == '.github') }}
+      ${{ ((inputs.target-owner == '' && inputs.target-name == '') ||
+           (github.repository == 'JacobPEvans/.github' &&
+            github.workflow_ref == 'JacobPEvans/.github/.github/workflows/release-reconciliation-canary.yml@refs/heads/main' &&
+            github.event_name == 'workflow_dispatch' &&
+            inputs.target-owner == 'jpe-cribl' &&
+            inputs.target-name == '.github')) &&
+          !(github.event_name == 'push' &&
+            github.ref == 'refs/heads/develop' &&
+            startsWith(github.event.head_commit.message, 'chore(develop): release')) }}
     env:
       RELEASE_TARGET_REPOSITORY: ${{ inputs.target-owner != '' && format('{0}/{1}', inputs.target-owner, inputs.target-name) || github.repository }}
     runs-on: ${{ inputs.runner_label }}
