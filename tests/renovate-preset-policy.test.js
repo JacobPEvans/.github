@@ -176,9 +176,9 @@ test('majors never ride in the grouped PR', () => {
   }
 });
 
-test('first-party GitHub updates targeting develop get a dedicated group with a separate major stream', () => {
+test('first-party updates on any base branch auto-merge at any time, one PR per dependency', () => {
   const owners = [
-    'JacobPEvans', 'JacobPEvans-ai', 'dryvist', 'jpe-ai-agents', 'jpe-ansible', 'jpe-claude',
+    'JacobPEvans', 'JacobPEvans-ai', 'JacobPEvans-personal', 'dryvist', 'jpe-ai-agents', 'jpe-ansible', 'jpe-claude',
     'jpe-cribl', 'jpe-nix', 'jpe-openbao-plugin-secrets', 'jpe-private', 'jpe-splunk',
   ];
   const cases = [
@@ -186,16 +186,16 @@ test('first-party GitHub updates targeting develop get a dedicated group with a 
     ['github-digest', 'digest'], ['github-tags', 'pin'], ['github-tags', 'pinDigest'],
   ];
   for (const owner of owners) {
-    for (const [datasource, updateType] of cases) {
-      for (const packageName of [`${owner}/.github`, `https://github.com/${owner.toUpperCase()}/tool`]) {
-        const policy = resolvePackagePolicy(packageName, updateType, undefined, { baseBranch: 'develop', datasource });
-        assert.equal(policy.automerge, true, packageName);
-        assert.equal(policy.minimumReleaseAge, '0 days', packageName);
-        assert.deepEqual(policy.schedule, ['at any time'], packageName);
-        assert.equal(policy.groupName, 'first-party dependencies', packageName);
-        assert.equal(policy.groupSlug, 'first-party-dependencies', packageName);
-        assert.equal(policy.separateMajorMinor, true, packageName);
-        assert.equal(policy.prPriority, 10, packageName);
+    for (const baseBranch of ['develop', 'main']) {
+      for (const [datasource, updateType] of cases) {
+        for (const packageName of [`${owner}/.github`, `https://github.com/${owner.toUpperCase()}/tool`]) {
+          const policy = resolvePackagePolicy(packageName, updateType, undefined, { baseBranch, datasource });
+          assert.equal(policy.automerge, true, packageName);
+          assert.equal(policy.minimumReleaseAge, '0 days', packageName);
+          assert.deepEqual(policy.schedule, ['at any time'], packageName);
+          assert.equal(policy.groupName, null, packageName);
+          assert.equal(policy.prPriority, 10, packageName);
+        }
       }
     }
   }
@@ -249,7 +249,7 @@ test('GitHub Actions dependency updates in workflow files use fix(deps) commits'
   assert.equal(unrelatedRepositoryPolicy.semanticCommitScope, undefined);
 });
 
-test('the develop fast path requires a GitHub datasource and an exact first-party owner', () => {
+test('the first-party rule matches only exact first-party owners', () => {
   for (const [packageName, datasource] of [
     ['jpe-lookalike/tool', 'github-tags'],
     ['JacobPEvans-ai-other/tool', 'github-tags'],
@@ -257,44 +257,27 @@ test('the develop fast path requires a GitHub datasource and an exact first-part
     ['https://example.com/jpe-cribl/tool', 'github-releases'],
     ['https://github.com.example.com/jpe-cribl/tool', 'github-releases'],
     ['jpe-cribl/tool/subpath', 'github-releases'],
-    ['jpe-cribl/tool', 'docker'],
-    ['jpe-cribl/tool', 'npm'],
-    ['dryvist/tool', 'docker'],
   ]) {
     const policy = resolvePackagePolicy(packageName, 'major', undefined, { baseBranch: 'develop', datasource });
     assert.equal(policy.automerge, false, packageName);
     assert.equal(policy.minimumReleaseAge, '7 days', packageName);
-    assert.equal(policy.groupName, undefined, packageName);
     assert.equal(policy.schedule, undefined, packageName);
-  }
-  for (const updateType of ['replacement', 'rollback']) {
-    const policy = resolvePackagePolicy('jpe-cribl/tool', updateType, undefined, {
-      baseBranch: 'develop',
-      datasource: 'github-tags',
-    });
-    assert.equal(policy.automerge, false, updateType);
-    assert.equal(policy.groupName, undefined, updateType);
   }
 });
 
-test('the develop fast path preserves SHA pinning, other base branches, and manual-major repositories', () => {
-  const githubDigest = { baseBranch: 'develop', datasource: 'github-digest' };
-  const digest = resolvePackagePolicy('dryvist/example', 'digest', 'github-actions', githubDigest);
-  assert.equal(digest.pinDigests, true);
-  assert.equal(digest.automerge, true);
-  for (const baseBranch of ['main', 'Develop', 'release/develop']) {
-    const policy = resolvePackagePolicy('dryvist/example', 'digest', 'github-actions', { ...githubDigest, baseBranch });
-    assert.equal(policy.pinDigests, true);
-    assert.equal(policy.automerge, false);
-    assert.equal(policy.groupName, null);
-    assert.equal(policy.minimumReleaseAge, '0 days');
+test('the first-party rule preserves SHA pinning and manual-major repositories', () => {
+  for (const baseBranch of ['develop', 'main']) {
+    const digest = resolvePackagePolicy('dryvist/example', 'digest', 'github-actions', { baseBranch, datasource: 'github-digest' });
+    assert.equal(digest.pinDigests, true);
+    assert.equal(digest.automerge, true);
+    assert.equal(digest.minimumReleaseAge, '0 days');
   }
   for (const repository of ['dryvist/ansible-example', 'dryvist/nix-ai']) {
-    const options = { baseBranch: 'develop', datasource: 'github-tags', repository };
-    assert.equal(resolvePackagePolicy('jpe-cribl/.github', 'major', 'github-actions', options).automerge, false);
-    assert.equal(resolvePackagePolicy('jpe-cribl/.github', 'minor', 'github-actions', options).automerge, true);
-    assert.equal(resolvePackagePolicy('dryvist/example', 'major', 'github-actions', { ...options, baseBranch: 'main' })
-      .automerge, false);
+    for (const baseBranch of ['develop', 'main']) {
+      const options = { baseBranch, datasource: 'github-tags', repository };
+      assert.equal(resolvePackagePolicy('jpe-cribl/.github', 'major', 'github-actions', options).automerge, false);
+      assert.equal(resolvePackagePolicy('jpe-cribl/.github', 'minor', 'github-actions', options).automerge, true);
+    }
   }
 });
 
@@ -337,7 +320,7 @@ test('release-age exceptions are limited to first-party, trusted-org, vulnerabil
 
   const firstParty = findRule(
     preset,
-    (rule) => rule.matchPackageNames?.includes('jpe-nix/**'),
+    (rule) => rule.description?.startsWith('First-party updates from the listed owners'),
     'first-party zero-day rule',
   );
   assert.equal(firstParty.minimumReleaseAge, '0 days');
