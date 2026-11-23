@@ -315,9 +315,9 @@ test('Nix repos raise Go directives in a dedicated review-required PR', () => {
   }
 });
 
-test('lock-file maintenance opens on Saturday and merges no sooner than 24 hours later', () => {
-  assert.deepEqual(preset.lockFileMaintenance.schedule, ['* 0-5 * * 6']);
-  assert.deepEqual(preset.lockFileMaintenance.automergeSchedule, ['* 6-23 * * 0']);
+test('lock-file maintenance opens Friday noon and merges no sooner than 24 hours later', () => {
+  assert.deepEqual(preset.lockFileMaintenance.schedule, ['* 12 * * 5']);
+  assert.deepEqual(preset.lockFileMaintenance.automergeSchedule, ['* 13-23 * * 6']);
   assert.equal(preset.lockFileMaintenance.automerge, true);
   assert.equal(nixPreset.lockFileMaintenance.automergeSchedule, undefined, 'the Nix preset inherits the window');
 });
