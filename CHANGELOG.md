@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.62.0](https://github.com/JacobPEvans/.github/compare/v1.61.4...v1.62.0) (2026-11-23)
+
+
+### Features
+
+* **policy:** let first-party workflow refs track main ([#286](https://github.com/JacobPEvans/.github/issues/286)) ([b44d8c5](https://github.com/JacobPEvans/.github/commit/b44d8c5ea9ba864102fad4f492b54d0d8d6c72d8))
+
 ## [1.61.4](https://github.com/JacobPEvans/.github/compare/v1.61.3...v1.61.4) (2026-11-23)
 
 
