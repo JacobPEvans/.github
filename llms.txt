@@ -7,5 +7,12 @@ Repository index for the JacobPEvans GitHub organization.
 - [.agents](https://github.com/JacobPEvans/.agents): Organization-wide agent skills
 - [.github](https://github.com/JacobPEvans/.github): Enterprise-central reusable workflows, Renovate preset and CI policy
 - [.github-ai](https://github.com/JacobPEvans/.github-ai): Enterprise-central AI workflows: PR-Agent review and agent automation
+- [azure-pipelines-splunk-apps](https://github.com/JacobPEvans/azure-pipelines-splunk-apps): 
 - [jpe-ai-voice](https://github.com/JacobPEvans/jpe-ai-voice): Personal writing voice guide and Vale style for AI agents
+- [prometheus-sql-exporter-collectors](https://github.com/JacobPEvans/prometheus-sql-exporter-collectors): sql_exporter collector definitions for the homelab Prometheus stack
+- [splunk-homelab-alerts](https://github.com/JacobPEvans/splunk-homelab-alerts): Splunk app providing the zammad custom alert action and the delivery defaults homelab detectors inherit
+- [splunk-homelab-dashboards](https://github.com/JacobPEvans/splunk-homelab-dashboards): Splunk app providing homelab dashboards for storage capacity, drive health, and node resources
+- [splunk-homelab-indexes](https://github.com/JacobPEvans/splunk-homelab-indexes): Splunk app providing the homelab's index and HEC input definitions
+- [splunk-homelab-wall](https://github.com/JacobPEvans/splunk-homelab-wall): 
 - [tofu-aws-bedrock](https://github.com/JacobPEvans/tofu-aws-bedrock): Deploy an AI-powered assistant with a public API endpoint using AWS Bedrock and Terraform. No authentication required—just send text via curl and get intelligent responses back.
+- [tofu-github](https://github.com/JacobPEvans/tofu-github): OpenTofu-managed GitHub org governance for dryvist: rulesets, required workflows, and org/repo settings as code.
