@@ -12,7 +12,6 @@ Every pull request description follows the [pull request template](.github/PULL_
 
 | Workflow | Purpose | Inputs |
 | --- | --- | --- |
-| [`_flake-lock-fresh.yml`](.github/workflows/_flake-lock-fresh.yml) | Owned flake-input pins; optional GitHub input age. | `runner_label`, `max_age_days`. |
 | [`_org-index.yml`](.github/workflows/_org-index.yml) | Org index and `llms.txt`. | `visibility_scope`, `output_path`. |
 | [`_promotion-pr.yml`](.github/workflows/_promotion-pr.yml) | Weekly `develop` to `main` promotion pull request. | None. |
 
