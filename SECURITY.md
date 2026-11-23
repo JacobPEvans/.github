@@ -29,9 +29,10 @@ one-day stabilization hold.
 | Trusted-org majors | 7 days | Auto-merge after required checks pass; the dep:review label adds the dependency review |
 | Other majors | 7 days | Manual merge after required checks pass; dep:review triggers the dependency review |
 
-First-party packages are `JacobPEvans/**`, `JacobPEvans-*/**`, `dryvist/**`,
-`jpe-nix/**` and `jpe-*/**`. Renovate hash-pins their GitHub Actions refs, with the release tag in
-a trailing comment such as `# v1.2.3`, except `JacobPEvans/**` and
+First-party packages are the repositories of the owners `JacobPEvans`, `JacobPEvans-ai`,
+`dryvist`, `jpe-ai-agents`, `jpe-ansible`, `jpe-claude`, `jpe-cribl`, `jpe-nix`,
+`jpe-openbao-plugin-secrets`, `jpe-private` and `jpe-splunk`. Renovate hash-pins their GitHub Actions
+refs, with the release tag in a trailing comment such as `# v1.2.3`, except `JacobPEvans/**` and
 `JacobPEvans-personal/**` reusable workflows, which ride their `@vN` major tag. A
 new major such as `v1` to `v2` opens on Saturday and auto-merges after passing
 checks. Third-party actions remain SHA-pinned with a released-version comment.
