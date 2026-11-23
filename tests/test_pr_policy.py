@@ -46,6 +46,7 @@ jobs:
     steps:
       - uses: JacobPEvans/example@0123456789012345678901234567890123456789 # v1.2.3
       - uses: dryvist/example/.github/workflows/build.yml@abcdefabcdefabcdefabcdefabcdefabcdefabcd
+      - uses: jpe-ansible/example/.github/workflows/build.yml@main
 """
         self.assertEqual([], pr_policy.analyze(Path("first-party-pins.yml"), source))
 
@@ -107,7 +108,7 @@ on: pull_request
 jobs:
   first:
     steps:
-      - uses: JacobPEvans/example@main
+      - uses: JacobPEvans/example@feature-branch
       - uses: actions/checkout@v4
   second:
     needs: first
