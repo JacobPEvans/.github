@@ -259,10 +259,21 @@ current owners.
   reusable-workflows)
 - [.github-ai](https://github.com/JacobPEvans/.github-ai): Enterprise-central AI workflows: PR-Agent review and agent automation (topics: ai, github-actions,
   reusable-workflows)
+- [azure-pipelines-splunk-apps](https://github.com/JacobPEvans/azure-pipelines-splunk-apps): —
 - [jpe-ai-voice](https://github.com/JacobPEvans/jpe-ai-voice): Personal writing voice guide and Vale style for AI agents (topics: ai-agents, vale, writing)
+- [prometheus-sql-exporter-collectors](https://github.com/JacobPEvans/prometheus-sql-exporter-collectors): sql_exporter collector definitions for the homelab
+  Prometheus stack (topics: homelab, observability, prometheus, sql-exporter)
+- [splunk-homelab-alerts](https://github.com/JacobPEvans/splunk-homelab-alerts): Splunk app providing the zammad custom alert action and the delivery defaults
+  homelab detectors inherit
+- [splunk-homelab-dashboards](https://github.com/JacobPEvans/splunk-homelab-dashboards): Splunk app providing homelab dashboards for storage capacity, drive
+  health, and node resources
+- [splunk-homelab-indexes](https://github.com/JacobPEvans/splunk-homelab-indexes): Splunk app providing the homelab's index and HEC input definitions
+- [splunk-homelab-wall](https://github.com/JacobPEvans/splunk-homelab-wall): —
 - [tofu-aws-bedrock](https://github.com/JacobPEvans/tofu-aws-bedrock): Deploy an AI-powered assistant with a public API endpoint using AWS Bedrock and
   Terraform. No authentication required—just send text via curl and get intelligent responses back. (topics: ai, api, aws, aws-lambda, bedrock, devops,
   generative-ai, infrastructure-as-code, lambda, llm, opentofu, serverless, terraform, terragrunt)
+- [tofu-github](https://github.com/JacobPEvans/tofu-github): OpenTofu-managed GitHub org governance for dryvist: rulesets, required workflows, and org/repo
+  settings as code. (topics: github, github-api, governance, infrastructure-as-code, opentofu, policy-as-code, repository-management, terraform)
 
 ## Archived repositories (0)
 
