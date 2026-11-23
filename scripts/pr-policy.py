@@ -242,12 +242,13 @@ def analyze(path: Path, source: str) -> list[tuple[int, str, str]]:
         line_number = first_line(uses_node)
         line = lines[line_number - 1] if line_number <= len(lines) else ""
         if is_first_party(owner):
-            if not re.search(r"@v\d+$", uses) and not SHA.search(uses):
+            # First-party refs track main; a major tag or SHA still passes.
+            if not re.search(r"@(?:main|v\d+)$", uses) and not SHA.search(uses):
                 violations.append(
                     (
                         line_number,
                         "first-party-ref",
-                        f"first-party use {uses!r} must end in @v<digits> or a 40-hex SHA",
+                        f"first-party use {uses!r} must end in @main, @v<digits> or a 40-hex SHA",
                     )
                 )
         elif not SHA.search(uses) or not VERSION_COMMENT.search(line):
