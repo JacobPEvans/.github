@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.61.4](https://github.com/JacobPEvans/.github/compare/v1.61.3...v1.61.4) (2026-11-23)
+
+
+### Bug Fixes
+
+* **pr-policy:** run the title check again when a pull request is edited ([#282](https://github.com/JacobPEvans/.github/issues/282)) ([24858d9](https://github.com/JacobPEvans/.github/commit/24858d91cd82b3404fcde4575f6183c2a55745dd))
+
 ## [1.61.3](https://github.com/JacobPEvans/.github/compare/v1.61.2...v1.61.3) (2026-11-22)
 
 
