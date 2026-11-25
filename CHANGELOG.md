@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.63.0](https://github.com/JacobPEvans/.github/compare/v1.62.0...v1.63.0) (2026-11-25)
+
+
+### Features
+
+* **renovate:** soak the weekly lock refresh 24 hours and keep third-party flake inputs weekly ([#285](https://github.com/JacobPEvans/.github/issues/285)) ([6b520e9](https://github.com/JacobPEvans/.github/commit/6b520e9877d97809c25e18343bfaab3732bd96bd))
+
 ## [1.62.0](https://github.com/JacobPEvans/.github/compare/v1.61.4...v1.62.0) (2026-11-23)
 
 
