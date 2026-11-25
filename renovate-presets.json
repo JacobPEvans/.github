@@ -59,10 +59,13 @@
     "vulnerabilityFixStrategy": "highest"
   },
   "lockFileMaintenance": {
-    "description": "Lock-file maintenance runs without a release-age hold in the Saturday 00:00-05:59 America/Indiana/Indianapolis window and auto-merges after required checks pass. Timestamp-less lock updates use minimumReleaseAgeBehaviour:timestamp-optional; npm and Terraform lock maintenance remain disabled. updateNotScheduled:false prevents intervening head refreshes.",
+    "description": "Lock-file maintenance opens its PR in the Friday 12:00-12:59 America/Indiana/Indianapolis window and auto-merges only in the Saturday 13:00-23:59 window, so every lock refresh soaks at least 24 hours after it opens and merges after required checks pass. Timestamp-less lock updates use minimumReleaseAgeBehaviour:timestamp-optional; npm and Terraform lock maintenance remain disabled. updateNotScheduled:false prevents intervening head refreshes.",
     "enabled": true,
     "schedule": [
-      "* 0-5 * * 6"
+      "* 12 * * 5"
+    ],
+    "automergeSchedule": [
+      "* 13-23 * * 6"
     ],
     "automerge": true,
     "updateNotScheduled": false

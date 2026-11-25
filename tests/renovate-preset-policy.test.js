@@ -315,6 +315,25 @@ test('Nix repos raise Go directives in a dedicated review-required PR', () => {
   }
 });
 
+test('lock-file maintenance opens Friday noon and merges no sooner than 24 hours later', () => {
+  assert.deepEqual(preset.lockFileMaintenance.schedule, ['* 12 * * 5']);
+  assert.deepEqual(preset.lockFileMaintenance.automergeSchedule, ['* 13-23 * * 6']);
+  assert.equal(preset.lockFileMaintenance.automerge, true);
+  assert.equal(nixPreset.lockFileMaintenance.automergeSchedule, undefined, 'the Nix preset inherits the window');
+});
+
+test('per-input flake updates need a release timestamp, so only first-party inputs get them', () => {
+  const nixRule = findRule(
+    nixPreset,
+    (rule) => rule.matchManagers?.includes('nix') && rule.minimumReleaseAgeBehaviour !== undefined,
+    'require timestamps for per-input flake updates',
+  );
+  assert.equal(nixRule.minimumReleaseAgeBehaviour, 'timestamp-required');
+  assert.ok(!nixRule.matchUpdateTypes.includes('lockFileMaintenance'));
+  assert.equal(nixRule.minimumReleaseAge, undefined, 'the rule must not change any release-age period');
+  assert.equal(preset.internalChecksFilter, 'strict');
+});
+
 test('release-age exceptions are limited to first-party, trusted-org, vulnerability alerts, and Claude Code', () => {
   assert.equal(preset.vulnerabilityAlerts.minimumReleaseAge, '1 day');
 

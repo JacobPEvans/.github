@@ -38,9 +38,11 @@ new major such as `v1` to `v2` opens on Saturday and auto-merges after passing
 checks. Third-party actions remain SHA-pinned with a released-version comment.
 
 Nix repositories extend `github>JacobPEvans/.github:renovate-nix`. Renovate's
-Nix manager maintains `flake.lock` in one Saturday PR per repository and
-auto-merges after required checks pass. Lock-file maintenance has no age gate:
-branch-tracking flake inputs move to their current revision.
+Nix manager maintains `flake.lock` in one lock-refresh PR per repository. It opens
+Friday 12:00-12:59 America/Indiana/Indianapolis time and auto-merges only on
+Saturday 13:00-23:59, after required checks pass, so it soaks at least 24 hours.
+First-party flake inputs also update one at a time at any time; every other input
+moves only with the weekly lock refresh.
 Digest updates without a release timestamp have no age gate, while dated releases
 keep their stabilization period.
 
