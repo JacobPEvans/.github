@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.66.0](https://github.com/JacobPEvans/.github/compare/v1.65.0...v1.66.0) (2026-11-27)
+
+
+### Features
+
+* **renovate:** hold updates for 3 days instead of 7 ([#297](https://github.com/JacobPEvans/.github/issues/297)) ([27bb6cb](https://github.com/JacobPEvans/.github/commit/27bb6cb156f1e32c31e20d9f5fbafd7eeceb7d10))
+
 ## [1.65.0](https://github.com/JacobPEvans/.github/compare/v1.64.0...v1.65.0) (2026-11-27)
 
 
