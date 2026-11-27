@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.65.0](https://github.com/JacobPEvans/.github/compare/v1.64.0...v1.65.0) (2026-11-27)
+
+
+### Features
+
+* **splunk-appinspect:** skip AppInspect tags named in a repository variable ([#293](https://github.com/JacobPEvans/.github/issues/293)) ([f2c88f0](https://github.com/JacobPEvans/.github/commit/f2c88f036954ed4efb4cdbed16e32bd072139f76))
+
 ## [1.64.0](https://github.com/JacobPEvans/.github/compare/v1.63.1...v1.64.0) (2026-11-27)
 
 
