@@ -2,9 +2,10 @@
 #
 # Two independent checks that keep sensitive values out of a public repo:
 #
-#   - "gitleaks (redacted)" — same pattern as dryvist/docs' secret-scan.yml:
-#     gitleaks-action with the org GITLEAKS_PRIVATE_CONFIG materialized to a
-#     runner-local file at run time. PR comments, the SARIF artifact and the
+#   - "gitleaks (redacted)" — two gitleaks-action scans: a public base ruleset
+#     written inline (built-in rules minus generic-api-key), then the org
+#     GITLEAKS_PRIVATE_CONFIG materialized to a runner-local file, failing by
+#     name when that secret arrives empty. PR comments, the SARIF artifact and the
 #     job summary are all disabled, and the action runs gitleaks with
 #     --redact — a catch never echoes the matched secret.
 #   - "disclosure-denylist" — a fixed-string scan against the org
@@ -61,10 +62,19 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Materialize the org ruleset into a config file
-        env:
-          GITLEAKS_PRIVATE_CONFIG: ${{ secrets.GITLEAKS_PRIVATE_CONFIG }}
-        run: printf '%s' "$GITLEAKS_PRIVATE_CONFIG" > "$RUNNER_TEMP/gitleaks.toml"
+      # Public base: every gitleaks built-in rule except generic-api-key, which
+      # guesses keys from variable names plus random-looking text and flags
+      # empty test assignments. Kept inline so callers need no second checkout;
+      # org-private patterns stay in the GITLEAKS_PRIVATE_CONFIG scan below.
+      - name: Write the public base ruleset
+        run: |
+          cat > "$RUNNER_TEMP/gitleaks-base.toml" <<'EOF'
+          title = "disclosure-gate public base"
+
+          [extend]
+          useDefault = true
+          disabledRules = ["generic-api-key"]
+          EOF
 
       - uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
         id: gitleaks-first
@@ -72,7 +82,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE_KEY }}
-          GITLEAKS_CONFIG: ${{ runner.temp }}/gitleaks.toml
+          GITLEAKS_CONFIG: ${{ runner.temp }}/gitleaks-base.toml
           GITLEAKS_ENABLE_UPLOAD_ARTIFACT: "false"
           GITLEAKS_ENABLE_COMMENTS: "false"
           GITLEAKS_ENABLE_SUMMARY: "false"
@@ -83,7 +93,41 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE_KEY }}
-          GITLEAKS_CONFIG: ${{ runner.temp }}/gitleaks.toml
+          GITLEAKS_CONFIG: ${{ runner.temp }}/gitleaks-base.toml
+          GITLEAKS_ENABLE_UPLOAD_ARTIFACT: "false"
+          GITLEAKS_ENABLE_COMMENTS: "false"
+          GITLEAKS_ENABLE_SUMMARY: "false"
+
+      # An empty secret used to fall back silently to the built-in rules, so the
+      # private ruleset never ran. Fail by name instead.
+      - name: Materialize the org private ruleset
+        env:
+          GITLEAKS_PRIVATE_CONFIG: ${{ secrets.GITLEAKS_PRIVATE_CONFIG }}
+        run: |
+          if [ -z "$GITLEAKS_PRIVATE_CONFIG" ]; then
+            echo "::error title=GITLEAKS_PRIVATE_CONFIG empty::The org secret GITLEAKS_PRIVATE_CONFIG arrived empty, so the private ruleset cannot run. Fix the secret's delivery at its source; do not bypass this check."
+            exit 1
+          fi
+          printf '%s' "$GITLEAKS_PRIVATE_CONFIG" > "$RUNNER_TEMP/gitleaks-private.toml"
+
+      - uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
+        id: gitleaks-private-first
+        continue-on-error: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE_KEY }}
+          GITLEAKS_CONFIG: ${{ runner.temp }}/gitleaks-private.toml
+          GITLEAKS_ENABLE_UPLOAD_ARTIFACT: "false"
+          GITLEAKS_ENABLE_COMMENTS: "false"
+          GITLEAKS_ENABLE_SUMMARY: "false"
+
+      - name: Retry gitleaks (private ruleset)
+        if: ${{ steps.gitleaks-private-first.outcome == 'failure' }}
+        uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE_KEY }}
+          GITLEAKS_CONFIG: ${{ runner.temp }}/gitleaks-private.toml
           GITLEAKS_ENABLE_UPLOAD_ARTIFACT: "false"
           GITLEAKS_ENABLE_COMMENTS: "false"
           GITLEAKS_ENABLE_SUMMARY: "false"
