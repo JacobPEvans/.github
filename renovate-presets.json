@@ -415,7 +415,7 @@
       "minimumReleaseAge": "0 days"
     },
     {
-      "description": "Hold pre-commit hooks that install an exact PyPI or npm release at commit time for three days, the same hold the workstation package managers apply.",
+      "description": "Hold pre-commit hooks that install an exact PyPI or npm release at commit time for three days.",
       "matchManagers": [
         "pre-commit"
       ],
