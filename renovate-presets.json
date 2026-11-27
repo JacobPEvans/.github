@@ -501,6 +501,16 @@
       "allowedVersions": "<3.15"
     },
     {
+      "description": "Hold Python below 3.14 in the shared AppInspect workflow until splunk-appinspect allows an lxml with newer wheels.",
+      "matchFileNames": [
+        ".github/workflows/splunk-appinspect.yml"
+      ],
+      "matchDepNames": [
+        "python"
+      ],
+      "allowedVersions": "<3.14"
+    },
+    {
       "description": "Exclude LiteLLM 1.107.0 from updates.",
       "matchPackageNames": [
         "litellm",
