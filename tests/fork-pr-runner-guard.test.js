@@ -23,3 +23,19 @@ for (const file of [
     }
   });
 }
+
+test('_ci-gate.yml: light checks take light_runner_label, falling back to runner_label', () => {
+  const text = readFileSync('.github/workflows/_ci-gate.yml', 'utf8');
+  const jobs = text.split(/\n(?=  [a-z0-9_-]+:\n)/);
+  const light = ['markdown-lint', 'file-size', 'token-limits', 'zizmor', 'agent-patch-guard', 'agent-pr-body',
+    'renovate-annotations'];
+  for (const name of light) {
+    const block = jobs.find((j) => j.startsWith(`  ${name}:\n`));
+    assert.ok(block, `job ${name} not found`);
+    assert.ok(block.includes(`${GUARD}) && (inputs.light_runner_label || inputs.runner_label) ||`),
+      `${name} does not route through light_runner_label`);
+  }
+  const heavy = jobs.filter((j) => /^ {2}(tofu-ci|ansible-ci|python-ci|repo-tests):\n/.test(j));
+  assert.equal(heavy.length, 4);
+  for (const block of heavy) assert.ok(!block.includes('light_runner_label'));
+});

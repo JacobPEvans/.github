@@ -398,6 +398,19 @@ on:
         required: false
         default: ''
 
+      light_runner_label:
+        description: >-
+          Runner label for the light checks only: `Markdown Lint`, `File Size`,
+          `Token Limits`, `Workflow Security (zizmor)`, `Agent Patch Guard`,
+          `Agent PR Body` and `Renovate Annotations`. They need no private
+          network or large machine, so a caller whose `runner_label` is a small
+          self-hosted pool can send them elsewhere and keep that pool for the
+          heavy checks. Empty (default) means "same as runner_label". Subject
+          to the same fork-PR guard.
+        type: string
+        required: false
+        default: ''
+
       nix_validate_timeout_minutes:
         description: >-
           Opt-in running-job timeout for `Nix Validate` only, forwarded as
@@ -824,7 +837,7 @@ jobs:
     if: ${{ !cancelled() && inputs.markdown_lint && needs.changes.outputs.markdown == 'true' }}
     uses: ./.github/workflows/_markdown-lint.yml
     with:
-      runner_label: ${{ (!github.event.pull_request || github.event.pull_request.head.repo.full_name == github.repository) && inputs.runner_label || 'ubuntu-24.04' }}
+      runner_label: ${{ (!github.event.pull_request || github.event.pull_request.head.repo.full_name == github.repository) && (inputs.light_runner_label || inputs.runner_label) || 'ubuntu-24.04' }}
 
   file-size:
     name: File Size
@@ -832,7 +845,7 @@ jobs:
     if: ${{ !cancelled() && inputs.file_size && (needs.changes.outputs.nix == 'true' || needs.changes.outputs.markdown == 'true' || needs.changes.outputs.terraform == 'true') }}
     uses: ./.github/workflows/_file-size.yml
     with:
-      runner_label: ${{ (!github.event.pull_request || github.event.pull_request.head.repo.full_name == github.repository) && inputs.runner_label || 'ubuntu-24.04' }}
+      runner_label: ${{ (!github.event.pull_request || github.event.pull_request.head.repo.full_name == github.repository) && (inputs.light_runner_label || inputs.runner_label) || 'ubuntu-24.04' }}
 
   token-limits:
     name: Token Limits
@@ -840,7 +853,7 @@ jobs:
     if: ${{ !cancelled() && inputs.token_limits && needs.changes.outputs.markdown == 'true' && (needs.changes.outputs.test_tier == 'full' || needs.changes.outputs.test_tier == 'lint-only' || needs.scope.result != 'success' || needs.scope.outputs.ci != 'none') }}
     uses: ./.github/workflows/_token-limits.yml
     with:
-      runner_label: ${{ (!github.event.pull_request || github.event.pull_request.head.repo.full_name == github.repository) && inputs.runner_label || 'ubuntu-24.04' }}
+      runner_label: ${{ (!github.event.pull_request || github.event.pull_request.head.repo.full_name == github.repository) && (inputs.light_runner_label || inputs.runner_label) || 'ubuntu-24.04' }}
 
   python-security:
     name: Python Security
@@ -900,7 +913,7 @@ jobs:
     if: ${{ inputs.zizmor && github.event_name == 'pull_request' }}
     uses: ./.github/workflows/_zizmor.yml
     with:
-      runner_label: ${{ (!github.event.pull_request || github.event.pull_request.head.repo.full_name == github.repository) && inputs.runner_label || 'ubuntu-24.04' }}
+      runner_label: ${{ (!github.event.pull_request || github.event.pull_request.head.repo.full_name == github.repository) && (inputs.light_runner_label || inputs.runner_label) || 'ubuntu-24.04' }}
 
   # agent-patch-guard is intentionally NOT `needs: changes` / filter-gated —
   # an agent must not be able to shrink its own audit's blast radius by
@@ -911,7 +924,7 @@ jobs:
     if: ${{ inputs.agent_patch_guard && github.event_name == 'pull_request' }}
     uses: ./.github/workflows/_agent-patch-guard.yml
     with:
-      runner_label: ${{ (!github.event.pull_request || github.event.pull_request.head.repo.full_name == github.repository) && inputs.runner_label || 'ubuntu-24.04' }}
+      runner_label: ${{ (!github.event.pull_request || github.event.pull_request.head.repo.full_name == github.repository) && (inputs.light_runner_label || inputs.runner_label) || 'ubuntu-24.04' }}
 
   # Deliberately NOT in `gate.needs` — advisory pilot, warns only (see
   # _agent-pr-body.yml); not gated on `changes` (no path filter applies).
@@ -921,7 +934,7 @@ jobs:
     uses: ./.github/workflows/_agent-pr-body.yml
     with:
       block: ${{ inputs.agent_pr_body_block }}
-      runner_label: ${{ (!github.event.pull_request || github.event.pull_request.head.repo.full_name == github.repository) && inputs.runner_label || 'ubuntu-24.04' }}
+      runner_label: ${{ (!github.event.pull_request || github.event.pull_request.head.repo.full_name == github.repository) && (inputs.light_runner_label || inputs.runner_label) || 'ubuntu-24.04' }}
 
   # No caller currently sets `ansible_ci: true` here (ansible repos call
   # `_ansible-ci.yml` directly, with their own local molecule handling) -
@@ -954,7 +967,7 @@ jobs:
     if: ${{ inputs.renovate_annotations }}
     uses: ./.github/workflows/_renovate-annotations.yml
     with:
-      runner_label: ${{ (!github.event.pull_request || github.event.pull_request.head.repo.full_name == github.repository) && inputs.runner_label || 'ubuntu-24.04' }}
+      runner_label: ${{ (!github.event.pull_request || github.event.pull_request.head.repo.full_name == github.repository) && (inputs.light_runner_label || inputs.runner_label) || 'ubuntu-24.04' }}
 
   tofu-ci:
     name: OpenTofu CI
