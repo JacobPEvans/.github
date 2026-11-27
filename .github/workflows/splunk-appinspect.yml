@@ -171,8 +171,12 @@ jobs:
         if: steps.app.outputs.is_app == 'true'
         env:
           PACKAGE_PATH: ${{ steps.package.outputs.path }}
+          # Optional repository variable: space-separated AppInspect tags to skip, e.g. the Splunk Cloud vetting
+          # tags for an app that only targets Splunk Enterprise. Unset runs every check.
+          EXCLUDED_TAGS: ${{ vars.APPINSPECT_EXCLUDED_TAGS }}
         run: |
-          splunk-appinspect inspect "$PACKAGE_PATH" --data-format json --output-file appinspect.json || true
+          read -ra tags <<< "${EXCLUDED_TAGS:-}"
+          splunk-appinspect inspect "$PACKAGE_PATH" "${tags[@]/#/--excluded-tags=}" --data-format json --output-file appinspect.json || true
           python - <<'PY'
           import json
           import sys
