@@ -21,7 +21,7 @@
   },
   "packageRules": [
     {
-      "description": "Raise the Go minimum-version directive in a dedicated, review-required PR; Renovate does not bump this directive by default.",
+      "description": "Raise the Go minimum-version directive in a dedicated, review-required PR; Renovate does not bump this directive by default. minimumReleaseAge is null because the review requirement, not a release-age hold, is the guardrail for these directives.",
       "matchManagers": [
         "gomod"
       ],
@@ -37,7 +37,7 @@
       "automerge": false
     },
     {
-      "description": "Keep exact Go toolchain directive updates with the Go toolchain PR.",
+      "description": "Keep exact Go toolchain directive updates with the Go toolchain PR. minimumReleaseAge is null because the review requirement, not a release-age hold, is the guardrail for these directives.",
       "matchManagers": [
         "gomod"
       ],

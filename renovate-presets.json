@@ -3,7 +3,7 @@
   "description": [
     "Single Renovate policy master for JacobPEvans and dryvist repositories. It extends no other repository's config; dryvist/.github re-exports these presets as pass-throughs.",
     "Scheduled updates open on Saturday 00:00-05:59 America/Indiana/Indianapolis time, with separate PRs for majors and grouped non-majors. First-party GitHub dependency updates from the listed owners open at any time, one PR per dependency.",
-    "Seven-day stabilization for third-party non-major and major updates; trusted-org majors keep the seven-day hold, while trusted-org non-majors and first-party packages have no hold. Renovate merges directly (platformAutomerge false). Shared custom managers live here; Nix support is enabled by the dedicated Nix preset."
+    "Three-day stabilization for third-party non-major and major updates; trusted-org majors keep the three-day hold, while trusted-org non-majors and first-party packages have no hold. Renovate merges directly (platformAutomerge false). Shared custom managers live here; Nix support is enabled by the dedicated Nix preset."
   ],
   "extends": [
     "group:allNonMajor"
@@ -38,14 +38,14 @@
     ".github/workflows/agentics-maintenance.yml",
     ".github/aw/**"
   ],
-  "minimumReleaseAge": "7 days",
+  "minimumReleaseAge": "3 days",
   "internalChecksFilter": "strict",
   "timezone": "America/Indiana/Indianapolis",
   "schedule": [
     "* 0-5 * * 6"
   ],
   "vulnerabilityAlerts": {
-    "description": "Security/CVE PRs open at any time with a one-day stabilization hold, then auto-merge after required checks pass.",
+    "description": "Security/CVE PRs open at any time with a one-day stabilization hold, shorter than the default three-day hold so vulnerability fixes are not delayed, then auto-merge after required checks pass.",
     "enabled": true,
     "schedule": [
       "at any time"
@@ -302,7 +302,7 @@
       "automerge": false
     },
     {
-      "description": "Auto-merge minor, patch, digest, and pin updates after seven days and green checks.",
+      "description": "Auto-merge minor, patch, digest, and pin updates after three days and green checks.",
       "matchUpdateTypes": [
         "minor",
         "patch",
@@ -311,7 +311,7 @@
         "pinDigest"
       ],
       "automerge": true,
-      "minimumReleaseAge": "7 days"
+      "minimumReleaseAge": "3 days"
     },
     {
       "description": "Pin GitHub Actions refs to SHA digests.",
@@ -415,7 +415,7 @@
       "minimumReleaseAge": "0 days"
     },
     {
-      "description": "Hold pre-commit hooks that install an exact PyPI or npm release at commit time for seven days, the same hold the workstation package managers apply.",
+      "description": "Hold pre-commit hooks that install an exact PyPI or npm release at commit time for three days, the same hold the workstation package managers apply.",
       "matchManagers": [
         "pre-commit"
       ],
@@ -424,14 +424,14 @@
         "DavidAnson/markdownlint-cli2",
         "semgrep/pre-commit"
       ],
-      "minimumReleaseAge": "7 days"
+      "minimumReleaseAge": "3 days"
     },
     {
-      "description": "Hold major updates for seven days before merge.",
+      "description": "Hold major updates for three days before merge.",
       "matchUpdateTypes": [
         "major"
       ],
-      "minimumReleaseAge": "7 days"
+      "minimumReleaseAge": "3 days"
     },
     {
       "description": "Claude Code updates are an owner-approved zero-day exception once checks pass.",
