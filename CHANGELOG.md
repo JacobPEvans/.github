@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.64.0](https://github.com/JacobPEvans/.github/compare/v1.63.1...v1.64.0) (2026-11-27)
+
+
+### Features
+
+* **ci-gate:** add light_runner_label for the light checks ([#294](https://github.com/JacobPEvans/.github/issues/294)) ([1ce594d](https://github.com/JacobPEvans/.github/commit/1ce594dfa0075108834aa164f6915f487a71ae00))
+
 ## [1.63.1](https://github.com/JacobPEvans/.github/compare/v1.63.0...v1.63.1) (2026-11-27)
 
 
