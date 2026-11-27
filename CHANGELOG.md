@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.63.1](https://github.com/JacobPEvans/.github/compare/v1.63.0...v1.63.1) (2026-11-27)
+
+
+### Bug Fixes
+
+* **disclosure-gate:** scan with a public gitleaks base and fail on an empty private config ([0812a94](https://github.com/JacobPEvans/.github/commit/0812a9467466f1efab1f4154af00800662856e35))
+* **disclosure-gate:** scan with a public gitleaks base and fail on an empty private config ([#290](https://github.com/JacobPEvans/.github/issues/290)) ([23a0600](https://github.com/JacobPEvans/.github/commit/23a0600d49cce9526b4fa3e0d85de5c323400644))
+
 ## [1.63.0](https://github.com/JacobPEvans/.github/compare/v1.62.0...v1.63.0) (2026-11-25)
 
 
