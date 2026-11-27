@@ -71,8 +71,8 @@ function resolvePackagePolicy(packageName, updateType, manager, {
     });
 }
 
-test('npm updates respect the seven-day release age and avoid unsafe lock maintenance', () => {
-  assert.equal(preset.minimumReleaseAge, '7 days');
+test('npm updates respect the three-day release age and avoid unsafe lock maintenance', () => {
+  assert.equal(preset.minimumReleaseAge, '3 days');
   assert.equal(preset.internalChecksFilter, 'strict');
 
   const npmLockRule = findRule(
@@ -93,32 +93,32 @@ test('timestamp-less lock and digest updates retain the configured release-age p
   assert.deepEqual(timestampRule.matchUpdateTypes, ['lockFileMaintenance', 'digest']);
   assert.equal(timestampRule.minimumReleaseAgeBehaviour, 'timestamp-optional');
   assert.equal(timestampRule.minimumReleaseAge, undefined);
-  assert.equal(preset.minimumReleaseAge, '7 days');
+  assert.equal(preset.minimumReleaseAge, '3 days');
 
   const digestAgeRule = findRule(
     preset,
     (rule) => rule.matchUpdateTypes?.includes('digest') && rule.minimumReleaseAge,
     'keep the release-age hold for dated digest updates',
   );
-  assert.equal(digestAgeRule.minimumReleaseAge, '7 days');
+  assert.equal(digestAgeRule.minimumReleaseAge, '3 days');
   const majorAgeRule = findRule(
     preset,
     (rule) => rule.matchUpdateTypes?.includes('major') && !rule.matchPackageNames && rule.minimumReleaseAge,
     'restore the release-age hold for major updates',
   );
-  assert.equal(majorAgeRule.minimumReleaseAge, '7 days');
+  assert.equal(majorAgeRule.minimumReleaseAge, '3 days');
   assert.equal(majorAgeRule.automerge, undefined);
 });
 
-test('pre-commit hooks that install exact registry releases keep the seven-day hold', () => {
+test('pre-commit hooks that install exact registry releases keep the three-day hold', () => {
   for (const hook of ['astral-sh/ruff-pre-commit', 'DavidAnson/markdownlint-cli2', 'semgrep/pre-commit']) {
-    assert.equal(resolvePackagePolicy(hook, 'minor', 'pre-commit').minimumReleaseAge, '7 days');
+    assert.equal(resolvePackagePolicy(hook, 'minor', 'pre-commit').minimumReleaseAge, '3 days');
   }
   assert.equal(resolvePackagePolicy('pre-commit/pre-commit-hooks', 'minor', 'pre-commit').minimumReleaseAge, '0 days');
   assert.equal(resolvePackagePolicy('astral-sh/setup-uv', 'minor', 'github-actions').minimumReleaseAge, '0 days');
 });
 
-test('trusted-org updates use zero-day non-major and seven-day major policies', () => {
+test('trusted-org updates use zero-day non-major and three-day major policies', () => {
   const trustedOrgRule = findRule(
     preset,
     (rule) => rule.description?.startsWith('Auto-merge trusted-org updates'),
@@ -141,13 +141,13 @@ test('trusted-org updates use zero-day non-major and seven-day major policies', 
   }
 
   const trustedMajor = resolvePackagePolicy('actions/checkout', 'major');
-  assert.equal(trustedMajor.minimumReleaseAge, '7 days');
+  assert.equal(trustedMajor.minimumReleaseAge, '3 days');
   assert.equal(trustedMajor.automerge, true);
   assert.ok(trustedMajor.labels.includes('dep:review'));
   assert.ok(trustedMajor.labels.includes('update:major'));
 
   const otherMajor = resolvePackagePolicy('lodash', 'major');
-  assert.equal(otherMajor.minimumReleaseAge, '7 days');
+  assert.equal(otherMajor.minimumReleaseAge, '3 days');
   assert.equal(otherMajor.automerge, false);
   assert.ok(otherMajor.labels.includes('dep:review'));
 
@@ -260,7 +260,7 @@ test('the first-party rule matches only exact first-party owners', () => {
   ]) {
     const policy = resolvePackagePolicy(packageName, 'major', undefined, { baseBranch: 'develop', datasource });
     assert.equal(policy.automerge, false, packageName);
-    assert.equal(policy.minimumReleaseAge, '7 days', packageName);
+    assert.equal(policy.minimumReleaseAge, '3 days', packageName);
     assert.equal(policy.schedule, undefined, packageName);
   }
 });

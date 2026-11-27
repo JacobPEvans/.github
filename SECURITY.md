@@ -21,13 +21,13 @@ one-day stabilization hold.
 
 | Update | Stabilization | Review and merge |
 | --- | --- | --- |
-| Third-party minor, patch, digest, pin and pinDigest updates | 7 days standard; never below 3 days | Auto-merge after required checks pass |
+| Third-party minor, patch, digest, pin and pinDigest updates | 3 days standard; never below 3 days | Auto-merge after required checks pass |
 | Trusted-org minor, patch, digest, pin and pinDigest updates | 0 days | Auto-merge after required checks pass |
 | First-party updates, including majors | 0 days | Auto-merge after required checks pass |
 | Renovate vulnerability alerts | 1 day (owner-approved exception) | Auto-merge after required checks pass |
 | Claude Code | 0 days (owner-approved exception) | Auto-merge after required checks pass |
-| Trusted-org majors | 7 days | Auto-merge after required checks pass; the dep:review label adds the dependency review |
-| Other majors | 7 days | Manual merge after required checks pass; dep:review triggers the dependency review |
+| Trusted-org majors | 3 days | Auto-merge after required checks pass; the dep:review label adds the dependency review |
+| Other majors | 3 days | Manual merge after required checks pass; dep:review triggers the dependency review |
 
 First-party packages are the repositories of the owners `JacobPEvans`, `JacobPEvans-ai`,
 `dryvist`, `jpe-ai-agents`, `jpe-ansible`, `jpe-claude`, `jpe-cribl`, `jpe-nix`,
