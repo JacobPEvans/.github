@@ -1,0 +1,20 @@
+# Required workflow: the org-openhands-review organization ruleset runs it on every pull request into a public
+# repository of this organization. It runs in the target repository, so the router secrets are this
+# organization's.
+name: OpenHands Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions: {}
+
+jobs:
+  openhands:
+    uses: JacobPEvans/.github-ai/.github/workflows/openhands-review.yml@v2
+    permissions:
+      contents: read
+      pull-requests: write
+    secrets:
+      LLM_ROUTER_BASE_URL: ${{ secrets.LLM_ROUTER_BASE_URL }}
+      LLM_ROUTER_API_KEY: ${{ secrets.LLM_ROUTER_API_KEY }}
