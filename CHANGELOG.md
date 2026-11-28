@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.68.0](https://github.com/JacobPEvans/.github/compare/v1.67.0...v1.68.0) (2026-11-28)
+
+
+### Features
+
+* **workflows:** add the OpenHands review required-workflow caller ([#301](https://github.com/JacobPEvans/.github/issues/301)) ([2ce5525](https://github.com/JacobPEvans/.github/commit/2ce5525db190d9b9502aac3483d8133610920ef1))
+
 ## [1.67.0](https://github.com/JacobPEvans/.github/compare/v1.66.0...v1.67.0) (2026-11-28)
 
 
