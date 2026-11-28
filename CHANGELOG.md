@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.67.0](https://github.com/JacobPEvans/.github/compare/v1.66.0...v1.67.0) (2026-11-28)
+
+
+### Features
+
+* **pr-policy:** raise the pull request job timeout cap to 10 minutes ([#299](https://github.com/JacobPEvans/.github/issues/299)) ([18a764a](https://github.com/JacobPEvans/.github/commit/18a764a8be07d5f47169a38d61cb36dbe277b1dc))
+
 ## [1.66.0](https://github.com/JacobPEvans/.github/compare/v1.65.0...v1.66.0) (2026-11-27)
 
 
