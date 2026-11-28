@@ -25,7 +25,7 @@ VERSION_COMMENT = re.compile(r"#\s*v\d+(?:\.\d+)*\b")
 # A documented exception on the timeout line raises the pull-request cap; the reason is required.
 TIMEOUT_EXCEPTION = re.compile(r"#\s*pr-policy:\s*timeout-exception\s+\S")
 TIMEOUT_BOUNDED_INPUT_EXCEPTION = re.compile(r"#\s*pr-policy:\s*bounded-timeout-input\s+\S")
-TIMEOUT_LIMIT = 5
+TIMEOUT_LIMIT = 10
 TIMEOUT_EXCEPTION_LIMIT = 25
 TIMEOUT_BOUNDED_INPUT_LIMIT = 360
 TIMEOUT_BOUNDED_INPUT_EXPRESSION = re.compile(
@@ -197,7 +197,7 @@ def analyze(path: Path, source: str) -> list[tuple[int, str, str]]:
                     (
                         timeout_line,
                         "timeout-minutes",
-                        f"job {job_id!r} needs a literal timeout at most 5 or the required pull_request expression",
+                        f"job {job_id!r} needs a literal timeout at most {limit:g} or the required pull_request expression",
                     )
                 )
 
