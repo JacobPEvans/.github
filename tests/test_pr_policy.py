@@ -112,7 +112,7 @@ jobs:
       - uses: actions/checkout@v4
   second:
     needs: first
-    timeout-minutes: 6
+    timeout-minutes: 11
     steps: []
   third:
     needs: second
@@ -129,6 +129,22 @@ jobs:
             {"timeout-minutes", "needs-depth", "first-party-ref", "third-party-pin"},
             rules,
         )
+
+    def test_pull_request_timeout_cap_is_ten_minutes(self):
+        source = """\
+name: cap
+on: pull_request
+jobs:
+  at_cap:
+    timeout-minutes: 10
+    steps: []
+  over_cap:
+    timeout-minutes: 11
+    steps: []
+"""
+        violations = pr_policy.analyze(Path("cap.yml"), source)
+        self.assertEqual([(8, "timeout-minutes")], [(line, rule) for line, rule, _ in violations])
+        self.assertIn("at most 10", violations[0][2])
 
     def test_schedule_only_workflow_is_timeout_exempt(self):
         source = """\
